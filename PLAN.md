@@ -75,8 +75,9 @@ _Verified 2026-09-22 on a Pixel 10a: `iambevan@` signs in and `players/{uid}` is
 - [x] Session screen: two large player tap targets in the bottom half (one-handed), the score, race-to, game type, undo, end match and end session (with a confirm dialog)
 - [x] Pending-write indicator using `SnapshotMetadata.hasPendingWrites`
 - [x] Optional: haptic feedback on each frame tap
-- [ ] 🧑 Sign in once with the second account (`kbevan.dev@`) so it has a `players` doc; Start stays disabled until the rival exists
-- [ ] Verify on devices: airplane-mode night, sync on reconnect, live on the second phone
+- [x] 🧑 Sign in once with the second account (`kbevan.dev@`) so it has a `players` doc; Start stays disabled until the rival exists
+- [x] Verify airplane-mode play and sync on reconnect (2026-09-22, Pixel 10a)
+- [ ] Verify live updates on a second device (the `pool36` emulator signed in as the other account stands in for the second phone)
 
 **Exit:** a full night can be played in airplane mode, syncs on reconnect, and shows up live on the second phone.
 _Code done 2026-09-22 (29 unit tests, lint clean); device verification outstanding. Decisions:_
