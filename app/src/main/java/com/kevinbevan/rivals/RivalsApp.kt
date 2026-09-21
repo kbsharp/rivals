@@ -1,8 +1,8 @@
-package com.poolscore
+package com.kevinbevan.rivals
 
 import android.app.Application
 
-class PoolScoreApp : Application() {
+class RivalsApp : Application() {
     lateinit var container: AppContainer
         private set
 

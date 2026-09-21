@@ -1,4 +1,4 @@
-package com.poolscore.ui.home
+package com.kevinbevan.rivals.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.poolscore.ui.theme.PoolScoreTheme
+import com.kevinbevan.rivals.ui.theme.RivalsTheme
 
 @Composable
 fun HomeScreen(
@@ -46,5 +46,5 @@ fun HomeScreen(
 @Preview
 @Composable
 private fun HomeScreenPreview() {
-    PoolScoreTheme { HomeScreen({}, {}, {}) }
+    RivalsTheme { HomeScreen({}, {}, {}) }
 }

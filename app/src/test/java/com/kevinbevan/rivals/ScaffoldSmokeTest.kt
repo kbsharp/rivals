@@ -1,6 +1,6 @@
-package com.poolscore
+package com.kevinbevan.rivals
 
-import com.poolscore.ui.navigation.SessionRoute
+import com.kevinbevan.rivals.ui.navigation.SessionRoute
 import org.junit.Assert.assertEquals
 import org.junit.Test
 

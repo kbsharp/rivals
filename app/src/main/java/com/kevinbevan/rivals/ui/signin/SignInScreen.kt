@@ -1,4 +1,4 @@
-package com.poolscore.ui.signin
+package com.kevinbevan.rivals.ui.signin
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,7 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.poolscore.ui.theme.PoolScoreTheme
+import com.kevinbevan.rivals.ui.theme.RivalsTheme
 
 @Composable
 fun SignInScreen(onSignedIn: () -> Unit) {
@@ -23,7 +23,7 @@ fun SignInScreen(onSignedIn: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Pool Score", style = MaterialTheme.typography.displayMedium)
+            Text("Rivals", style = MaterialTheme.typography.displayMedium)
             // TODO(milestone 2): Credential Manager Google sign-in → Firebase Auth.
             Button(onClick = onSignedIn) { Text("Sign in with Google") }
         }
@@ -33,5 +33,5 @@ fun SignInScreen(onSignedIn: () -> Unit) {
 @Preview
 @Composable
 private fun SignInScreenPreview() {
-    PoolScoreTheme { SignInScreen(onSignedIn = {}) }
+    RivalsTheme { SignInScreen(onSignedIn = {}) }
 }

@@ -1,4 +1,4 @@
-package com.poolscore.ui
+package com.kevinbevan.rivals.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

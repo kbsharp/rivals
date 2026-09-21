@@ -5,15 +5,14 @@ plugins {
 }
 
 android {
-    namespace = "com.poolscore"
+    namespace = "com.kevinbevan.rivals"
     // Current stable AndroidX needs API 37 to compile against; targetSdk stays 36 (see CLAUDE.md).
     compileSdk {
         version = release(37) { minorApiLevel = 2 }
     }
 
     defaultConfig {
-        // TODO(milestone 6): confirm before the first Play upload — it's permanent after that.
-        applicationId = "com.CHANGEME.poolscore"
+        applicationId = "com.kevinbevan.rivals"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

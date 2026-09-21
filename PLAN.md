@@ -1,4 +1,4 @@
-# Pool Score Tracker: Delivery Plan
+# Rivals: Delivery Plan
 
 This file breaks the milestones in `CLAUDE.md` into phases. Each phase has a goal, the tasks, anything only Kevin can do (🧑), and exit criteria. A phase is done when every exit criterion passes. When it is, tick the box here and the matching milestone in `CLAUDE.md`.
 
@@ -17,7 +17,7 @@ Pinned toolchain (current stable as of 2026-09-21): Gradle 9.7.1, AGP 9.4.1 (bui
 - [x] Gradle wrapper, `settings.gradle.kts`, root and app `build.gradle.kts`
 - [x] `gradle/libs.versions.toml` holding every version listed above
 - [x] Package layout: `ui/`, `data/`, `model/`, `auth/`
-- [x] `PoolScoreApp : Application` holding `AppContainer` (manual DI)
+- [x] `RivalsApp : Application` holding `AppContainer` (manual DI)
 - [x] `MainActivity` with an M3 theme and a `NavHost` with placeholder routes (SignIn, Home, Session, History, Stats)
 - [x] `.gitignore` covering `local.properties`, `keystore.properties`, `*.jks`, `*.keystore`, `build/`, `.gradle/`, `google-services.json`*
 - [x] A starter unit test so `./gradlew test` has something to run
@@ -42,7 +42,7 @@ Front-loaded because `CLAUDE.md` wants the tally, undo and match-end logic teste
 ## Phase 3: Auth (Milestone 2)
 - [ ] 🧑 Create the Firebase project, add an Android app with the agreed `applicationId`, enable the Google provider, and put `google-services.json` in `app/`
 - [ ] 🧑 Register the debug keystore's SHA-1 (I'll print it: `./gradlew signingReport`)
-- [ ] 🧑 Confirm the `applicationId` (it's permanent once uploaded to Play)
+- [x] 🧑 Confirm the `applicationId`: `com.kevinbevan.rivals`
 - [ ] Add the Firebase BoM, Auth, Firestore, and the google-services plugin
 - [ ] `auth/AuthRepository`: Credential Manager `GetGoogleIdOption` → `GoogleAuthProvider.getCredential` → `signInWithCredential`; expose `authState: Flow<FirebaseUser?>`
 - [ ] Upsert `players/{uid}` on sign-in, and sign-out (Firebase plus `clearCredentialState`)
@@ -98,6 +98,5 @@ Front-loaded because `CLAUDE.md` wants the tally, undo and match-end logic teste
 ---
 
 ## Open questions
-1. The `applicationId`: `com.CHANGEME.poolscore` needs a real value (for example `com.kevinbevan.poolscore`)
-2. Both Gmail addresses for the rules allow-list
-3. A GitHub remote: private repo, yes or no?
+1. Both Gmail addresses for the rules allow-list
+2. A GitHub remote: private repo, yes or no?

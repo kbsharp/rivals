@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PoolScoreTracker"
+rootProject.name = "Rivals"
 include(":app")

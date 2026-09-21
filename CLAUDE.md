@@ -1,6 +1,8 @@
-# Pool Score Tracker
+# Rivals
 
-Android app for tracking pool scores between me and a friend. Both of us sign in with Google, and every session, match and frame is stored in Firestore and synced between our phones in real time.
+Android app for tracking scores between friends, starting with pool: me and a friend. Both of us sign in with Google, and every session, match and frame is stored in Firestore and synced between our phones in real time.
+
+It's pool-only for now, but golf and other sports may follow. Keep pool-specific concepts (frames, 8-ball/9-ball, breaks) in the data model and domain logic rather than baked into the app's structure, but don't build for other sports yet.
 
 ## Status
 
@@ -114,7 +116,7 @@ Ask me to do these; don't try to work around them.
 ## Conventions
 
 - Never commit the keystore, `keystore.properties` or any passwords. Release signing reads from `keystore.properties`, which is gitignored.
-- The `applicationId` is `com.CHANGEME.poolscore`. It becomes permanent once uploaded to Play, so confirm it with me before the first upload.
+- The `applicationId` and Kotlin package are `com.kevinbevan.rivals` (confirmed). It becomes permanent once uploaded to Play.
 - Increment `versionCode` on every upload.
 - Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
 

@@ -1,4 +1,4 @@
-package com.poolscore.ui.navigation
+package com.kevinbevan.rivals.ui.navigation
 
 import kotlinx.serialization.Serializable
 

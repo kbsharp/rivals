@@ -1,4 +1,4 @@
-package com.poolscore
+package com.kevinbevan.rivals
 
 import android.content.Context
 

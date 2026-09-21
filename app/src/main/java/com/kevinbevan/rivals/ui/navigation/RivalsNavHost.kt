@@ -1,16 +1,16 @@
-package com.poolscore.ui.navigation
+package com.kevinbevan.rivals.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
-import com.poolscore.ui.PlaceholderScreen
-import com.poolscore.ui.home.HomeScreen
-import com.poolscore.ui.signin.SignInScreen
+import com.kevinbevan.rivals.ui.PlaceholderScreen
+import com.kevinbevan.rivals.ui.home.HomeScreen
+import com.kevinbevan.rivals.ui.signin.SignInScreen
 
 @Composable
-fun PoolScoreNavHost() {
+fun RivalsNavHost() {
     val navController = rememberNavController()
 
     // TODO(milestone 2): pick the start destination from the auth state.

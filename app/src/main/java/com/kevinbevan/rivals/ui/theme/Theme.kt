@@ -1,4 +1,4 @@
-package com.poolscore.ui.theme
+package com.kevinbevan.rivals.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -26,7 +26,7 @@ private val DarkColors = darkColorScheme(
 )
 
 @Composable
-fun PoolScoreTheme(
+fun RivalsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit,
