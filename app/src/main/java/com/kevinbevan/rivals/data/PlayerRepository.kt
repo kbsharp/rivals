@@ -3,7 +3,10 @@ package com.kevinbevan.rivals.data
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.snapshots
 import com.kevinbevan.rivals.model.Player
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
 class PlayerRepository(private val db: FirebaseFirestore) {
@@ -31,6 +34,19 @@ class PlayerRepository(private val db: FirebaseFirestore) {
             }
         }.await()
     }
+
+    /** Everyone who has signed in: us two, once the second player has signed in once. */
+    fun observePlayers(): Flow<List<Player>> =
+        db.collection(PLAYERS).snapshots().map { snap ->
+            snap.documents.map {
+                Player(
+                    uid = it.id,
+                    displayName = it.getString("displayName").orEmpty(),
+                    email = it.getString("email").orEmpty(),
+                    photoUrl = it.getString("photoUrl"),
+                )
+            }
+        }
 
     private companion object {
         const val PLAYERS = "players"

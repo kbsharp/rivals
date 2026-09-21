@@ -6,4 +6,8 @@ data class Player(
     val displayName: String,
     val email: String,
     val photoUrl: String?,
-)
+) {
+    /** First name for tight spaces like the score buttons. */
+    val shortName: String
+        get() = displayName.substringBefore(' ').ifBlank { email.substringBefore('@') }.ifBlank { "?" }
+}

@@ -120,6 +120,7 @@ Ask me to do these; don't try to work around them.
 - The `applicationId` and Kotlin package are `com.kevinbevan.rivals` (confirmed). It becomes permanent once uploaded to Play.
 - Increment `versionCode` on every upload.
 - Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
+- When a chunk of work builds and passes `test` and `lint`, always do both without asking: install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r` when the emulator is attached too), and commit.
 
 ## Distribution
 

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.kevinbevan.rivals.auth.AuthRepository
+import com.kevinbevan.rivals.data.NOT_ALLOWED_MESSAGE
 import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.isPermissionDenied
 import com.kevinbevan.rivals.ui.appContainer
@@ -29,7 +30,7 @@ class SignInViewModel(
     private val playerRepository: PlayerRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SignInUiState())
+    private val _uiState = MutableStateFlow(SignInUiState(error = authRepository.takeSignOutReason()))
     val uiState: StateFlow<SignInUiState> = _uiState.asStateFlow()
 
     fun signIn(activityContext: Context) {
@@ -52,7 +53,7 @@ class SignInViewModel(
             } catch (e: Exception) {
                 authRepository.signOut()
                 if (e.isPermissionDenied()) {
-                    "This account isn't allowed. Sign in with one of the two Rivals accounts."
+                    NOT_ALLOWED_MESSAGE
                 } else {
                     "Sign-in failed: ${e.message ?: e::class.simpleName}"
                 }

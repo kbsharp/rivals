@@ -179,6 +179,18 @@ class ScoreRules(private val newId: () -> String) {
         return listOf(newMatch(session.id, id, number, settings, session.playerIds)) to id
     }
 
+    /** Changes how [match] is played, e.g. switching game type. Only allowed before its first frame. */
+    fun changeSettings(session: Session, match: Match, settings: MatchSettings): WritePlan {
+        checkActive(session, match)
+        check(match.framesPlayed == 0) { "Match ${match.id} is under way; end it instead" }
+        return listOf(
+            Write.Update(
+                MatchDoc(session.id, match.id),
+                mapOf(Schema.GAME_TYPE to settings.gameType.wire, Schema.RACE_TO to settings.raceTo),
+            ),
+        )
+    }
+
     /**
      * Ends the session. A running match with no frames is deleted, since it was only ever the
      * automatic follow-on; one with frames is ended by hand as in [endMatch].

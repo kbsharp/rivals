@@ -14,6 +14,7 @@ import androidx.navigation.toRoute
 import com.kevinbevan.rivals.RivalsApp
 import com.kevinbevan.rivals.ui.PlaceholderScreen
 import com.kevinbevan.rivals.ui.home.HomeScreen
+import com.kevinbevan.rivals.ui.session.SessionScreen
 import com.kevinbevan.rivals.ui.signin.SignInScreen
 
 @Composable
@@ -45,13 +46,13 @@ fun RivalsNavHost() {
         }
         composable<HomeRoute> {
             HomeScreen(
-                onStartSession = { navController.navigate(SessionRoute(sessionId = "placeholder")) },
+                onOpenSession = { navController.navigate(SessionRoute(sessionId = it)) },
                 onOpenHistory = { navController.navigate(HistoryRoute) },
                 onOpenStats = { navController.navigate(StatsRoute) },
             )
         }
-        composable<SessionRoute> { entry ->
-            PlaceholderScreen("Session ${entry.toRoute<SessionRoute>().sessionId}") { navController.popBackStack() }
+        composable<SessionRoute> {
+            SessionScreen(onExit = { navController.popBackStack(HomeRoute, inclusive = false) })
         }
         composable<HistoryRoute> {
             PlaceholderScreen("History") { navController.popBackStack() }

@@ -1,12 +1,13 @@
 package com.kevinbevan.rivals.domain
 
+import com.kevinbevan.rivals.data.frameFrom
+import com.kevinbevan.rivals.data.matchFrom
+import com.kevinbevan.rivals.data.sessionFrom
 import com.kevinbevan.rivals.domain.DocPath.FrameDoc
 import com.kevinbevan.rivals.domain.DocPath.MatchDoc
 import com.kevinbevan.rivals.domain.DocPath.SessionDoc
 import com.kevinbevan.rivals.model.Frame
-import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
-import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 
@@ -62,50 +63,18 @@ class FakeStore {
         else -> value
     }
 
-    // Readers that map docs back to models, as the repositories will.
+    // Readers that map docs back to models with the same mappers the repositories use.
 
-    fun session(id: String): Session {
-        val d = docs.getValue(SessionDoc(id))
-        @Suppress("UNCHECKED_CAST")
-        return Session(
-            id = id,
-            playerIds = d[Schema.PLAYER_IDS] as List<String>,
-            status = Status.fromWire(d[Schema.STATUS] as String?),
-            startedAt = null,
-            venue = d[Schema.VENUE] as String?,
-            createdBy = d[Schema.CREATED_BY] as String,
-            matchWins = tally(d[Schema.MATCH_WINS]),
-        )
-    }
+    fun session(id: String): Session = sessionFrom(id, docs.getValue(SessionDoc(id)))
 
     fun matches(sessionId: String): List<Match> =
         docs.filterKeys { it is MatchDoc && it.sessionId == sessionId }
-            .map { (path, d) ->
-                Match(
-                    id = (path as MatchDoc).matchId,
-                    number = (d[Schema.NUMBER] as Long).toInt(),
-                    settings = MatchSettings(
-                        GameType.fromWire(d[Schema.GAME_TYPE] as String?),
-                        (d[Schema.RACE_TO] as Long?)?.toInt(),
-                    ),
-                    status = Status.fromWire(d[Schema.STATUS] as String?),
-                    frameWins = tally(d[Schema.FRAME_WINS]),
-                    winnerId = d[Schema.WINNER_ID] as String?,
-                )
-            }
+            .map { (path, d) -> matchFrom((path as MatchDoc).matchId, d) }
             .sortedBy { it.number }
 
     fun frames(sessionId: String, matchId: String): List<Frame> =
         docs.filterKeys { it is FrameDoc && it.sessionId == sessionId && it.matchId == matchId }
-            .map { (path, d) ->
-                Frame(
-                    id = (path as FrameDoc).frameId,
-                    number = (d[Schema.NUMBER] as Long).toInt(),
-                    winnerId = d[Schema.WINNER_ID] as String,
-                    breakerId = d[Schema.BREAKER_ID] as String?,
-                    recordedBy = d[Schema.RECORDED_BY] as String,
-                )
-            }
+            .map { (path, d) -> frameFrom((path as FrameDoc).frameId, d) }
             .sortedBy { it.number }
 
     fun activeMatch(sessionId: String): Match? = matches(sessionId).singleOrNull { it.status == Status.ACTIVE }
@@ -115,9 +84,6 @@ class FakeStore {
             .map { MatchWithLastFrame(it, frames(sessionId, it.id).lastOrNull()) }
         return ms[0] to ms.getOrNull(1)
     }
-
-    private fun tally(raw: Any?): Map<String, Int> =
-        (raw as Map<*, *>).entries.associate { (k, v) -> k as String to (v as Long).toInt() }
 
     companion object {
         const val TIMESTAMP = "<server timestamp>"

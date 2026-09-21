@@ -1,6 +1,6 @@
 # Rivals: Delivery Plan
 
-This file breaks the milestones in `CLAUDE.md` into phases. Each phase has a goal, the tasks, anything only Kevin can do (🧑), and exit criteria. A phase is done when every exit criterion passes. When it is, tick the box here and the matching milestone in `CLAUDE.md`.
+This file breaks the milestones in `CLAUDE.md` into phases. Each phase has a goal, the tasks, anything only Kevin can do (🧑), and exit criteria. A phase is done when every exit criterion passes. When it is, tick the box here and the matching milestone in `CLAUDE.md`. After each green build (tests and lint passing), install on the phone and commit (see Conventions in `CLAUDE.md`).
 
 Pinned toolchain (current stable as of 2026-09-21): Gradle 9.7.1, AGP 9.4.1 (built-in Kotlin), Kotlin 2.4.20, JDK 21, Compose BoM 2026.09.00, Firebase BoM 34.19.0, `compileSdk` 37.2 (current AndroidX needs it), `targetSdk` 36, `minSdk` 26. Emulator AVD `pool36` (API 36, x86_64).
 
@@ -67,16 +67,24 @@ _Done 2026-09-22: 27 tests in `ScoreRulesTest`, run against `FakeStore` (an in-m
 _Verified 2026-09-22 on a Pixel 10a: `iambevan@` signs in and `players/{uid}` is created, and sign-out works. Rejecting an account that isn't on the list is written but untested._
 
 ## Phase 5: Session flow (Milestone 4), the core of the app
-- [ ] `data/SessionRepository`: the active-session Flow (a query on `status == "active"`), and start/end session (enforce one active session in a transaction)
-- [ ] `data/MatchRepository`: the current-match Flow, and a frames Flow for undo
-- [ ] Record and undo a frame as one `WriteBatch` built from the Phase 2 write plan, using `FieldValue.increment`
-- [ ] Match end: at race-to, end the match, bump the session tally and create the next match, all in the same batch
-- [ ] Home screen: all-time head-to-head (sum of `matchWins` across sessions) and a Resume or Start button
-- [ ] Session screen: two large player tap targets in the bottom half (one-handed), the score, race-to, game type, undo, end match and end session (with a confirm dialog)
-- [ ] Pending-write indicator using `SnapshotMetadata.hasPendingWrites`
-- [ ] Optional: haptic feedback on each frame tap
+- [x] `data/SessionRepository`: the active-session Flow, and start/end session. One active session is enforced by a check rather than a transaction (see below)
+- [x] Matches and frames Flows (folded into `SessionRepository` rather than a separate `MatchRepository`)
+- [x] Record and undo a frame as one `WriteBatch` built from the Phase 2 write plan, using `FieldValue.increment`
+- [x] Match end: at race-to, end the match, bump the session tally and create the next match, all in the same batch
+- [x] Home screen: all-time head-to-head (sum of `matchWins` across sessions) and a Resume or Start button
+- [x] Session screen: two large player tap targets in the bottom half (one-handed), the score, race-to, game type, undo, end match and end session (with a confirm dialog)
+- [x] Pending-write indicator using `SnapshotMetadata.hasPendingWrites`
+- [x] Optional: haptic feedback on each frame tap
+- [ ] 🧑 Sign in once with the second account (`kbevan.dev@`) so it has a `players` doc; Start stays disabled until the rival exists
+- [ ] Verify on devices: airplane-mode night, sync on reconnect, live on the second phone
 
 **Exit:** a full night can be played in airplane mode, syncs on reconnect, and shows up live on the second phone.
+_Code done 2026-09-22 (29 unit tests, lint clean); device verification outstanding. Decisions:_
+- _No transaction for "one active session": transactions need the network, and a session must be startable with no signal. Start checks for an active session and joins it if there is one; if two phones both start one offline, everyone reads the oldest as the live one._
+- _Commits aren't awaited (they only complete on server ack). Firestore applies them to the local cache at once; actions are serialised with a mutex and read state cache-first, so fast double taps plan against up-to-date state._
+- _Added `ScoreRules.changeSettings` to switch game type or race on a match with no frames yet ("Change game"). "End match" only appears once a frame is played; after ending by hand the screen offers a next-match setup._
+- _Doc-to-model mappers live in `data/FirestoreMappers.kt` as pure functions; `FakeStore` now uses them, so the tests cover them too._
+- _Listener PERMISSION_DENIED signs out and the sign-in screen shows "this account isn't allowed"._
 
 ## Phase 6: History (Milestone 5)
 - [ ] Ended sessions, newest first (`orderBy startedAt desc`, which may need an index)

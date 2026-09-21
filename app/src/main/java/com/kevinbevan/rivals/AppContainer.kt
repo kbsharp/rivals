@@ -6,6 +6,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.kevinbevan.rivals.auth.AuthRepository
 import com.kevinbevan.rivals.data.PlayerRepository
+import com.kevinbevan.rivals.data.SessionRepository
+import com.kevinbevan.rivals.domain.ScoreRules
 
 /**
  * Manual dependency injection. Repositories are created here and handed to ViewModels
@@ -21,4 +23,9 @@ class AppContainer(context: Context) {
     )
 
     val playerRepository = PlayerRepository(firestore)
+
+    val sessionRepository = SessionRepository(
+        db = firestore,
+        rules = ScoreRules(newId = { firestore.collection("_").document().id }),
+    )
 }

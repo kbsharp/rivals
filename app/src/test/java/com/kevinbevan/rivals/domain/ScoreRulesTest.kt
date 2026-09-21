@@ -378,6 +378,28 @@ class ScoreRulesTest {
         assertThrows(IllegalStateException::class.java) { rules.endSession(store.session(id), null) }
     }
 
+    // changeSettings
+
+    @Test
+    fun changeSettingsRewritesAnEmptyMatch() {
+        val id = start()
+        val match = store.activeMatch(id)!!
+        store.apply(rules.changeSettings(store.session(id), match, open))
+        val changed = store.activeMatch(id)!!
+        assertEquals(open, changed.settings)
+        assertEquals(match.number, changed.number)
+        assertEquals(mapOf(a to 0, b to 0), changed.frameWins)
+    }
+
+    @Test
+    fun changeSettingsRefusesOnceAFrameIsPlayed() {
+        val id = start()
+        win(id, a)
+        assertThrows(IllegalStateException::class.java) {
+            rules.changeSettings(store.session(id), store.activeMatch(id)!!, open)
+        }
+    }
+
     // headToHead
 
     @Test
