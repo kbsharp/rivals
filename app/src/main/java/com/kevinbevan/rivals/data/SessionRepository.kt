@@ -18,14 +18,20 @@ import com.kevinbevan.rivals.domain.WritePlan
 import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.model.MatchWithFrames
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
+import java.time.Instant
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -84,6 +90,19 @@ class SessionRepository(
     fun observeFrames(sessionId: String, matchId: String): Flow<Synced<List<Frame>>> =
         framesQuery(sessionId, matchId).snapshots(MetadataChanges.INCLUDE).map { snap ->
             Synced(snap.documents.map { it.toFrame() }, snap.metadata.hasPendingWrites())
+        }
+
+    /** The session's matches in order, each with its frames. For looking back over a session. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun observeMatchesWithFrames(sessionId: String): Flow<Synced<List<MatchWithFrames>>> =
+        observeMatches(sessionId).flatMapLatest { matches ->
+            if (matches.value.isEmpty()) return@flatMapLatest flowOf(Synced(emptyList(), matches.hasPendingWrites))
+            combine(matches.value.map { observeFrames(sessionId, it.id) }) { frames ->
+                Synced(
+                    matches.value.zip(frames) { match, f -> MatchWithFrames(match, f.value) },
+                    matches.hasPendingWrites || frames.any { it.hasPendingWrites },
+                )
+            }
         }
 
     // Actions
@@ -203,13 +222,18 @@ class SessionRepository(
         db.ref(DocPath.MatchDoc(sessionId, matchId)).collection(Schema.FRAMES).orderBy(Schema.NUMBER)
 
     companion object {
+        /** Ended sessions, newest first. Sorted here rather than in a query, so no index is needed. */
+        fun pastSessions(sessions: List<Session>): List<Session> =
+            sessions.filter { it.status == Status.ENDED }
+                .sortedWith(compareBy<Session, Instant?>(nullsLast(reverseOrder())) { it.startedAt }.thenBy { it.id })
+
         /**
          * The live session. Normally there's at most one; if two phones both started one
          * offline, the oldest wins so both phones agree.
          */
         fun oldestActive(sessions: List<Session>): Session? =
             sessions.filter { it.status == Status.ACTIVE }
-                .minWithOrNull(compareBy<Session, java.time.Instant?>(nullsLast()) { it.startedAt }.thenBy { it.id })
+                .minWithOrNull(compareBy<Session, Instant?>(nullsLast()) { it.startedAt }.thenBy { it.id })
     }
 }
 

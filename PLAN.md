@@ -88,11 +88,13 @@ _Code done 2026-09-22 (29 unit tests, lint clean); device verification outstandi
 - _Listener PERMISSION_DENIED signs out and the sign-in screen shows "this account isn't allowed"._
 
 ## Phase 6: History (Milestone 5)
-- [ ] Ended sessions, newest first (`orderBy startedAt desc`, which may need an index)
-- [ ] Session detail: its matches, and the frames inside each match
-- [ ] 🧑 Create any composite index Firestore asks for (the error links straight to it), or I'll add `firestore.indexes.json`
+- [x] Ended sessions, newest first
+- [x] Session detail: its matches, and the frames inside each match
+- [x] ~~🧑 Create any composite index~~ Not needed: history filters and sorts the (small) sessions listener on the client, so there's no `where` + `orderBy` query
+- [ ] 🧑 Browse and drill into a past session on the phone
 
 **Exit:** you can browse and drill into every past session.
+_Code done 2026-09-22 (32 unit tests, lint clean). History cards show date, times, venue and the match score. Detail lists each match with its score and winner, and each frame as a numbered dot in the winner's colour (the same colours as the Session screen buttons), since both test accounts are called Kevin and initials can't tell them apart._
 
 ## Phase 7: Release (Milestone 6)
 - [ ] 🧑 Create the upload keystore and `keystore.properties` (gitignored)

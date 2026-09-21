@@ -10,9 +10,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.toRoute
 import com.kevinbevan.rivals.RivalsApp
 import com.kevinbevan.rivals.ui.PlaceholderScreen
+import com.kevinbevan.rivals.ui.history.HistoryScreen
+import com.kevinbevan.rivals.ui.history.SessionDetailScreen
 import com.kevinbevan.rivals.ui.home.HomeScreen
 import com.kevinbevan.rivals.ui.session.SessionScreen
 import com.kevinbevan.rivals.ui.signin.SignInScreen
@@ -55,10 +56,13 @@ fun RivalsNavHost() {
             SessionScreen(onExit = { navController.popBackStack(HomeRoute, inclusive = false) })
         }
         composable<HistoryRoute> {
-            PlaceholderScreen("History") { navController.popBackStack() }
+            HistoryScreen(
+                onOpenSession = { navController.navigate(SessionDetailRoute(sessionId = it)) },
+                onBack = { navController.popBackStack() },
+            )
         }
-        composable<SessionDetailRoute> { entry ->
-            PlaceholderScreen("Session detail ${entry.toRoute<SessionDetailRoute>().sessionId}") { navController.popBackStack() }
+        composable<SessionDetailRoute> {
+            SessionDetailScreen(onBack = { navController.popBackStack() })
         }
         composable<StatsRoute> {
             PlaceholderScreen("Stats") { navController.popBackStack() }

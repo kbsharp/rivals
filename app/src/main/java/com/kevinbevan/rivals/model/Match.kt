@@ -42,3 +42,6 @@ data class Frame(
 
 /** Wins for [uid] in a tally map, treating a missing key as zero. */
 fun Map<String, Int>.winsOf(uid: String): Int = this[uid] ?: 0
+
+/** A match with all its frames, in order. */
+data class MatchWithFrames(val match: Match, val frames: List<Frame>)
