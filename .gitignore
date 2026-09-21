@@ -1,0 +1,25 @@
+# Gradle / build
+.gradle/
+.kotlin/
+build/
+/captures
+.externalNativeBuild
+.cxx
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Local machine config
+local.properties
+
+# Secrets — never commit (see CLAUDE.md)
+keystore.properties
+*.jks
+*.keystore
+
+# Firebase config: kept out of the repo for this private app (see PLAN.md Phase 1)
+google-services.json
+.firebase/
+firebase-debug.log

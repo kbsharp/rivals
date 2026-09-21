@@ -10,7 +10,7 @@ This is a new project with no code yet. Work through the milestones at the botto
 
 - Kotlin, Jetpack Compose, Material 3
 - Gradle (Kotlin DSL) with a version catalog (`gradle/libs.versions.toml`)
-- SDK levels: `compileSdk` 36, `targetSdk` 36 (the Google Play minimum for new apps and updates), `minSdk` 26
+- SDK levels: `compileSdk` 37.2 (current stable AndroidX requires it), `targetSdk` 36 (the Google Play minimum for new apps and updates), `minSdk` 26
 - Firebase Auth (Google provider) and Cloud Firestore, via the Firebase BoM
 - Google sign-in through Credential Manager (`androidx.credentials` + `googleid`), not the deprecated legacy Google Sign-In SDK
 - Navigation Compose, ViewModel + StateFlow, coroutines
@@ -128,7 +128,7 @@ The app only has two users, so use Play's **internal testing** track:
 
 ## Milestones
 
-- [ ] 1. **Scaffold**: a Compose + M3 app with the version catalog and the SDK levels above, running on the emulator.
+- [x] 1. **Scaffold**: a Compose + M3 app with the version catalog and the SDK levels above, running on the emulator.
 - [ ] 2. **Auth**: Firebase wired up, Credential Manager Google sign-in feeding Firebase Auth, upsert `players/{uid}` on sign-in, and sign-out.
 - [ ] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
 - [ ] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.

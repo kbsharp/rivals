@@ -2,7 +2,7 @@
 
 This file breaks the milestones in `CLAUDE.md` into phases. Each phase has a goal, the tasks, anything only Kevin can do (🧑), and exit criteria. A phase is done when every exit criterion passes. When it is, tick the box here and the matching milestone in `CLAUDE.md`.
 
-Pinned toolchain (current stable as of 2026-09-21): Gradle 9.7.1, AGP 9.4.1 (built-in Kotlin), Kotlin 2.4.20, JDK 21, Compose BoM 2026.09.00, Firebase BoM 34.19.0, `compileSdk`/`targetSdk` 36, `minSdk` 26.
+Pinned toolchain (current stable as of 2026-09-21): Gradle 9.7.1, AGP 9.4.1 (built-in Kotlin), Kotlin 2.4.20, JDK 21, Compose BoM 2026.09.00, Firebase BoM 34.19.0, `compileSdk` 37.2 (current AndroidX needs it), `targetSdk` 36, `minSdk` 26. Emulator AVD `pool36` (API 36, x86_64).
 
 ---
 
@@ -10,17 +10,17 @@ Pinned toolchain (current stable as of 2026-09-21): Gradle 9.7.1, AGP 9.4.1 (bui
 - [x] Local git repo, `CLAUDE.md` and this plan
 - [x] JDK 21 (mise) and Android SDK (`~/Android/Sdk`: platform 36, build-tools, platform-tools)
 - [ ] 🧑 Optional: create a GitHub remote (`gh repo create pool-score-tracker --private --source . --push`)
-- [ ] 🧑 Optional: an emulator (`emulator` plus a system image) or a phone with USB debugging
+- [x] Optional: an emulator (`emulator` plus a system image) or a phone with USB debugging
 
-## Phase 1: Scaffold (Milestone 1)
+## Phase 1: Scaffold (Milestone 1) ✅
 **Goal:** an empty Compose + M3 app that builds and runs.
-- [ ] Gradle wrapper, `settings.gradle.kts`, root and app `build.gradle.kts`
-- [ ] `gradle/libs.versions.toml` holding every version listed above
-- [ ] Package layout: `ui/`, `data/`, `model/`, `auth/`
-- [ ] `PoolScoreApp : Application` holding `AppContainer` (manual DI)
-- [ ] `MainActivity` with an M3 theme and a `NavHost` with placeholder routes (SignIn, Home, Session, History, Stats)
-- [ ] `.gitignore` covering `local.properties`, `keystore.properties`, `*.jks`, `*.keystore`, `build/`, `.gradle/`, `google-services.json`*
-- [ ] A starter unit test so `./gradlew test` has something to run
+- [x] Gradle wrapper, `settings.gradle.kts`, root and app `build.gradle.kts`
+- [x] `gradle/libs.versions.toml` holding every version listed above
+- [x] Package layout: `ui/`, `data/`, `model/`, `auth/`
+- [x] `PoolScoreApp : Application` holding `AppContainer` (manual DI)
+- [x] `MainActivity` with an M3 theme and a `NavHost` with placeholder routes (SignIn, Home, Session, History, Stats)
+- [x] `.gitignore` covering `local.properties`, `keystore.properties`, `*.jks`, `*.keystore`, `build/`, `.gradle/`, `google-services.json`*
+- [x] A starter unit test so `./gradlew test` has something to run
 
 **Exit:** `./gradlew assembleDebug test lint` pass, and the app launches on an emulator or device.
 

@@ -1,0 +1,3 @@
+<resources>
+    <style name="Theme.PoolScore" parent="android:Theme.Material.NoActionBar" />
+</resources>
