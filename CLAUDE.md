@@ -43,6 +43,7 @@ sessions/{sessionId}                          // one night out
   matchWins: { uidA: n, uidB: n }             // denormalised tally
 
 sessions/{sessionId}/matches/{matchId}        // a race to N frames
+  number: Int                                 // 1-based order within the session
   gameType: "8-ball" | "9-ball" | "other"
   raceTo: Int?                                // null = open-ended
   status: "active" | "ended"

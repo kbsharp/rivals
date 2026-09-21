@@ -26,18 +26,24 @@ Pinned toolchain (current stable as of 2026-09-21): Gradle 9.7.1, AGP 9.4.1 (bui
 
 \* Decision: `google-services.json` isn't a secret, but because this is a private two-person app it stays gitignored by default. Revisit if CI is ever added.
 
-## Phase 2: Pure domain logic (runs alongside Phase 1, with no Firebase)
+## Phase 2: Pure domain logic (runs alongside Phase 1, with no Firebase) ✅
 Front-loaded because `CLAUDE.md` wants the tally, undo and match-end logic tested as pure Kotlin.
-- [ ] `model/`: `Player`, `Session`, `Match`, `Frame`, `GameType`, `Status`
-- [ ] `domain/ScoreRules` (pure functions):
+- [x] `model/`: `Player`, `Session`, `Match`, `Frame`, `GameType`, `Status`
+- [x] `domain/ScoreRules` (pure functions):
   - `recordFrame(match, winnerId)`: new tallies, whether the match ended, the match winner
   - `undoLastFrame(match, lastFrame)`: reverse tallies, and reopen the match if needed
   - race-to handling (`null` means open-ended), and auto-starting the next match with the same settings
   - the session tally update when a match ends
-- [ ] Output a "write plan" (a list of doc mutations) that the repository turns into one Firestore batch
-- [ ] Thorough JUnit tests: normal wins, a race hit on the last frame, undo across a match boundary, open-ended matches
+- [x] Output a "write plan" (a list of doc mutations) that the repository turns into one Firestore batch
+- [x] Thorough JUnit tests: normal wins, a race hit on the last frame, undo across a match boundary, open-ended matches
 
 **Exit:** `./gradlew test` is green, with every rule covered.
+_Done 2026-09-22: 27 tests in `ScoreRulesTest`, run against `FakeStore` (an in-memory batch applier) so whole nights can be played and undone. Decisions made along the way:_
+- _Matches carry a `number` (1, 2, 3…) so "latest match" doesn't depend on server timestamps, which are null while offline._
+- _Tallies are written as increments, so two phones recording at once merge rather than overwrite._
+- _Ending a match by hand: an open-ended match goes to the leader (no winner if level); a race abandoned early has no winner. Only a match with a winner counts in the session tally._
+- _Undo takes back the session's last frame. If the current match is the empty automatic follow-on, it's deleted and the previous match is reopened with its tally reversed. Undo also reopens a match ended by hand._
+- _Ending a session deletes an empty follow-on match and ends a match in progress by hand._
 
 ## Phase 3: Auth (Milestone 2) ✅
 - [x] 🧑 Create the Firebase project, add an Android app with the agreed `applicationId`, enable the Google provider, and put `google-services.json` in `app/`
