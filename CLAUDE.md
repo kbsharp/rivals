@@ -6,7 +6,7 @@ It's pool-only for now, but golf and other sports may follow. Keep pool-specific
 
 ## Status
 
-This is a new project with no code yet. Work through the milestones at the bottom in order, and tick each one off in this file as it lands.
+Work through the milestones at the bottom in order, and tick each one off in this file as it lands.
 
 ## Stack
 
@@ -68,7 +68,7 @@ service cloud.firestore {
     function isMember() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email in ['ME@gmail.com', 'FRIEND@gmail.com'];
+        && request.auth.token.email in ['iambevan@gmail.com', 'kbevan.dev@gmail.com'];
     }
     match /{document=**} {
       allow read, write: if isMember();
@@ -131,8 +131,8 @@ The app only has two users, so use Play's **internal testing** track:
 ## Milestones
 
 - [x] 1. **Scaffold**: a Compose + M3 app with the version catalog and the SDK levels above, running on the emulator.
-- [ ] 2. **Auth**: Firebase wired up, Credential Manager Google sign-in feeding Firebase Auth, upsert `players/{uid}` on sign-in, and sign-out.
-- [ ] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
+- [x] 2. **Auth**: Firebase wired up, Credential Manager Google sign-in feeding Firebase Auth, upsert `players/{uid}` on sign-in, and sign-out.
+- [x] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
 - [ ] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
 - [ ] 5. **History**: the session list and session detail.
 - [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload.

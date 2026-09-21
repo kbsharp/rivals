@@ -39,25 +39,26 @@ Front-loaded because `CLAUDE.md` wants the tally, undo and match-end logic teste
 
 **Exit:** `./gradlew test` is green, with every rule covered.
 
-## Phase 3: Auth (Milestone 2)
-- [ ] 🧑 Create the Firebase project, add an Android app with the agreed `applicationId`, enable the Google provider, and put `google-services.json` in `app/`
-- [ ] 🧑 Register the debug keystore's SHA-1 (I'll print it: `./gradlew signingReport`)
+## Phase 3: Auth (Milestone 2) ✅
+- [x] 🧑 Create the Firebase project, add an Android app with the agreed `applicationId`, enable the Google provider, and put `google-services.json` in `app/`
+- [x] 🧑 Register the debug keystore's SHA-1 (I'll print it: `./gradlew signingReport`)
 - [x] 🧑 Confirm the `applicationId`: `com.kevinbevan.rivals`
-- [ ] Add the Firebase BoM, Auth, Firestore, and the google-services plugin
-- [ ] `auth/AuthRepository`: Credential Manager `GetGoogleIdOption` → `GoogleAuthProvider.getCredential` → `signInWithCredential`; expose `authState: Flow<FirebaseUser?>`
-- [ ] Upsert `players/{uid}` on sign-in, and sign-out (Firebase plus `clearCredentialState`)
-- [ ] Sign-in screen and ViewModel; route to Home or SignIn from the auth state
+- [x] Add the Firebase BoM, Auth, Firestore, and the google-services plugin
+- [x] `auth/AuthRepository`: Credential Manager `GetGoogleIdOption` → `GoogleAuthProvider.getCredential` → `signInWithCredential`; expose `authState: Flow<FirebaseUser?>`
+- [x] Upsert `players/{uid}` on sign-in, and sign-out (Firebase plus `clearCredentialState`)
+- [x] Sign-in screen and ViewModel; route to Home or SignIn from the auth state
 
 **Exit:** sign in and sign out work on a device, and `players/{uid}` shows up in the console.
 
-## Phase 4: Security rules (Milestone 3)
-- [ ] 🧑 Supply both Gmail addresses for the allow-list
-- [ ] Add `firestore.rules`, `firebase.json` and `.firebaserc` to the repo
-- [ ] Rules unit tests with the Firestore emulator (`@firebase/rules-unit-testing`), if Node is available
-- [ ] 🧑 Log in with `firebase login` (the Firebase CLI), then run `firebase deploy --only firestore:rules`
-- [ ] App: catch `PERMISSION_DENIED`, show "This account isn't allowed", then sign out
+## Phase 4: Security rules (Milestone 3) ✅
+- [x] 🧑 Supply both Gmail addresses for the allow-list: `iambevan@gmail.com` and `kbevan.dev@gmail.com` (the second stands in for the friend's account for now)
+- [x] Add `firestore.rules`, `firebase.json` and `.firebaserc` to the repo
+- [ ] Rules unit tests with the Firestore emulator (deferred; the rules are a single allow-list)
+- [x] 🧑 Log in with `firebase login` (the Firebase CLI), then run `firebase deploy --only firestore:rules`
+- [x] App: catch `PERMISSION_DENIED`, show "This account isn't allowed", then sign out
 
 **Exit:** a third Google account sees the message and is signed out, and both allowed accounts work.
+_Verified 2026-09-22 on a Pixel 10a: `iambevan@` signs in and `players/{uid}` is created, and sign-out works. Rejecting an account that isn't on the list is written but untested._
 
 ## Phase 5: Session flow (Milestone 4), the core of the app
 - [ ] `data/SessionRepository`: the active-session Flow (a query on `status == "active"`), and start/end session (enforce one active session in a transaction)
@@ -98,5 +99,5 @@ Front-loaded because `CLAUDE.md` wants the tally, undo and match-end logic teste
 ---
 
 ## Open questions
-1. Both Gmail addresses for the rules allow-list
+1. The friend's Gmail address: swap it for `kbevan.dev@gmail.com` in `firestore.rules`, then redeploy
 2. A GitHub remote: private repo, yes or no?
