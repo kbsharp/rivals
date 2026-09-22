@@ -14,9 +14,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.kevinbevan.rivals.model.Invite
-import com.kevinbevan.rivals.ui.history.HistoryContent
-import com.kevinbevan.rivals.ui.history.HistoryItem
-import com.kevinbevan.rivals.ui.history.HistoryUiState
 import com.kevinbevan.rivals.ui.invite.InviteContent
 import com.kevinbevan.rivals.ui.invite.InviteUiState
 import com.kevinbevan.rivals.ui.signin.SignInContent
@@ -55,14 +52,14 @@ import com.kevinbevan.rivals.ui.home.RivalCard
 import com.kevinbevan.rivals.ui.invite.AddRivalContent
 import com.kevinbevan.rivals.ui.invite.AddRivalUiState
 import com.kevinbevan.rivals.ui.rivalry.RivalryContent
+import com.kevinbevan.rivals.ui.rivalry.RivalryTab
 import com.kevinbevan.rivals.ui.rivalry.RivalryUiState
+import com.kevinbevan.rivals.ui.rivalry.SessionItem
 import com.kevinbevan.rivals.ui.session.MatchResult
 import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
 import com.kevinbevan.rivals.ui.session.SessionContent
 import com.kevinbevan.rivals.ui.session.SessionUiState
-import com.kevinbevan.rivals.ui.stats.StatsContent
-import com.kevinbevan.rivals.ui.stats.StatsUiState
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import java.io.File
 import java.time.Instant
@@ -118,23 +115,19 @@ class Screenshots {
     @Test fun guestHomeDark() = shoot("home-guest", dark = true) { SignedOutHome() }
     @Test fun rivalryLight() = shoot("rivalry", dark = false) { Rivalry() }
     @Test fun rivalryDark() = shoot("rivalry", dark = true) { Rivalry() }
+    @Test fun rivalryEmptyDark() = shoot("rivalry-empty", dark = true) { RivalryContent(RivalryUiState(loading = false, myName = "Kevin", rivalName = "Julian"), { _, _ -> }, {}, {}, {}, {}, {}) }
     @Test fun addRivalLight() = shoot("add-rival", dark = false) { AddRival() }
     @Test fun addRivalDark() = shoot("add-rival", dark = true) { AddRival() }
     @Test fun sessionLight() = shoot("session", dark = false, landscape = true) { SessionScreen() }
     @Test fun sessionDark() = shoot("session", dark = true, landscape = true) { SessionScreen() }
     @Test fun sessionBetweenMatchesDark() = shoot("session-next", dark = true, landscape = true) { SessionScreen(running = false) }
     @Test fun sessionMatchWonDark() = shoot("session-won", dark = true, landscape = true) { MatchWonScreen() }
-    @Test fun historyDark() = shoot("history", dark = true) { History() }
-    @Test fun historyEmptyDark() = shoot("history-empty", dark = true) { HistoryContent(HistoryUiState(loading = false), {}, {}) }
     @Test fun signInDark() = shoot("sign-in", dark = true) { SignInContent(SignInUiState(), {}, {}, {}) }
     @Test fun inviteDark() = shoot("invite", dark = true) {
         InviteContent(InviteUiState(loading = false, invite = Invite("ABCD2345", "a", "Kevin")), {}, {}, {}, {})
     }
-    @Test fun statsEmptyDark() = shoot("stats-empty", dark = true) {
-        StatsContent(StatsUiState(loading = false, myName = "Kevin", rivalName = "Julian"), onBack = {})
-    }
-    @Test fun statsLight() = shoot("stats", dark = false) { StatsScreen() }
-    @Test fun statsDark() = shoot("stats", dark = true) { StatsScreen() }
+    @Test fun statsLight() = shoot("rivalry-stats", dark = false) { Rivalry(stats = true) }
+    @Test fun statsDark() = shoot("rivalry-stats", dark = true) { Rivalry(stats = true) }
     @Test fun detailLight() = shoot("detail", dark = false) { Detail() }
     @Test fun detailDark() = shoot("detail", dark = true) { Detail() }
 
@@ -158,9 +151,33 @@ class Screenshots {
 
     @Composable private fun SignedOutHome() = HomeContent(HomeUiState(loading = false), HomeActions())
 
-    @Composable private fun Rivalry() = RivalryContent(
-        RivalryUiState(loading = false, myName = "Kevin", rivalName = "Julian", myWins = 12, rivalWins = 9),
-        { _, _ -> }, {}, {}, {}, {}, {}, {},
+    @Composable private fun Rivalry(stats: Boolean = false) = RivalryContent(
+        RivalryUiState(
+            loading = false,
+            myName = "Kevin",
+            rivalName = "Julian",
+            myWins = 12,
+            rivalWins = 9,
+            sessions = listOf(
+                SessionItem("s1", start, start.plusSeconds(10_800), "The Crown", 3, 2),
+                SessionItem("s2", start.minusSeconds(7 * 86_400), start.minusSeconds(7 * 86_400 - 9_000), null, 1, 4),
+                SessionItem("s3", start.minusSeconds(14 * 86_400), start.minusSeconds(14 * 86_400 - 7_200), "Rileys", 2, 2),
+            ),
+            stats = sampleStats,
+        ),
+        { _, _ -> }, {}, {}, {}, {}, {},
+        initialTab = if (stats) RivalryTab.STATS else RivalryTab.SESSIONS,
+    )
+
+    private val sampleStats = Stats(
+        "a", "b", Record(12, 9), Record(61, 55), NightsRecord(4, 2, 1),
+        mapOf(
+            GameType.EIGHT_BALL to GameTypeStats(Record(9, 5), Record(44, 35)),
+            GameType.NINE_BALL to GameTypeStats(Record(3, 4), Record(17, 20)),
+        ),
+        Streak("b", 2),
+        mapOf("a" to 5, "b" to 3),
+        mapOf(FrameEvent.BREAK_AND_RUN to Count(3, 1), FrameEvent.GOLDEN_BREAK to Count(0, 1)),
     )
 
     @Composable private fun AddRival() = AddRivalContent(
@@ -197,33 +214,6 @@ class Screenshots {
             canUndo = true,
         ),
         SessionActions(),
-    )
-
-    @Composable private fun History() = HistoryContent(
-        HistoryUiState(
-            loading = false, myName = "Kevin", rivalName = "Julian",
-            items = listOf(
-                HistoryItem("s1", start, start.plusSeconds(10_800), "The Crown", 3, 2),
-                HistoryItem("s2", start.minusSeconds(7 * 86_400), start.minusSeconds(7 * 86_400 - 9_000), null, 1, 4),
-                HistoryItem("s3", start.minusSeconds(14 * 86_400), start.minusSeconds(14 * 86_400 - 7_200), "Rileys", 2, 2),
-            ),
-        ),
-        {}, {},
-    )
-
-    @Composable private fun StatsScreen() = StatsContent(
-        StatsUiState(
-            loading = false, myName = "Kevin", rivalName = "Julian",
-            stats = Stats(
-                "a", "b", Record(12, 9), Record(61, 55), NightsRecord(4, 2, 1),
-                mapOf(
-                    GameType.EIGHT_BALL to GameTypeStats(Record(9, 5), Record(44, 35)),
-                    GameType.NINE_BALL to GameTypeStats(Record(3, 4), Record(17, 20)),
-                ),
-                Streak("b", 2), mapOf("a" to 5, "b" to 3), mapOf(FrameEvent.BREAK_AND_RUN to Count(3, 1), FrameEvent.GOLDEN_BREAK to Count(0, 1)),
-            ),
-        ),
-        onBack = {},
     )
 
     @Composable private fun Detail() {

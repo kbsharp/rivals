@@ -1,35 +1,25 @@
 package com.kevinbevan.rivals.ui.rivalry
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,22 +31,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.ui.components.ChoiceRow
+import com.kevinbevan.rivals.ui.components.IconAction
+import com.kevinbevan.rivals.ui.components.Label
+import com.kevinbevan.rivals.ui.components.LoadingState
+import com.kevinbevan.rivals.ui.components.PrimaryButton
+import com.kevinbevan.rivals.ui.components.RivalsTextField
+import com.kevinbevan.rivals.ui.components.Tabs
+import com.kevinbevan.rivals.ui.components.TopBar
+import com.kevinbevan.rivals.ui.components.WinRing
+import com.kevinbevan.rivals.ui.session.ConfirmDialog
 import com.kevinbevan.rivals.ui.session.DefaultMatchSettings
 import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
+import com.kevinbevan.rivals.ui.session.RivalsDialog
+import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
+import com.kevinbevan.rivals.ui.theme.Shapes
+import com.kevinbevan.rivals.ui.theme.Space
 
 @Composable
 fun RivalryScreen(
     onOpenSession: (String) -> Unit,
-    onOpenHistory: (String) -> Unit,
-    onOpenStats: (String) -> Unit,
+    onOpenSessionDetail: (String) -> Unit,
     onBack: () -> Unit,
     viewModel: RivalryViewModel = viewModel(factory = RivalryViewModel.Factory),
 ) {
@@ -74,29 +77,33 @@ fun RivalryScreen(
         uiState = uiState,
         onStartSession = viewModel::startSession,
         onResumeSession = onOpenSession,
-        onOpenHistory = { onOpenHistory(viewModel.rivalryId) },
-        onOpenStats = { onOpenStats(viewModel.rivalryId) },
+        onOpenSessionDetail = onOpenSessionDetail,
         onRemove = viewModel::remove,
         onBack = onBack,
         onErrorShown = viewModel::dismissError,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * One rival, whole: the win ring beside the all-time score, the one action worth taking, and
+ * the nights you've played and the stats behind them as two tabs. History and Stats used to be
+ * screens of their own; nothing was on them that doesn't belong here.
+ */
 @Composable
 internal fun RivalryContent(
     uiState: RivalryUiState,
     onStartSession: (MatchSettings, String?) -> Unit,
     onResumeSession: (String) -> Unit,
-    onOpenHistory: () -> Unit,
-    onOpenStats: () -> Unit,
+    onOpenSessionDetail: (String) -> Unit,
     onRemove: () -> Unit,
     onBack: () -> Unit,
     onErrorShown: () -> Unit,
+    /** Which tab opens first. Only the screenshot renders pass anything but the default. */
+    initialTab: RivalryTab = RivalryTab.SESSIONS,
 ) {
     var choosingSettings by rememberSaveable { mutableStateOf(false) }
     var confirmingRemove by rememberSaveable { mutableStateOf(false) }
-    var menuOpen by remember { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableStateOf(initialTab) }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
@@ -105,92 +112,40 @@ internal fun RivalryContent(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(uiState.rivalName) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (uiState.pendingSync) {
-                        Icon(
-                            painterResource(R.drawable.ic_cloud_upload),
-                            contentDescription = "Waiting to sync",
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                        )
-                    }
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "More")
-                    }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Remove rival") },
-                            onClick = {
-                                menuOpen = false
-                                confirmingRemove = true
-                            },
-                        )
-                    }
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
+    Box(Modifier.fillMaxSize().background(Rivals.colors.base)) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Space.gutter)
+                .padding(bottom = Space.s24),
+            verticalArrangement = Arrangement.spacedBy(Space.section),
         ) {
+            RivalryTopBar(uiState, onBack) { confirmingRemove = true }
+
             if (uiState.loading) {
-                CircularProgressIndicator()
+                LoadingState("Opening the head to head")
                 return@Column
             }
 
-            Text("Head to head", style = MaterialTheme.typography.titleMedium)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PlayerTotal("You", uiState.myWins, Modifier.weight(1f))
-                Text("–", style = MaterialTheme.typography.displayMedium)
-                PlayerTotal(uiState.rivalName, uiState.rivalWins, Modifier.weight(1f))
-            }
-            Text(
-                "matches won",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Header(uiState)
+            PrimaryAction(uiState, onResumeSession) { choosingSettings = true }
 
-            val active = uiState.activeSession
-            when {
-                active != null -> Button(
-                    onClick = { onResumeSession(active.id) },
-                    modifier = Modifier.fillMaxWidth().height(72.dp),
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Resume session", style = MaterialTheme.typography.titleMedium)
-                        Text("Tonight ${active.myWins} – ${active.rivalWins}")
-                    }
-                }
-                uiState.starting -> CircularProgressIndicator(Modifier.size(48.dp))
-                else -> {
-                    Button(
-                        onClick = { choosingSettings = true },
-                        enabled = uiState.accepted,
-                        modifier = Modifier.fillMaxWidth().height(72.dp),
-                    ) { Text("Start session", style = MaterialTheme.typography.titleMedium) }
-                    if (!uiState.accepted) {
-                        Text(
-                            "${uiState.rivalName} needs to accept your invite before you can start a session.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
+            Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+                Tabs(
+                    titles = RivalryTab.entries.map { it.label },
+                    selectedIndex = tab.ordinal,
+                    onSelect = { tab = RivalryTab.entries[it] },
+                )
+                when (tab) {
+                    RivalryTab.SESSIONS -> SessionsTab(uiState, onOpenSessionDetail)
+                    RivalryTab.STATS -> StatsTab(uiState)
                 }
             }
-            OutlinedButton(onClick = onOpenHistory, modifier = Modifier.fillMaxWidth()) { Text("History") }
-            OutlinedButton(onClick = onOpenStats, modifier = Modifier.fillMaxWidth()) { Text("Stats") }
         }
+        SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
 
     if (choosingSettings) {
@@ -204,18 +159,130 @@ internal fun RivalryContent(
         )
     }
     if (confirmingRemove) {
-        AlertDialog(
-            onDismissRequest = { confirmingRemove = false },
-            title = { Text("Remove ${uiState.rivalName}?") },
-            text = { Text("You won't be able to start sessions together until one of you invites the other again. Past sessions stay in your history.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmingRemove = false
-                    onRemove()
-                }) { Text("Remove") }
-            },
-            dismissButton = { TextButton(onClick = { confirmingRemove = false }) { Text("Cancel") } },
+        ConfirmDialog(
+            title = "Remove ${uiState.rivalName}?",
+            text = "You won't be able to start sessions together until one of you invites the " +
+                "other again. Past sessions stay in your history.",
+            confirmLabel = "Remove",
+            destructive = true,
+            onConfirm = { confirmingRemove = false; onRemove() },
+            onDismiss = { confirmingRemove = false },
         )
+    }
+}
+
+@Composable
+private fun RivalryTopBar(uiState: RivalryUiState, onBack: () -> Unit, onRemove: () -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
+    TopBar(uiState.rivalName, onBack = onBack) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (uiState.pendingSync) {
+                Icon(
+                    painterResource(R.drawable.ic_cloud_upload),
+                    contentDescription = "Waiting to sync",
+                    tint = Rivals.colors.fg3,
+                    modifier = Modifier.padding(horizontal = Space.s8).size(16.dp),
+                )
+            }
+            Box {
+                IconAction(R.drawable.ic_more_vert, "More", { menuOpen = true })
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    containerColor = Rivals.colors.surface,
+                    shape = Shapes.panel,
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "Remove rival",
+                                style = Rivals.type.body,
+                                color = Rivals.colors.live,
+                            )
+                        },
+                        onClick = { menuOpen = false; onRemove() },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** The ring and the all-time score: how the rivalry stands, in one look. */
+@Composable
+private fun Header(uiState: RivalryUiState) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        WinRing(yourWins = uiState.myWins, rivalWins = uiState.rivalWins)
+        Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+            Label("All time")
+            Text(
+                "${uiState.myWins} – ${uiState.rivalWins}",
+                style = Rivals.type.display.copy(fontSize = 44.sp, lineHeight = 46.sp),
+                color = Rivals.colors.fg,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Label("You", color = Rivals.colors.you)
+                Label(uiState.rivalName, color = Rivals.colors.rival)
+            }
+            Text(
+                streakLine(uiState),
+                style = Rivals.type.caption,
+                color = Rivals.colors.fg3,
+            )
+        }
+    }
+}
+
+/** "Julian has won the last 2", or what to expect when nothing has been played. */
+private fun streakLine(uiState: RivalryUiState): String {
+    val stats = uiState.stats ?: return "Matches won"
+    val streak = stats.currentStreak
+    val name = if (streak.playerId == stats.myId) "You have" else "${uiState.rivalName} has"
+    return when {
+        streak.playerId == null -> "No matches finished yet"
+        streak.length == 1 -> "$name won the last one"
+        else -> "$name won the last ${streak.length}"
+    }
+}
+
+/** The screen's one action: resume tonight, or start a night. */
+@Composable
+private fun PrimaryAction(
+    uiState: RivalryUiState,
+    onResumeSession: (String) -> Unit,
+    onStart: () -> Unit,
+) {
+    val active = uiState.activeSession
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s12)) {
+        when {
+            active != null -> {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                    Label("Tonight", modifier = Modifier.weight(1f))
+                    Text(
+                        "${active.myWins} – ${active.rivalWins}",
+                        style = Rivals.type.number.copy(fontSize = 20.sp),
+                        color = Rivals.colors.fg,
+                    )
+                }
+                PrimaryButton("Resume session", { onResumeSession(active.id) })
+            }
+            uiState.starting -> LoadingState("Starting the session")
+            else -> {
+                PrimaryButton("Start session", onStart, enabled = uiState.accepted)
+                if (!uiState.accepted) {
+                    Text(
+                        "${uiState.rivalName} needs to accept your invite before you can start " +
+                            "a session.",
+                        style = Rivals.type.body,
+                        color = Rivals.colors.fg2,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -228,58 +295,49 @@ private fun NewSessionDialog(
 ) {
     var settings by remember { mutableStateOf(DefaultMatchSettings) }
     var venue by rememberSaveable { mutableStateOf("") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("New session") },
-        text = {
-            Column(
-                Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                MatchSettingsPicker(settings, { settings = it })
-                OutlinedTextField(
-                    value = venue,
-                    onValueChange = { venue = it },
-                    label = { Text("Venue (optional)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-                    modifier = Modifier.fillMaxWidth(),
+    RivalsDialog(
+        title = "New session",
+        confirmLabel = "Start",
+        onConfirm = { onStart(settings, venue.trim().ifEmpty { null }) },
+        onDismiss = onDismiss,
+    ) {
+        Column(
+            Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Space.s16),
+        ) {
+            MatchSettingsPicker(settings, { settings = it })
+            RivalsTextField(
+                value = venue,
+                onValueChange = { venue = it.take(40) },
+                label = "Venue",
+                placeholder = "Optional",
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+            )
+            if (recentVenues.isNotEmpty()) {
+                ChoiceRow(
+                    label = "Recent",
+                    options = recentVenues.map { it to it },
+                    selected = recentVenues.firstOrNull { venue.trim().equals(it, ignoreCase = true) },
+                    onSelect = { venue = it },
                 )
-                if (recentVenues.isNotEmpty()) {
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        recentVenues.forEach { v ->
-                            FilterChip(
-                                selected = venue.trim().equals(v, ignoreCase = true),
-                                onClick = { venue = v },
-                                label = { Text(v) },
-                            )
-                        }
-                    }
-                }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = { onStart(settings, venue.trim().ifEmpty { null }) }) { Text("Start") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
-}
-
-@Composable
-private fun PlayerTotal(name: String, wins: Int, modifier: Modifier = Modifier) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(wins.toString(), style = MaterialTheme.typography.displayLarge)
-        Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        }
     }
 }
 
-@Preview
+@Preview(heightDp = 900)
 @Composable
 private fun RivalryContentPreview() {
     RivalsTheme {
         RivalryContent(
-            RivalryUiState(loading = false, myName = "Kevin", rivalName = "Dave", myWins = 12, rivalWins = 9),
-            { _, _ -> }, {}, {}, {}, {}, {}, {},
+            RivalryUiState(
+                loading = false,
+                myName = "Kevin",
+                rivalName = "Julian",
+                myWins = 12,
+                rivalWins = 9,
+            ),
+            { _, _ -> }, {}, {}, {}, {}, {},
         )
     }
 }

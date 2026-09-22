@@ -11,7 +11,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.kevinbevan.rivals.RivalsApp
-import com.kevinbevan.rivals.ui.history.HistoryScreen
 import com.kevinbevan.rivals.ui.history.SessionDetailScreen
 import com.kevinbevan.rivals.ui.home.HomeScreen
 import com.kevinbevan.rivals.ui.invite.AddRivalScreen
@@ -19,7 +18,6 @@ import com.kevinbevan.rivals.ui.invite.InviteScreen
 import com.kevinbevan.rivals.ui.rivalry.RivalryScreen
 import com.kevinbevan.rivals.ui.session.SessionScreen
 import com.kevinbevan.rivals.ui.signin.SignInScreen
-import com.kevinbevan.rivals.ui.stats.StatsScreen
 
 @Composable
 fun RivalsNavHost() {
@@ -54,8 +52,7 @@ fun RivalsNavHost() {
         composable<RivalryRoute> {
             RivalryScreen(
                 onOpenSession = { navController.navigate(SessionRoute(it)) },
-                onOpenHistory = { navController.navigate(HistoryRoute(it)) },
-                onOpenStats = { navController.navigate(StatsRoute(it)) },
+                onOpenSessionDetail = { navController.navigate(SessionDetailRoute(sessionId = it)) },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -77,17 +74,8 @@ fun RivalsNavHost() {
         composable<SessionRoute> {
             SessionScreen(onExit = { navController.popBackStack() })
         }
-        composable<HistoryRoute> {
-            HistoryScreen(
-                onOpenSession = { navController.navigate(SessionDetailRoute(sessionId = it)) },
-                onBack = { navController.popBackStack() },
-            )
-        }
         composable<SessionDetailRoute> {
             SessionDetailScreen(onBack = { navController.popBackStack() })
-        }
-        composable<StatsRoute> {
-            StatsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

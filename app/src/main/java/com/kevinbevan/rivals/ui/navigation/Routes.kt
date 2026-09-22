@@ -10,9 +10,7 @@ import kotlinx.serialization.Serializable
 
 /** [guest]: a quick game kept on the phone rather than a rivals' session in Firestore. */
 @Serializable data class SessionRoute(val sessionId: String, val guest: Boolean = false)
-@Serializable data class HistoryRoute(val rivalryId: String)
 @Serializable data class SessionDetailRoute(val sessionId: String, val guest: Boolean = false)
-@Serializable data class StatsRoute(val rivalryId: String)
 
 /** Share links open [InviteRoute]: `https://rivals-15bd9.web.app/invite/<code>`. */
 object InviteLinks {
