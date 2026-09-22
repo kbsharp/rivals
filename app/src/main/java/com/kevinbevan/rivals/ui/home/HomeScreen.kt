@@ -175,7 +175,8 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
             }
 
             Column {
-                if (uiState.signedIn) {
+                // With no rivals yet, Add a rival is already the screen's primary action.
+                if (uiState.signedIn && uiState.rivals.isNotEmpty()) {
                     ListRow(
                         title = "Add a rival",
                         onClick = actions.onAddRival,
