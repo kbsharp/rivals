@@ -1,32 +1,33 @@
 package com.kevinbevan.rivals.ui.invite
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.kevinbevan.rivals.R
+import com.kevinbevan.rivals.model.Invite
+import com.kevinbevan.rivals.ui.components.EmptyState
+import com.kevinbevan.rivals.ui.components.ErrorState
+import com.kevinbevan.rivals.ui.components.HeadToHead
+import com.kevinbevan.rivals.ui.components.Label
+import com.kevinbevan.rivals.ui.components.LoadingState
+import com.kevinbevan.rivals.ui.components.PrimaryButton
+import com.kevinbevan.rivals.ui.components.TopBar
+import com.kevinbevan.rivals.ui.theme.Rivals
+import com.kevinbevan.rivals.ui.theme.RivalsTheme
+import com.kevinbevan.rivals.ui.theme.Space
 
 @Composable
 fun InviteScreen(
@@ -42,10 +43,19 @@ fun InviteScreen(
             onAccepted(it)
         }
     }
-    InviteContent(uiState, onSignIn = onSignIn, onAccept = viewModel::accept, onRetry = viewModel::load, onBack = onBack)
+    InviteContent(
+        uiState,
+        onSignIn = onSignIn,
+        onAccept = viewModel::accept,
+        onRetry = viewModel::load,
+        onBack = onBack,
+    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * An invite, drawn as the scoreboard it would start: their name against yours, nothing played
+ * yet, and the one button that starts it.
+ */
 @Composable
 internal fun InviteContent(
     uiState: InviteUiState,
@@ -54,57 +64,80 @@ internal fun InviteContent(
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Invite") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
-                    }
-                },
-            )
-        },
-    ) { padding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Rivals.colors.base)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = Space.gutter)
+            .padding(bottom = Space.s24),
+        verticalArrangement = Arrangement.spacedBy(Space.section),
+    ) {
+        TopBar("Invite", onBack = onBack)
+
+        val invite = uiState.invite
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(Space.section, Alignment.CenterVertically),
         ) {
-            val invite = uiState.invite
             when {
-                uiState.loading || uiState.accepting -> CircularProgressIndicator()
-                uiState.error != null -> {
-                    Text(uiState.error, textAlign = TextAlign.Center)
-                    TextButton(onClick = onRetry) { Text("Try again") }
-                }
-                invite == null -> Text(
-                    "This invite has already been used, or the code is wrong. Ask your rival for a new link.",
-                    textAlign = TextAlign.Center,
+                uiState.loading -> LoadingState("Opening the invite")
+                uiState.accepting -> LoadingState("Setting up the rivalry")
+                uiState.error != null -> ErrorState(uiState.error, onRetry = onRetry)
+                invite == null -> EmptyState(
+                    title = "This invite has gone",
+                    body = "It's already been used, or the code is wrong. Ask your rival for a " +
+                        "new link.",
                 )
-                uiState.own -> Text(
-                    "This is your own invite. Send the link to your rival; it'll work when they open it.",
-                    textAlign = TextAlign.Center,
+                uiState.own -> EmptyState(
+                    title = "This is your own invite",
+                    body = "Send the link to your rival; it'll work when they open it.",
                 )
-                else -> {
-                    Text(
-                        "${invite.fromName.ifBlank { "Someone" }} wants a rivalry with you",
-                        style = MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        "Every session you play together will count towards your head to head.",
-                        textAlign = TextAlign.Center,
-                    )
-                    if (uiState.signedIn) {
-                        Button(onClick = onAccept, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Accept") }
-                    } else {
-                        Button(onClick = onSignIn, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                            Text("Sign in with Google to accept")
-                        }
-                    }
-                }
+                else -> Scoreboard(invite)
             }
         }
+        if (invite != null && !uiState.own && !uiState.loading && uiState.error == null) {
+            if (uiState.signedIn) {
+                PrimaryButton("Accept", onAccept, enabled = !uiState.accepting)
+            } else {
+                PrimaryButton("Sign in with Google to accept", onSignIn)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Scoreboard(invite: Invite) {
+    val from = invite.fromName.ifBlank { "Someone" }
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s24)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Label("All time")
+            HeadToHead(yourScore = 0, rivalScore = 0, yourName = "You", rivalName = from)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+            Text(
+                "$from wants a rivalry",
+                style = Rivals.type.headline,
+                color = Rivals.colors.fg,
+            )
+            Text(
+                "Every session you play together will count towards your head to head, on " +
+                    "both your phones.",
+                style = Rivals.type.body,
+                color = Rivals.colors.fg2,
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun InviteContentPreview() {
+    RivalsTheme {
+        InviteContent(
+            InviteUiState(loading = false, invite = Invite("ABCD2345", "a", "Kevin"), signedIn = true),
+            {}, {}, {}, {},
+        )
     }
 }
