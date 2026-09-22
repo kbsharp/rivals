@@ -190,6 +190,7 @@ fun RivalsDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     destructive: Boolean = false,
+    confirmEnabled: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     AlertDialog(
@@ -198,7 +199,14 @@ fun RivalsDialog(
         shape = Shapes.panel,
         title = { Text(title, style = Rivals.type.headline, color = Rivals.colors.fg) },
         text = { content() },
-        confirmButton = { SecondaryButton(confirmLabel, onConfirm, destructive = destructive) },
+        confirmButton = {
+            SecondaryButton(
+                confirmLabel,
+                onConfirm,
+                enabled = confirmEnabled,
+                destructive = destructive,
+            )
+        },
         dismissButton = { TextAction("Cancel", onDismiss) },
     )
 }

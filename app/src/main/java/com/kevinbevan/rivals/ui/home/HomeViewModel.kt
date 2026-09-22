@@ -42,9 +42,22 @@ data class RivalCard(
     val name: String,
     val myWins: Int,
     val rivalWins: Int,
-    /** A session is running right now. */
-    val live: Boolean,
-)
+    /** The session running right now, if there is one. */
+    val activeSessionId: String? = null,
+    /** That session's match score, yours first. */
+    val tonight: Pair<Int, Int>? = null,
+    /**
+     * The last ten nights, oldest first: `true` you won it, `false` they did, `null` drawn.
+     * Nights rather than matches, because Home reads sessions and matches would be a
+     * collection-group query per rivalry.
+     */
+    val nights: List<Boolean?> = emptyList(),
+) {
+    val live: Boolean get() = activeSessionId != null
+}
+
+/** How many nights the form bar on Home looks back over. */
+private const val FORM_NIGHTS = 10
 
 /** A rivalry that hasn't been accepted yet: sent to you ([incoming]) or by you. */
 data class InviteCard(val rivalryId: String, val name: String, val incoming: Boolean)
@@ -115,14 +128,21 @@ class HomeViewModel(
                             val rivalId = r.rivalOf(me)
                             val mine = sessions.value.filter { it.rivalryId == r.id }
                             val totals = ScoreRules.headToHead(mine)
+                            val active = SessionRepository.oldestActive(mine)
                             RivalCard(
                                 rivalryId = r.id,
                                 name = nameOf(rivalId),
                                 myWins = totals.winsOf(me),
                                 rivalWins = totals.winsOf(rivalId),
-                                live = SessionRepository.oldestActive(mine) != null,
+                                activeSessionId = active?.id,
+                                tonight = active?.let {
+                                    it.matchWins.winsOf(me) to it.matchWins.winsOf(rivalId)
+                                },
+                                nights = nights(mine, me, rivalId),
                             )
-                        }.sortedBy { it.name.lowercase() },
+                            // A live rivalry leads, then the rest alphabetically: Home's hero is
+                            // whoever you're playing right now.
+                        }.sortedWith(compareByDescending<RivalCard> { it.live }.thenBy { it.name.lowercase() }),
                         invites = rivalries.filter { it.status == RivalryStatus.PENDING }.map {
                             InviteCard(it.id, nameOf(it.rivalOf(me)), incoming = it.invitedBy != me)
                         },
@@ -212,6 +232,17 @@ class HomeViewModel(
     }
 
     companion object {
+        /** Who won each of the last [FORM_NIGHTS] finished nights, oldest first. */
+        private fun nights(sessions: List<Session>, me: String, rival: String): List<Boolean?> =
+            sessions.filter { it.status == Status.ENDED }
+                .sortedWith(compareBy<Session, Instant?>(nullsFirst()) { it.startedAt }.thenBy { it.id })
+                .takeLast(FORM_NIGHTS)
+                .map { s ->
+                    val mine = s.matchWins.winsOf(me)
+                    val theirs = s.matchWins.winsOf(rival)
+                    if (mine == theirs) null else mine > theirs
+                }
+
         private fun guestGame(s: Session): GuestGame {
             fun side(id: String) = GuestSide(id, s.names[id] ?: "Player", s.matchWins.winsOf(id))
             return GuestGame(

@@ -1,11 +1,15 @@
 package com.kevinbevan.rivals.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
@@ -255,6 +260,100 @@ fun Panel(
         verticalArrangement = Arrangement.spacedBy(Space.s8),
         content = content,
     )
+}
+
+/**
+ * A label above a row of chips, one of which is chosen. The chosen one is white with charcoal
+ * text; the rest are `raised`.
+ */
+@Composable
+fun <T> ChoiceRow(
+    label: String,
+    options: List<Pair<T, String>>,
+    selected: T?,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+        Label(label)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Space.s8),
+            verticalArrangement = Arrangement.spacedBy(Space.s8),
+        ) {
+            options.forEach { (value, text) ->
+                val chosen = value == selected
+                Box(
+                    modifier = Modifier
+                        .background(
+                            if (chosen) Rivals.colors.fg else Rivals.colors.raised,
+                            Shapes.pill,
+                        )
+                        .clickable(role = Role.RadioButton) { onSelect(value) }
+                        .padding(horizontal = Space.s16, vertical = Space.s12),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Label(text, color = if (chosen) Rivals.colors.onFg else Rivals.colors.fg2)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The app's one text field: a `raised` box with the label above it, no outline and no floating
+ * label — the brief has no divider lines, and an outline is one.
+ */
+@Composable
+fun RivalsTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    placeholder: String? = null,
+    supporting: String? = null,
+    isError: Boolean = false,
+    singleLine: Boolean = true,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+        Label(label, color = if (isError) Rivals.colors.live else Rivals.colors.fg3)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = Space.touch)
+                .background(Rivals.colors.raised, Shapes.chip)
+                .padding(horizontal = Space.s16, vertical = Space.s12),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.s8),
+        ) {
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                modifier = Modifier.weight(1f),
+                textStyle = Rivals.type.body.copy(color = Rivals.colors.fg),
+                cursorBrush = SolidColor(Rivals.colors.fg),
+                singleLine = singleLine,
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
+                decorationBox = { inner ->
+                    if (value.isEmpty() && placeholder != null) {
+                        Text(placeholder, style = Rivals.type.body, color = Rivals.colors.fg3)
+                    }
+                    inner()
+                },
+            )
+            trailing?.invoke()
+        }
+        if (supporting != null) {
+            Text(
+                supporting,
+                style = Rivals.type.caption,
+                color = if (isError) Rivals.colors.live else Rivals.colors.fg3,
+            )
+        }
+    }
 }
 
 /**

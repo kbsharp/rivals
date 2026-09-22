@@ -67,7 +67,9 @@ fun HeadToHead(
     val score = numberStyle ?: Rivals.type.display
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
         Row(
-            verticalAlignment = Alignment.Bottom,
+            // Centred, not on the baseline: with the score's line box trimmed to its digits, a
+            // baseline-aligned dash hangs below them.
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.semantics {
                 contentDescription = "$yourName $yourScore, $rivalName $rivalScore"
@@ -125,25 +127,29 @@ fun Pips(
 }
 
 /**
- * The last ten matches as a colour bar: one segment per match, in the winner's colour. It reads
- * as texture until you look at it, which is what it is for.
+ * Recent form as a colour bar: one segment per result, in the winner's colour, `hairline` for a
+ * draw. It reads as texture until you look at it, which is what it is for.
  */
 @Composable
 fun FormBar(
-    results: List<Boolean>,
+    results: List<Boolean?>,
     modifier: Modifier = Modifier,
     yourName: String = "You",
     rivalName: String = "your rival",
 ) {
     if (results.isEmpty()) return
-    val wins = results.count { it }
+    val wins = results.count { it == true }
+    val losses = results.count { it == false }
+    val drawn = results.size - wins - losses
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(8.dp)
             .semantics {
-                contentDescription = "Last ${results.size} matches: " +
-                    "$yourName won $wins, $rivalName won ${results.size - wins}"
+                contentDescription = buildString {
+                    append("Last ${results.size}: $yourName won $wins, $rivalName won $losses")
+                    if (drawn > 0) append(", $drawn drawn")
+                }
             },
         horizontalArrangement = Arrangement.spacedBy(Space.s4),
     ) {
@@ -153,7 +159,11 @@ fun FormBar(
                     .weight(1f)
                     .fillMaxSize()
                     .background(
-                        if (youWon) Rivals.colors.you else Rivals.colors.rival,
+                        when (youWon) {
+                            true -> Rivals.colors.you
+                            false -> Rivals.colors.rival
+                            null -> Rivals.colors.hairline
+                        },
                         RoundedCornerShape(4.dp),
                     ),
             )

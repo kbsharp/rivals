@@ -143,7 +143,13 @@ class Screenshots {
             loading = false,
             signedIn = true,
             myName = "Kevin",
-            rivals = listOf(RivalCard("r1", "Julian", myWins = 12, rivalWins = 9, live = true)),
+            rivals = listOf(
+                RivalCard(
+                    "r1", "Julian", myWins = 12, rivalWins = 9,
+                    activeSessionId = "s1", tonight = 2 to 1,
+                    nights = listOf(true, true, false, true, true, false, false, true, true, false),
+                ),
+            ),
             invites = listOf(InviteCard("r2", "Sam", incoming = true)),
             guestGames = listOf(GuestGame("g", active = false, startedAt = start, GuestSide("a", "Kevin", 2), GuestSide("b", "Tom", 1))),
         ),

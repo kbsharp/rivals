@@ -1,38 +1,25 @@
 package com.kevinbevan.rivals.ui.home
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,18 +32,38 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.ui.components.Avatar
+import com.kevinbevan.rivals.ui.components.ChoiceRow
+import com.kevinbevan.rivals.ui.components.FormBar
+import com.kevinbevan.rivals.ui.components.HeadToHead
+import com.kevinbevan.rivals.ui.components.IconAction
+import com.kevinbevan.rivals.ui.components.Label
+import com.kevinbevan.rivals.ui.components.ListRow
+import com.kevinbevan.rivals.ui.components.LiveChip
+import com.kevinbevan.rivals.ui.components.LoadingState
+import com.kevinbevan.rivals.ui.components.PrimaryButton
+import com.kevinbevan.rivals.ui.components.RivalsTextField
+import com.kevinbevan.rivals.ui.components.RowChevron
+import com.kevinbevan.rivals.ui.components.RowIcon
+import com.kevinbevan.rivals.ui.components.SecondaryButton
+import com.kevinbevan.rivals.ui.components.TextAction
+import com.kevinbevan.rivals.ui.components.TopBar
 import com.kevinbevan.rivals.ui.history.formatDay
 import com.kevinbevan.rivals.ui.navigation.SessionRoute
 import com.kevinbevan.rivals.ui.session.DefaultMatchSettings
 import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
+import com.kevinbevan.rivals.ui.session.RivalsDialog
+import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
+import com.kevinbevan.rivals.ui.theme.Shapes
+import com.kevinbevan.rivals.ui.theme.Space
 
 @Composable
 fun HomeScreen(
@@ -86,6 +93,7 @@ fun HomeScreen(
             onOpenGuestGame = onOpenGuestGame,
             onSaveGuestGame = viewModel::saveGuestGame,
             onOpenRivalry = onOpenRivalry,
+            onResumeSession = { onOpenSession(SessionRoute(it, guest = false)) },
             onAddRival = onAddRival,
             onAcceptInvite = viewModel::acceptInvite,
             onRemoveInvite = viewModel::removeInvite,
@@ -104,18 +112,23 @@ data class HomeActions(
     /** (game id, rivalry id, the guest id that was you) */
     val onSaveGuestGame: (String, String, String) -> Unit = { _, _, _ -> },
     val onOpenRivalry: (String) -> Unit = {},
+    /** Opens the session already running against a rival. */
+    val onResumeSession: (String) -> Unit = {},
     val onAddRival: () -> Unit = {},
     val onAcceptInvite: (String) -> Unit = {},
     val onRemoveInvite: (String) -> Unit = {},
     val onMessageShown: () -> Unit = {},
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Home is a scoreboard: the head to head with the rival you're playing, in white, with the form
+ * bar and tonight's score under it and one primary action. Everything else — the other rivals,
+ * Add a rival, Quick game, the games kept on this phone — is a plain row below it.
+ */
 @Composable
 internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
     var settingUpGame by rememberSaveable { mutableStateOf(false) }
     var savingGameId by rememberSaveable { mutableStateOf<String?>(null) }
-    var menuOpen by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
@@ -124,96 +137,77 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Rivals") },
-                actions = {
-                    if (uiState.pendingSync) {
-                        Icon(
-                            painterResource(R.drawable.ic_cloud_upload),
-                            contentDescription = "Waiting to sync",
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                        )
-                    }
-                    if (uiState.signedIn) {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "More")
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Sign out") },
-                                onClick = {
-                                    menuOpen = false
-                                    actions.onSignOut()
-                                },
-                            )
-                        }
-                    } else {
-                        TextButton(onClick = actions.onSignIn) { Text("Sign in") }
-                    }
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
+    Box(Modifier.fillMaxSize().background(Rivals.colors.base)) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = Space.gutter)
+                .padding(bottom = Space.s24),
+            verticalArrangement = Arrangement.spacedBy(Space.section),
         ) {
+            HomeTopBar(uiState, actions)
+
             if (uiState.loading) {
-                CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally))
+                LoadingState("Looking for your rivals")
                 return@Column
             }
 
-            val active = uiState.activeGuestGame
-            if (active != null) {
-                Button(
-                    onClick = { actions.onResumeQuickGame(active.id) },
-                    modifier = Modifier.fillMaxWidth().height(72.dp),
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Resume quick game", style = MaterialTheme.typography.titleMedium)
-                        Text("${active.left.name} ${active.left.wins} – ${active.right.wins} ${active.right.name}")
-                    }
-                }
+            val hero = uiState.rivals.firstOrNull()
+            if (hero != null) {
+                Hero(hero, actions)
+            } else if (uiState.signedIn) {
+                NoRivalsYet(actions)
             } else {
-                Button(
-                    onClick = { settingUpGame = true },
-                    modifier = Modifier.fillMaxWidth().height(72.dp),
-                ) { Text("Quick game", style = MaterialTheme.typography.titleMedium) }
+                SignedOut(uiState, actions) { settingUpGame = true }
             }
-            Text(
-                "Keep score for any game, no account needed. It's saved on this phone.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
-            if (uiState.signedIn) {
-                RivalsSection(uiState, actions)
-            } else {
-                SignInPitch(actions.onSignIn)
+            val incoming = uiState.invites.filter { it.incoming }
+            val outgoing = uiState.invites.filter { !it.incoming }
+            if (incoming.isNotEmpty() || uiState.rivals.size > 1 || outgoing.isNotEmpty()) {
+                Column {
+                    incoming.forEach { InviteRow(it, actions) }
+                    uiState.rivals.drop(1).forEach { RivalRow(it, actions) }
+                    outgoing.forEach { PendingRow(it, actions) }
+                }
+            }
+
+            Column {
+                if (uiState.signedIn) {
+                    ListRow(
+                        title = "Add a rival",
+                        onClick = actions.onAddRival,
+                        leading = { RowIcon(R.drawable.ic_add) },
+                        trailing = { RowChevron() },
+                    )
+                }
+                QuickGameRow(uiState, actions, onSetUp = { settingUpGame = true })
             }
 
             if (uiState.finishedGuestGames.isNotEmpty()) {
-                SectionTitle("Games on this phone")
-                uiState.finishedGuestGames.forEach { game ->
-                    GuestGameRow(
-                        game = game,
-                        canSave = uiState.signedIn && uiState.rivals.isNotEmpty(),
-                        onOpen = { actions.onOpenGuestGame(game.id) },
-                        onSave = { savingGameId = game.id },
-                    )
-                }
-                if (!uiState.signedIn) {
-                    Text(
-                        "Sign in and add a rival to save these to your head to head.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Column(verticalArrangement = Arrangement.spacedBy(Space.s4)) {
+                    Label("On this phone")
+                    uiState.finishedGuestGames.forEach { game ->
+                        GuestGameRow(
+                            game = game,
+                            canSave = uiState.signedIn && uiState.rivals.isNotEmpty(),
+                            onOpen = { actions.onOpenGuestGame(game.id) },
+                            onSave = { savingGameId = game.id },
+                        )
+                    }
+                    if (!uiState.signedIn) {
+                        Text(
+                            "Sign in and add a rival to save these to your head to head.",
+                            style = Rivals.type.caption,
+                            color = Rivals.colors.fg3,
+                        )
+                    }
                 }
             }
         }
+        SnackbarHost(snackbarHostState, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
     }
 
     if (settingUpGame) {
@@ -242,94 +236,207 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
 }
 
 @Composable
-private fun RivalsSection(uiState: HomeUiState, actions: HomeActions) {
-    SectionTitle("Your rivals")
-    uiState.invites.filter { it.incoming }.forEach { invite ->
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("${invite.name} wants a rivalry with you", style = MaterialTheme.typography.titleMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { actions.onAcceptInvite(invite.rivalryId) }) { Text("Accept") }
-                    TextButton(onClick = { actions.onRemoveInvite(invite.rivalryId) }) { Text("Decline") }
-                }
+private fun HomeTopBar(uiState: HomeUiState, actions: HomeActions) {
+    var menuOpen by remember { mutableStateOf(false) }
+    TopBar("Rivals") {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (uiState.pendingSync) {
+                Icon(
+                    painterResource(R.drawable.ic_cloud_upload),
+                    contentDescription = "Waiting to sync",
+                    tint = Rivals.colors.fg3,
+                    modifier = Modifier.padding(horizontal = Space.s8).size(16.dp),
+                )
             }
-        }
-    }
-    uiState.rivals.forEach { rival ->
-        OutlinedCard(
-            onClick = { actions.onOpenRivalry(rival.rivalryId) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(rival.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (rival.live) {
-                        Text("Session running", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            if (uiState.signedIn) {
+                Box {
+                    IconAction(R.drawable.ic_more_vert, "More", { menuOpen = true })
+                    DropdownMenu(
+                        expanded = menuOpen,
+                        onDismissRequest = { menuOpen = false },
+                        containerColor = Rivals.colors.surface,
+                        shape = Shapes.panel,
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Sign out", style = Rivals.type.body, color = Rivals.colors.fg) },
+                            onClick = { menuOpen = false; actions.onSignOut() },
+                        )
                     }
                 }
-                Text("${rival.myWins} – ${rival.rivalWins}", style = MaterialTheme.typography.headlineSmall)
+            } else {
+                TextAction("Sign in", actions.onSignIn, color = Rivals.colors.fg)
             }
         }
     }
-    uiState.invites.filter { !it.incoming }.forEach { invite ->
-        OutlinedCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+}
+
+/** The rival you're playing, or the first of them: the screen's scoreboard. */
+@Composable
+private fun Hero(rival: RivalCard, actions: HomeActions) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Label("All time", modifier = Modifier.weight(1f))
+            if (rival.live) LiveChip()
+        }
+        HeadToHead(
+            yourScore = rival.myWins,
+            rivalScore = rival.rivalWins,
+            yourName = "You",
+            rivalName = rival.name,
+            numberStyle = Rivals.type.score.copy(fontSize = 96.sp, lineHeight = 96.sp),
+        )
+        if (rival.nights.isNotEmpty()) {
+            FormBar(rival.nights, yourName = "You", rivalName = rival.name)
+            Label("Last ${rival.nights.size} nights")
+        }
+    }
+    val tonight = rival.tonight
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s12)) {
+        if (tonight != null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                Label("Tonight", modifier = Modifier.weight(1f))
                 Text(
-                    "Waiting for ${invite.name} to accept",
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
+                    "${tonight.first} – ${tonight.second}",
+                    style = Rivals.type.number.copy(fontSize = 20.sp),
+                    color = Rivals.colors.fg,
                 )
-                TextButton(onClick = { actions.onRemoveInvite(invite.rivalryId) }) { Text("Cancel") }
             }
         }
+        if (rival.activeSessionId != null) {
+            PrimaryButton("Resume session", { actions.onResumeSession(rival.activeSessionId) })
+        } else {
+            PrimaryButton("Play ${rival.name}", { actions.onOpenRivalry(rival.rivalryId) })
+        }
     }
-    if (uiState.rivals.isEmpty() && uiState.invites.isEmpty()) {
+}
+
+/** Signed in, but nobody to play yet. */
+@Composable
+private fun NoRivalsYet(actions: HomeActions) {
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s12)) {
+        Text("No rivals yet", style = Rivals.type.headline, color = Rivals.colors.fg)
         Text(
-            "Invite the friend you play against. Once they accept, every session you play together counts.",
-            style = MaterialTheme.typography.bodyMedium,
+            "Invite the friend you play against. Once they accept, every session you play " +
+                "together counts towards your head to head.",
+            style = Rivals.type.body,
+            color = Rivals.colors.fg2,
+        )
+        PrimaryButton("Add a rival", actions.onAddRival)
+    }
+}
+
+/** Signed out: keeping score needs no account, and the pitch for signing in comes after it. */
+@Composable
+private fun SignedOut(uiState: HomeUiState, actions: HomeActions, onSetUpGame: () -> Unit) {
+    val active = uiState.activeGuestGame
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s12)) {
+        Text("Keep score", style = Rivals.type.headline, color = Rivals.colors.fg)
+        Text(
+            "Anyone can keep score here, no account needed; the game is saved on this phone.",
+            style = Rivals.type.body,
+            color = Rivals.colors.fg2,
+        )
+        if (active != null) {
+            PrimaryButton("Resume quick game", { actions.onResumeQuickGame(active.id) })
+            Text(
+                "${active.left.name} ${active.left.wins} – ${active.right.wins} ${active.right.name}",
+                style = Rivals.type.caption,
+                color = Rivals.colors.fg3,
+            )
+        } else {
+            PrimaryButton("Quick game", onSetUpGame)
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+        Text("Got a rival?", style = Rivals.type.title, color = Rivals.colors.fg)
+        Text(
+            "Sign in and invite them. Every session you play together is kept on both your " +
+                "phones, with a head to head, history and stats.",
+            style = Rivals.type.body,
+            color = Rivals.colors.fg2,
+        )
+        SecondaryButton("Sign in with Google", actions.onSignIn)
+    }
+}
+
+/**
+ * Quick game as a plain row. Signed out it is already the screen's primary action, so the row
+ * would be the same offer twice.
+ */
+@Composable
+private fun QuickGameRow(uiState: HomeUiState, actions: HomeActions, onSetUp: () -> Unit) {
+    if (!uiState.signedIn) return
+    val active = uiState.activeGuestGame
+    if (active != null) {
+        ListRow(
+            title = "Resume quick game",
+            subtitle = "${active.left.name} ${active.left.wins} – " +
+                "${active.right.wins} ${active.right.name}",
+            onClick = { actions.onResumeQuickGame(active.id) },
+            leading = { RowIcon(R.drawable.ic_bolt) },
+            trailing = { RowChevron() },
+        )
+    } else {
+        ListRow(
+            title = "Quick game",
+            subtitle = if (uiState.signedIn) "Anyone, no account needed" else null,
+            onClick = onSetUp,
+            leading = { RowIcon(R.drawable.ic_bolt) },
+            trailing = { RowChevron() },
         )
     }
-    OutlinedButton(onClick = actions.onAddRival, modifier = Modifier.fillMaxWidth()) { Text("Add a rival") }
 }
 
 @Composable
-private fun SignInPitch(onSignIn: () -> Unit) {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Got a rival?", style = MaterialTheme.typography.titleMedium)
+private fun InviteRow(invite: InviteCard, actions: HomeActions) {
+    ListRow(
+        title = "${invite.name} wants a rivalry",
+        leading = { Avatar(invite.name) },
+        trailing = {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
+                TextAction("Decline", { actions.onRemoveInvite(invite.rivalryId) })
+                SecondaryButton("Accept", { actions.onAcceptInvite(invite.rivalryId) })
+            }
+        },
+    )
+}
+
+@Composable
+private fun RivalRow(rival: RivalCard, actions: HomeActions) {
+    ListRow(
+        title = rival.name,
+        subtitle = if (rival.live) "Playing now" else null,
+        onClick = { actions.onOpenRivalry(rival.rivalryId) },
+        leading = { Avatar(rival.name) },
+        trailing = {
             Text(
-                "Sign in and invite them. Every session you play together is kept, on both your phones, with a head to head, history and stats.",
-                style = MaterialTheme.typography.bodyMedium,
+                "${rival.myWins} – ${rival.rivalWins}",
+                style = Rivals.type.number,
+                color = Rivals.colors.fg,
+                maxLines = 1,
             )
-            Button(onClick = onSignIn) { Text("Sign in with Google") }
-        }
-    }
+        },
+    )
 }
 
 @Composable
-private fun SectionTitle(text: String) {
-    Text(text, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 12.dp))
+private fun PendingRow(invite: InviteCard, actions: HomeActions) {
+    ListRow(
+        title = invite.name,
+        subtitle = "Waiting for them to accept",
+        leading = { Avatar(invite.name) },
+        trailing = { TextAction("Cancel", { actions.onRemoveInvite(invite.rivalryId) }) },
+    )
 }
 
 @Composable
 private fun GuestGameRow(game: GuestGame, canSave: Boolean, onOpen: () -> Unit, onSave: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                "${game.left.name} ${game.left.wins} – ${game.right.wins} ${game.right.name}",
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            game.startedAt?.let {
-                Text(formatDay(it), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        if (canSave) TextButton(onClick = onSave) { Text("Save") }
-    }
+    ListRow(
+        title = "${game.left.name} ${game.left.wins} – ${game.right.wins} ${game.right.name}",
+        subtitle = game.startedAt?.let { "${formatDay(it)} · quick game" } ?: "Quick game",
+        onClick = onOpen,
+        trailing = { if (canSave) SecondaryButton("Save", onSave) },
+    )
 }
 
 /** Names for the two sides, then the first match's settings. */
@@ -342,33 +449,34 @@ private fun QuickGameDialog(
     var left by rememberSaveable { mutableStateOf(myName) }
     var right by rememberSaveable { mutableStateOf("") }
     var settings by remember { mutableStateOf(DefaultMatchSettings) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Quick game") },
-        text = {
-            Column(
-                Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                NameField(left, { left = it }, "Player 1")
-                NameField(right, { right = it }, "Player 2")
-                MatchSettingsPicker(settings, { settings = it })
-            }
-        },
-        confirmButton = { TextButton(onClick = { onStart(left to right, settings) }) { Text("Start") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    RivalsDialog(
+        title = "Quick game",
+        confirmLabel = "Start",
+        onConfirm = { onStart(left to right, settings) },
+        onDismiss = onDismiss,
+    ) {
+        Column(
+            Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Space.s16),
+        ) {
+            NameField(left, { left = it }, "Player 1")
+            NameField(right, { right = it }, "Player 2")
+            MatchSettingsPicker(settings, { settings = it })
+        }
+    }
 }
 
 @Composable
 private fun NameField(value: String, onValueChange: (String) -> Unit, label: String) {
-    OutlinedTextField(
+    RivalsTextField(
         value = value,
         onValueChange = { onValueChange(it.take(30)) },
-        label = { Text(label) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
-        modifier = Modifier.fillMaxWidth(),
+        label = label,
+        placeholder = label,
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Words,
+            imeAction = ImeAction.Next,
+        ),
     )
 }
 
@@ -382,38 +490,35 @@ private fun SaveGameDialog(
     onDismiss: () -> Unit,
 ) {
     var rivalryId by rememberSaveable { mutableStateOf(rivals.singleOrNull()?.rivalryId) }
-    val guess = listOf(game.left, game.right).firstOrNull { it.name.equals(myName.substringBefore(' '), ignoreCase = true) }
+    val guess = listOf(game.left, game.right)
+        .firstOrNull { it.name.equals(myName.substringBefore(' '), ignoreCase = true) }
     var myGuestId by rememberSaveable { mutableStateOf(guess?.id) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Save to a rivalry") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Which one was you?", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(game.left, game.right).forEach { side ->
-                        FilterChip(selected = myGuestId == side.id, onClick = { myGuestId = side.id }, label = { Text(side.name) })
-                    }
-                }
-                Text("Against", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    rivals.forEach { rival ->
-                        FilterChip(
-                            selected = rivalryId == rival.rivalryId,
-                            onClick = { rivalryId = rival.rivalryId },
-                            label = { Text(rival.name) },
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
+    RivalsDialog(
+        title = "Save to a rivalry",
+        confirmLabel = "Save",
+        onConfirm = {
             val r = rivalryId
             val g = myGuestId
-            TextButton(onClick = { if (r != null && g != null) onSave(r, g) }, enabled = r != null && g != null) { Text("Save") }
+            if (r != null && g != null) onSave(r, g)
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+        confirmEnabled = rivalryId != null && myGuestId != null,
+        onDismiss = onDismiss,
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(Space.s16)) {
+            ChoiceRow(
+                label = "Which one was you?",
+                options = listOf(game.left, game.right).map { it.id to it.name },
+                selected = myGuestId,
+                onSelect = { myGuestId = it },
+            )
+            ChoiceRow(
+                label = "Against",
+                options = rivals.map { it.rivalryId to it.name },
+                selected = rivalryId,
+                onSelect = { rivalryId = it },
+            )
+        }
+    }
 }
 
 @Preview
@@ -425,9 +530,18 @@ private fun HomeContentPreview() {
                 loading = false,
                 signedIn = true,
                 myName = "Kevin",
-                rivals = listOf(RivalCard("r", "Julian", 12, 9, live = true)),
+                rivals = listOf(
+                    RivalCard(
+                        "r", "Julian", 12, 9,
+                        activeSessionId = "s",
+                        tonight = 2 to 1,
+                        nights = listOf(true, true, false, true, true, false, false, true, true, false),
+                    ),
+                ),
                 invites = listOf(InviteCard("i", "Sam", incoming = true)),
-                guestGames = listOf(GuestGame("g", false, null, GuestSide("a", "Kevin", 2), GuestSide("b", "Tom", 1))),
+                guestGames = listOf(
+                    GuestGame("g", false, null, GuestSide("a", "Kevin", 2), GuestSide("b", "Tom", 1)),
+                ),
             ),
             HomeActions(),
         )

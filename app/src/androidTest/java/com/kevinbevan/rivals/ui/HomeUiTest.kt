@@ -33,7 +33,7 @@ class HomeUiTest {
         loading = false,
         signedIn = true,
         myName = "Kevin Bevan",
-        rivals = listOf(RivalCard("r1", "Julian", myWins = 12, rivalWins = 9, live = false)),
+        rivals = listOf(RivalCard("r1", "Julian", myWins = 12, rivalWins = 9)),
     )
     private val finished = GuestGame("g1", active = false, startedAt = null, GuestSide("guest-a", "Tom", 2), GuestSide("guest-b", "Kevin", 1))
 
@@ -75,10 +75,12 @@ class HomeUiTest {
             ),
             HomeActions(onAcceptInvite = { accepted = it }, onOpenRivalry = { opened = it }),
         )
-        compose.onNodeWithText("Sam wants a rivalry with you").assertIsDisplayed()
-        compose.onNodeWithText("Waiting for Alex to accept").assertIsDisplayed()
+        compose.onNodeWithText("Sam wants a rivalry").assertIsDisplayed()
+        compose.onNodeWithText("Alex").assertIsDisplayed()
+        compose.onNodeWithText("Waiting for them to accept").assertIsDisplayed()
         compose.onNodeWithText("Accept").performClick()
-        compose.onNodeWithText("12 – 9").performClick()
+        // The one rival is Home's scoreboard, so the primary action opens their rivalry.
+        compose.onNodeWithText("Play Julian").performClick()
         assertEquals("r2", accepted)
         assertEquals("r1", opened)
     }
@@ -90,11 +92,11 @@ class HomeUiTest {
             signedIn.copy(guestGames = listOf(finished)),
             HomeActions(onSaveGuestGame = { game, rivalry, me -> saved = Triple(game, rivalry, me) }),
         )
-        compose.onNodeWithText("Games on this phone").assertIsDisplayed()
+        compose.onNodeWithText("ON THIS PHONE").assertIsDisplayed()
         compose.onNodeWithText("Save").performClick()
         // The only rival is preselected; which side was you is picked here.
-        compose.onNodeWithText("Which one was you?").assertIsDisplayed()
-        compose.onNodeWithText("Tom").performClick()
+        compose.onNodeWithText("WHICH ONE WAS YOU?").assertIsDisplayed()
+        compose.onNodeWithText("TOM").performClick()
         compose.onAllNodesWithText("Save").onLast().performClick() // the dialog's, not the row's
         assertEquals(Triple("g1", "r1", "guest-a"), saved)
     }
