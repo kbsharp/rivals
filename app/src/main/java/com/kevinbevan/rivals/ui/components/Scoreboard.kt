@@ -1,7 +1,7 @@
 package com.kevinbevan.rivals.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kevinbevan.rivals.R
+import com.kevinbevan.rivals.ui.theme.Motion
 import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.Space
 import kotlin.math.roundToInt
@@ -184,7 +186,7 @@ fun WinRing(
 ) {
     val total = yourWins + rivalWins
     val share = if (total == 0) 0f else yourWins.toFloat() / total
-    val animated by animateFloatAsState(share, tween(durationMillis = 250), label = "winShare")
+    val animated by animateFloatAsState(share, Motion.tween(Motion.SLOW), label = "winShare")
     val track = Rivals.colors.raised
     val you = Rivals.colors.you
     val rival = Rivals.colors.rival
@@ -259,27 +261,46 @@ fun Tabs(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier.fillMaxWidth()) {
-        titles.forEachIndexed { index, title ->
-            val selected = index == selectedIndex
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(Space.touch)
-                    .clickable(role = Role.Tab) { onSelect(index) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Label(title, color = if (selected) Rivals.colors.fg else Rivals.colors.fg3)
-                if (selected) {
-                    Box(
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .height(2.dp)
-                            .background(Rivals.colors.fg),
-                    )
+    // The underline slides between the tabs; the labels fade between fg and fg-3.
+    val indicator by animateFloatAsState(
+        selectedIndex.toFloat(),
+        Motion.tween(Motion.FAST),
+        label = "tab",
+    )
+    Layout(
+        modifier = modifier.fillMaxWidth(),
+        content = {
+            titles.forEachIndexed { index, title ->
+                val selected = index == selectedIndex
+                val color by animateColorAsState(
+                    if (selected) Rivals.colors.fg else Rivals.colors.fg3,
+                    Motion.tween(Motion.FAST),
+                    label = "tabLabel",
+                )
+                Box(
+                    Modifier
+                        .height(Space.touch)
+                        .clickable(role = Role.Tab) { onSelect(index) },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Label(title, color = color)
                 }
             }
+            Box(Modifier.height(2.dp).background(Rivals.colors.fg))
+        },
+    ) { measurables, constraints ->
+        val count = titles.size
+        val tabWidth = constraints.maxWidth / count
+        val tabs = measurables.dropLast(1).map {
+            it.measure(constraints.copy(minWidth = tabWidth, maxWidth = tabWidth))
+        }
+        val height = tabs.maxOfOrNull { it.height } ?: 0
+        val underline = measurables.last().measure(
+            constraints.copy(minWidth = tabWidth, maxWidth = tabWidth),
+        )
+        layout(constraints.maxWidth, height) {
+            tabs.forEachIndexed { index, tab -> tab.place(index * tabWidth, 0) }
+            underline.place((indicator * tabWidth).toInt(), height - underline.height)
         }
     }
 }

@@ -3,7 +3,8 @@ package com.kevinbevan.rivals.ui.session
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -88,6 +89,7 @@ import com.kevinbevan.rivals.ui.components.SecondaryButton
 import com.kevinbevan.rivals.ui.components.TextAction
 import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
+import com.kevinbevan.rivals.ui.theme.Motion
 import com.kevinbevan.rivals.ui.theme.Shapes
 import com.kevinbevan.rivals.ui.theme.Space
 import java.time.Duration
@@ -188,9 +190,15 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
     val me = uiState.me
     val rival = uiState.rival
     val result = uiState.justWon
+    // Held for the length of the fade-out, so the panel still has something to draw.
+    var lastResult by remember { mutableStateOf(result) }
+    LaunchedEffect(result) { if (result != null) lastResult = result }
 
+    val haptics = LocalHapticFeedback.current
     LaunchedEffect(result?.matchId) {
         if (result != null) {
+            // A heavier thump than a frame: the match is over.
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             delay(ResultPanelMillis)
             actions.onDismissResult()
         }
@@ -202,9 +210,14 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                 Label("Opening the scoreboard…", Modifier.align(Alignment.Center))
 
             match != null -> {
-                // The board dims behind the match-won panel so the panel is the only thing to read.
-                val board = if (result != null) Modifier.alpha(0.3f) else Modifier
-                Row(Modifier.fillMaxSize().then(board)) {
+                // The board dims behind the match-won panel so the panel is the only thing to
+                // read, and dims back when the next match takes over.
+                val dim by animateFloatAsState(
+                    if (result != null) 0.3f else 1f,
+                    Motion.tween(Motion.NORMAL),
+                    label = "boardDim",
+                )
+                Row(Modifier.fillMaxSize().alpha(dim)) {
                     ScoreHalf(
                         side = me,
                         color = Rivals.colors.you,
@@ -224,15 +237,21 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                         modifier = Modifier.weight(1f).testTag("score-${rival.uid}"),
                     )
                 }
-                if (result != null) {
+                AnimatedVisibility(
+                    visible = result != null,
+                    enter = fadeIn(Motion.tween(Motion.NORMAL)),
+                    exit = fadeOut(Motion.tween(Motion.FAST)),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .windowInsetsPadding(WindowInsets.safeDrawing),
+                ) {
+                    // Kept after the result clears so the panel can fade rather than vanish.
+                    val shown = result ?: lastResult ?: return@AnimatedVisibility
                     MatchWonPanel(
-                        result = result,
-                        youWon = result.winnerId == me.uid,
+                        result = shown,
+                        youWon = shown.winnerId == me.uid,
                         canUndo = uiState.canUndo,
                         onUndo = { actions.onDismissResult(); actions.onUndo() },
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .windowInsetsPadding(WindowInsets.safeDrawing),
                     )
                 }
                 StatusLine(
@@ -325,9 +344,14 @@ private fun ScoreHalf(
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
-    // One crisp haptic per score change, so it fires for the rival's phone too.
+    // One crisp haptic per score change, so it fires when the rival's phone records the frame
+    // too. Not on the first composition: reopening the board mid-match shouldn't buzz.
+    var lastFrames by remember(side.uid) { mutableStateOf(side.frames) }
     LaunchedEffect(side.uid, side.frames) {
-        if (side.frames > 0) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        if (side.frames != lastFrames) {
+            lastFrames = side.frames
+            haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+        }
     }
     val onTheHill = raceTo != null && side.frames == raceTo - 1
     BoxWithConstraints(
@@ -394,8 +418,10 @@ private fun RollingScore(frames: Int, fontSize: TextUnit, emSize: Dp) {
             targetState = frames,
             transitionSpec = {
                 val up = targetState > initialState
-                val enter = slideInVertically(tween(200)) { h -> if (up) h else -h } + fadeIn(tween(200))
-                val exit = slideOutVertically(tween(200)) { h -> if (up) -h else h } + fadeOut(tween(200))
+                val enter = slideInVertically(Motion.tween()) { h -> if (up) h else -h } +
+                    fadeIn(Motion.tween())
+                val exit = slideOutVertically(Motion.tween()) { h -> if (up) -h else h } +
+                    fadeOut(Motion.tween())
                 enter togetherWith exit
             },
             label = "score",

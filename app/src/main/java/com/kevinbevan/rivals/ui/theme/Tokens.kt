@@ -96,6 +96,27 @@ object Space {
     val touch = 48.dp
 }
 
+/**
+ * Motion, from `design/brief.md`: 150–250ms and no bounce. Nothing in the app springs, and
+ * nothing on the scoreboard moves except the score.
+ */
+object Motion {
+    /** A state that should feel instant: a chip filling, a tab underline. */
+    const val FAST = 150
+
+    /** The usual: a score rolling, a panel arriving. */
+    const val NORMAL = 200
+
+    /** The longest anything takes: a ring redrawing itself. */
+    const val SLOW = 250
+
+    /** One easing for everything, so nothing overshoots. */
+    val easing = androidx.compose.animation.core.FastOutSlowInEasing
+
+    fun <T> tween(durationMillis: Int = NORMAL) =
+        androidx.compose.animation.core.tween<T>(durationMillis, easing = easing)
+}
+
 /** 8dp chips and score boxes, 16dp panels, fully round buttons. */
 object Shapes {
     val chip = RoundedCornerShape(8.dp)

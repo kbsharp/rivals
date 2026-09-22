@@ -111,6 +111,9 @@ class Screenshots {
 
     @Test fun homeLight() = shoot("home", dark = false) { Home() }
     @Test fun homeDark() = shoot("home", dark = true) { Home() }
+    @Test fun homeNoRivalsDark() = shoot("home-no-rivals", dark = true) {
+        HomeContent(HomeUiState(loading = false, signedIn = true, myName = "Kevin"), HomeActions())
+    }
     @Test fun guestHomeLight() = shoot("home-guest", dark = false) { SignedOutHome() }
     @Test fun guestHomeDark() = shoot("home-guest", dark = true) { SignedOutHome() }
     @Test fun rivalryLight() = shoot("rivalry", dark = false) { Rivalry() }
@@ -125,6 +128,9 @@ class Screenshots {
     @Test fun signInDark() = shoot("sign-in", dark = true) { SignInContent(SignInUiState(), {}, {}, {}) }
     @Test fun inviteDark() = shoot("invite", dark = true) {
         InviteContent(InviteUiState(loading = false, invite = Invite("ABCD2345", "a", "Kevin")), {}, {}, {}, {})
+    }
+    @Test fun inviteGoneDark() = shoot("invite-gone", dark = true) {
+        InviteContent(InviteUiState(loading = false, invite = null), {}, {}, {}, {})
     }
     @Test fun statsLight() = shoot("rivalry-stats", dark = false) { Rivalry(stats = true) }
     @Test fun statsDark() = shoot("rivalry-stats", dark = true) { Rivalry(stats = true) }
