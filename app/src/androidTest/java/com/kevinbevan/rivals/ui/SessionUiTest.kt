@@ -13,6 +13,7 @@ import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
+import com.kevinbevan.rivals.ui.session.MatchResult
 import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
 import com.kevinbevan.rivals.ui.session.SessionContent
@@ -57,9 +58,36 @@ class SessionUiTest {
     @Test
     fun theScoreRaceAndHillAreShown() {
         show(state(a = 4, b = 2))
-        compose.onNodeWithText("Match 2 · 8-ball · race to 5").assertIsDisplayed()
-        compose.onNodeWithText("Tonight 1 – 0").assertIsDisplayed()
-        compose.onNodeWithText("on the hill").assertIsDisplayed()
+        // The status line is one label along the foot of the board, and labels are uppercase.
+        compose.onNodeWithText("MATCH 2 · 8-BALL · RACE TO 5 · TONIGHT 1 – 0").assertIsDisplayed()
+        compose.onNodeWithText("ON THE HILL").assertIsDisplayed()
+    }
+
+    @Test
+    fun aWonMatchDimsTheBoardAndNamesTheWinner() {
+        var undone = false
+        show(
+            state(a = 0, b = 0).copy(
+                justWon = MatchResult(
+                    matchId = "m1",
+                    number = 1,
+                    gameLabel = "8-ball",
+                    winnerId = "a",
+                    winnerName = "Kevin",
+                    winnerFrames = 5,
+                    loserFrames = 2,
+                    next = "Match 2 starts now. Tonight 1 – 0.",
+                ),
+                canUndo = true,
+            ),
+            SessionActions(onUndo = { undone = true }),
+        )
+        compose.onNodeWithText("Kevin takes it 5 – 2").assertIsDisplayed()
+        compose.onNodeWithText("Match 2 starts now. Tonight 1 – 0.").assertIsDisplayed()
+        // The halves stop taking taps while the result is up.
+        compose.onNodeWithTag("score-a").assertIsNotEnabled()
+        compose.onNodeWithText("Undo").performClick()
+        assertTrue(undone)
     }
 
     @Test
@@ -70,7 +98,7 @@ class SessionUiTest {
             SessionActions(onToggleEvent = { toggled += it }),
         )
         compose.onNodeWithContentDescription("Game menu").performClick()
-        compose.onNodeWithText("Last frame").assertIsDisplayed()
+        compose.onNodeWithText("LAST FRAME").assertIsDisplayed()
         compose.onNodeWithContentDescription("Tagged").assertIsDisplayed()
         compose.onNodeWithText("Break & run").performClick()
         assertEquals(listOf(FrameEvent.BREAK_AND_RUN), toggled)
@@ -80,7 +108,7 @@ class SessionUiTest {
     fun withNothingPlayedThereIsNothingToTagOrUndo() {
         show(state(a = 0, b = 0, matchesA = 0))
         compose.onNodeWithContentDescription("Game menu").performClick()
-        compose.onNodeWithText("Last frame").assertDoesNotExist()
+        compose.onNodeWithText("LAST FRAME").assertDoesNotExist()
         compose.onNodeWithText("Undo last frame").assertIsNotEnabled()
     }
 

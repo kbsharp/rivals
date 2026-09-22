@@ -2,6 +2,13 @@ package com.kevinbevan.rivals.ui.session
 
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.LocalActivity
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,24 +28,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +50,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
@@ -58,10 +60,13 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -74,8 +79,17 @@ import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
+import com.kevinbevan.rivals.ui.components.Chip
+import com.kevinbevan.rivals.ui.components.IconAction
+import com.kevinbevan.rivals.ui.components.Label
+import com.kevinbevan.rivals.ui.components.Pips
+import com.kevinbevan.rivals.ui.components.PrimaryButton
+import com.kevinbevan.rivals.ui.components.SecondaryButton
+import com.kevinbevan.rivals.ui.components.TextAction
 import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
+import com.kevinbevan.rivals.ui.theme.Shapes
+import com.kevinbevan.rivals.ui.theme.Space
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
@@ -104,6 +118,7 @@ fun SessionScreen(
             onStartMatch = viewModel::startMatch,
             onChangeSettings = viewModel::changeSettings,
             onEndSession = viewModel::endSession,
+            onDismissResult = viewModel::dismissResult,
             onMessageShown = viewModel::dismissMessage,
         ),
     )
@@ -142,14 +157,22 @@ class SessionActions(
     val onStartMatch: (MatchSettings) -> Unit = {},
     val onChangeSettings: (MatchSettings) -> Unit = {},
     val onEndSession: () -> Unit = {},
+    val onDismissResult: () -> Unit = {},
     val onMessageShown: () -> Unit = {},
 )
 
 private enum class SessionDialog { CHANGE_SETTINGS, END_MATCH, END_SESSION }
 
+/** The status line along the foot of the board. Nothing sits on the centre line. */
+private val StatusLineHeight = 52.dp
+
+/** How long the match-won panel holds the board before the next match gets on with it. */
+private const val ResultPanelMillis = 9_000L
+
 /**
- * The scoreboard: each player owns half the screen, and tapping it records a frame for them.
- * Everything else (undo, tagging a frame, ending things) lives behind the floating menu.
+ * The scoreboard: charcoal field, each player owns half of it, and tapping their half records a
+ * frame for them. Their name and race pips carry their colour; the score is always white.
+ * Everything that isn't scoring lives behind the menu in the corner of the status line.
  */
 @Composable
 internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
@@ -164,48 +187,60 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
     val match = uiState.match
     val me = uiState.me
     val rival = uiState.rival
+    val result = uiState.justWon
 
-    // A Surface, not a bare background, so text inherits onSurface rather than defaulting to black.
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-    Box(Modifier.fillMaxSize()) {
+    LaunchedEffect(result?.matchId) {
+        if (result != null) {
+            delay(ResultPanelMillis)
+            actions.onDismissResult()
+        }
+    }
+
+    Box(Modifier.fillMaxSize().background(Rivals.colors.base)) {
         when {
             uiState.loading || me == null || rival == null ->
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
+                Label("Opening the scoreboard…", Modifier.align(Alignment.Center))
 
             match != null -> {
-                val colors = Rivals.colors
-                Row(Modifier.fillMaxSize()) {
-                    listOf(
-                        Triple(me, colors.you, colors.onFg),
-                        Triple(rival, colors.rival, colors.onFg),
-                    ).forEach { (side, container, content) ->
-                        ScoreHalf(
-                            side = side,
-                            onTheHill = match.settings.raceTo?.let { side.frames == it - 1 } == true,
-                            container = container,
-                            content = content,
-                            onClick = { actions.onRecordFrame(side.uid) },
-                            modifier = Modifier.weight(1f).testTag("score-${side.uid}"),
-                        )
-                    }
+                // The board dims behind the match-won panel so the panel is the only thing to read.
+                val board = if (result != null) Modifier.alpha(0.3f) else Modifier
+                Row(Modifier.fillMaxSize().then(board)) {
+                    ScoreHalf(
+                        side = me,
+                        color = Rivals.colors.you,
+                        tint = Rivals.colors.youTint,
+                        raceTo = match.settings.raceTo,
+                        enabled = result == null,
+                        onClick = { actions.onRecordFrame(me.uid) },
+                        modifier = Modifier.weight(1f).testTag("score-${me.uid}"),
+                    )
+                    ScoreHalf(
+                        side = rival,
+                        color = Rivals.colors.rival,
+                        tint = Rivals.colors.rivalTint,
+                        raceTo = match.settings.raceTo,
+                        enabled = result == null,
+                        onClick = { actions.onRecordFrame(rival.uid) },
+                        modifier = Modifier.weight(1f).testTag("score-${rival.uid}"),
+                    )
                 }
-                MatchInfo(
-                    uiState = uiState,
-                    match = match,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
-                        .padding(top = 12.dp),
-                )
-                GameMenu(
+                if (result != null) {
+                    MatchWonPanel(
+                        result = result,
+                        youWon = result.winnerId == me.uid,
+                        canUndo = uiState.canUndo,
+                        onUndo = { actions.onDismissResult(); actions.onUndo() },
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .windowInsetsPadding(WindowInsets.safeDrawing),
+                    )
+                }
+                StatusLine(
                     uiState = uiState,
                     match = match,
                     actions = actions,
                     onDialog = { dialog = it },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-                        .padding(bottom = 16.dp),
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
 
@@ -215,7 +250,6 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                 onUndo = actions.onUndo,
                 onEndSession = { dialog = SessionDialog.END_SESSION },
                 onBack = actions.onBack,
-                modifier = Modifier.align(Alignment.Center),
             )
         }
         SnackbarHost(
@@ -223,9 +257,8 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
             Modifier
                 .align(Alignment.BottomCenter)
                 .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(bottom = 80.dp),
+                .padding(bottom = 72.dp),
         )
-    }
     }
 
     when (dialog) {
@@ -277,94 +310,142 @@ private fun endMatchConsequence(match: Match, uiState: SessionUiState): String {
     return "$name is ahead, so it goes down as their win."
 }
 
-/** One player's half: the whole area is the tap target, the frame count sized to fill it. */
+/**
+ * One player's half. The whole area is the tap target; inside it, their name in their colour,
+ * the white score sized to about 45% of the height, their race pips, and the hill chip.
+ */
 @Composable
 private fun ScoreHalf(
     side: PlayerSide,
-    onTheHill: Boolean,
-    container: Color,
-    content: Color,
+    color: Color,
+    tint: Color,
+    raceTo: Int?,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val haptics = LocalHapticFeedback.current
+    // One crisp haptic per score change, so it fires for the rival's phone too.
+    LaunchedEffect(side.uid, side.frames) {
+        if (side.frames > 0) haptics.performHapticFeedback(HapticFeedbackType.Confirm)
+    }
+    val onTheHill = raceTo != null && side.frames == raceTo - 1
     BoxWithConstraints(
         modifier = modifier
             .fillMaxHeight()
-            .background(container)
-            .clickable(role = Role.Button, onClickLabel = "Record a frame for ${side.name}") {
-                haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                onClick()
-            }
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                onClickLabel = "Record a frame for ${side.name}",
+                onClick = onClick,
+            )
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+            .padding(bottom = StatusLineHeight),
         contentAlignment = Alignment.Center,
     ) {
         // Sized from the space, not the font scale: it's a scoreboard, not body text.
-        val numberSize = with(LocalDensity.current) { (maxHeight * 0.45f).toSp() }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val numberHeight = maxHeight * 0.45f
+        val numberSize = with(LocalDensity.current) { numberHeight.toSp() }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             Text(
-                side.frames.toString(),
-                color = content,
-                fontSize = numberSize,
-                lineHeight = numberSize,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-            )
-            Text(
-                side.name,
-                color = content,
-                style = MaterialTheme.typography.headlineSmall,
+                side.name.uppercase(),
+                style = Rivals.type.label.copy(fontSize = 13.sp),
+                color = color,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = Space.s16),
             )
-            Text(
-                if (onTheHill) "on the hill" else " ",
-                color = content,
-                style = MaterialTheme.typography.labelLarge,
-            )
+            RollingScore(side.frames, fontSize = numberSize, emSize = numberHeight)
+            Pips(won = side.frames, raceTo = raceTo, color = color)
+            // The chip keeps its space either way, so the score doesn't jump on to the hill.
+            if (onTheHill) {
+                Chip("On the hill", color = color, background = tint)
+            } else {
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 }
 
-/** The small pill over the divide: match clock, which match and race, and tonight's score. */
+/**
+ * How much of its font size a row of Montserrat digits actually fills: the cap height from the
+ * font's own metrics (0.70), with a little slack. Everything above and below that in the line
+ * box is empty, which is what would otherwise push the name and pips away from the score.
+ */
+private const val DigitHeight = 0.72f
+
+/**
+ * The one thing on the board that moves: the score rolls up when it goes up, down on an undo.
+ *
+ * The box is the height of the digits themselves rather than the font's taller line box, so
+ * the name and the pips sit as close to the number as they do in the mock-ups.
+ */
 @Composable
-private fun MatchInfo(uiState: SessionUiState, match: Match, modifier: Modifier = Modifier) {
+private fun RollingScore(frames: Int, fontSize: TextUnit, emSize: Dp) {
+    val style = Rivals.type.score.copy(fontSize = fontSize, lineHeight = fontSize)
+    Box(
+        modifier = Modifier.height(emSize * DigitHeight).clipToBounds(),
+        contentAlignment = Alignment.Center,
+    ) {
+        AnimatedContent(
+            targetState = frames,
+            transitionSpec = {
+                val up = targetState > initialState
+                val enter = slideInVertically(tween(200)) { h -> if (up) h else -h } + fadeIn(tween(200))
+                val exit = slideOutVertically(tween(200)) { h -> if (up) -h else h } + fadeOut(tween(200))
+                enter togetherWith exit
+            },
+            label = "score",
+            modifier = Modifier.wrapContentHeight(unbounded = true),
+        ) { value ->
+            Text("$value", style = style, color = Rivals.colors.fg, maxLines = 1)
+        }
+    }
+}
+
+/**
+ * The quiet line along the bottom: the match clock, then what's being played and tonight's
+ * score, with the menu in the corner. Everything else on the board is score.
+ */
+@Composable
+private fun StatusLine(
+    uiState: SessionUiState,
+    match: Match,
+    actions: SessionActions,
+    onDialog: (SessionDialog) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val me = uiState.me ?: return
     val rival = uiState.rival ?: return
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
-        // contentColorFor doesn't recognise the translucent colour, so say it outright.
-        contentColor = MaterialTheme.colorScheme.onSurface,
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .height(StatusLineHeight)
+            .padding(start = 20.dp, end = Space.s4),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.s16),
     ) {
-        Column(
-            Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                MatchClock(match.startedAt)
-                if (uiState.pendingSync) {
-                    Icon(
-                        painterResource(R.drawable.ic_cloud_upload),
-                        contentDescription = "Saved on this phone, waiting to sync",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp).size(16.dp),
-                    )
-                }
-            }
-            Text(
-                "Match ${match.number} · ${match.settings.describe()}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "Tonight ${me.matches} – ${rival.matches}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        MatchClock(match.startedAt)
+        if (uiState.pendingSync) {
+            Icon(
+                painterResource(R.drawable.ic_cloud_upload),
+                contentDescription = "Saved on this phone, waiting to sync",
+                tint = Rivals.colors.fg3,
+                modifier = Modifier.size(16.dp),
             )
         }
+        Label(
+            "Match ${match.number} · ${match.settings.describe()} · " +
+                "Tonight ${me.matches} – ${rival.matches}",
+            color = Rivals.colors.fg3,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f),
+        )
+        GameMenu(uiState = uiState, match = match, actions = actions, onDialog = onDialog)
     }
 }
 
@@ -380,7 +461,8 @@ private fun MatchClock(startedAt: Instant?) {
     }
     Text(
         formatElapsed(Duration.between(startedAt, now).seconds),
-        style = MaterialTheme.typography.titleMedium,
+        style = Rivals.type.number.copy(fontSize = 16.sp),
+        color = Rivals.colors.fg,
         modifier = Modifier.testTag("match-clock"),
     )
 }
@@ -394,7 +476,45 @@ internal fun formatElapsed(seconds: Long): String {
     return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%d:%02d".format(m, sec)
 }
 
-/** The floating button that holds everything that isn't scoring. */
+/**
+ * The match is won: the board dims and this says who took it, what happens next, and offers the
+ * way back if the wrong half was tapped.
+ */
+@Composable
+private fun MatchWonPanel(
+    result: MatchResult,
+    youWon: Boolean,
+    canUndo: Boolean,
+    onUndo: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .widthIn(max = 560.dp)
+            .padding(horizontal = Space.s24)
+            .background(Rivals.colors.surface, Shapes.panel)
+            .padding(horizontal = 28.dp, vertical = Space.s24)
+            .testTag("match-won"),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.s24),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Label(
+                "Match ${result.number} · ${result.gameLabel}",
+                color = if (youWon) Rivals.colors.you else Rivals.colors.rival,
+            )
+            Text(
+                "${result.winnerName} takes it ${result.winnerFrames} – ${result.loserFrames}",
+                style = Rivals.type.headline.copy(fontSize = 30.sp, lineHeight = 36.sp),
+                color = Rivals.colors.fg,
+            )
+            Text(result.next, style = Rivals.type.body, color = Rivals.colors.fg2)
+        }
+        if (canUndo) SecondaryButton("Undo", onUndo)
+    }
+}
+
+/** Everything that isn't scoring, behind the one button in the corner. */
 @Composable
 private fun GameMenu(
     uiState: SessionUiState,
@@ -405,28 +525,30 @@ private fun GameMenu(
 ) {
     var open by remember { mutableStateOf(false) }
     Box(modifier) {
-        FloatingActionButton(
-            onClick = { open = true },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurface,
+        IconAction(R.drawable.ic_menu, "Game menu", { open = true })
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            containerColor = Rivals.colors.surface,
+            shape = Shapes.panel,
         ) {
-            Icon(painterResource(R.drawable.ic_menu), contentDescription = "Game menu")
-        }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             val tagged = uiState.lastFrameEvents
             if (tagged != null) {
-                Text(
+                Label(
                     "Last frame",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    color = Rivals.colors.fg3,
+                    modifier = Modifier.padding(horizontal = Space.s16, vertical = Space.s8),
                 )
                 FrameEvent.entries.forEach { event ->
                     DropdownMenuItem(
-                        text = { Text(event.label) },
+                        text = { Text(event.label, style = Rivals.type.body, color = Rivals.colors.fg) },
                         leadingIcon = {
                             if (event in tagged) {
-                                Icon(painterResource(R.drawable.ic_check), contentDescription = "Tagged")
+                                Icon(
+                                    painterResource(R.drawable.ic_check),
+                                    contentDescription = "Tagged",
+                                    tint = Rivals.colors.fg,
+                                )
                             } else {
                                 Spacer(Modifier.size(24.dp))
                             }
@@ -434,37 +556,47 @@ private fun GameMenu(
                         onClick = { open = false; actions.onToggleEvent(event) },
                     )
                 }
-                HorizontalDivider()
             }
-            DropdownMenuItem(
-                text = { Text("Undo last frame") },
-                leadingIcon = { Icon(painterResource(R.drawable.ic_undo), contentDescription = null) },
-                enabled = uiState.canUndo,
-                onClick = { open = false; actions.onUndo() },
-            )
+            MenuItem("Undo last frame", R.drawable.ic_undo, enabled = uiState.canUndo) {
+                open = false
+                actions.onUndo()
+            }
             if (match.framesPlayed == 0) {
-                DropdownMenuItem(
-                    text = { Text("Change game") },
-                    onClick = { open = false; onDialog(SessionDialog.CHANGE_SETTINGS) },
-                )
+                MenuItem("Change game") { open = false; onDialog(SessionDialog.CHANGE_SETTINGS) }
             } else {
-                DropdownMenuItem(
-                    text = { Text("End match") },
-                    onClick = { open = false; onDialog(SessionDialog.END_MATCH) },
-                )
+                MenuItem("End match") { open = false; onDialog(SessionDialog.END_MATCH) }
             }
-            DropdownMenuItem(
-                text = { Text("End session") },
-                onClick = { open = false; onDialog(SessionDialog.END_SESSION) },
-            )
-            HorizontalDivider()
-            DropdownMenuItem(
-                text = { Text("Back to home") },
-                leadingIcon = { Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = null) },
-                onClick = { open = false; actions.onBack() },
-            )
+            MenuItem("End session") { open = false; onDialog(SessionDialog.END_SESSION) }
+            MenuItem("Back to home", R.drawable.ic_arrow_back) { open = false; actions.onBack() }
         }
     }
+}
+
+@Composable
+private fun MenuItem(
+    text: String,
+    iconRes: Int? = null,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                text,
+                style = Rivals.type.body,
+                color = if (enabled) Rivals.colors.fg else Rivals.colors.fg3,
+            )
+        },
+        leadingIcon = {
+            if (iconRes != null) {
+                Icon(painterResource(iconRes), contentDescription = null, tint = Rivals.colors.fg2)
+            } else {
+                Spacer(Modifier.size(24.dp))
+            }
+        },
+        enabled = enabled,
+        onClick = onClick,
+    )
 }
 
 /** Between matches (after one was ended by hand): set up the next, laid out for landscape. */
@@ -478,56 +610,63 @@ private fun NextMatchPanel(
     modifier: Modifier = Modifier,
 ) {
     var settings by remember(uiState.lastSettings) { mutableStateOf(uiState.lastSettings) }
-    Row(
+    val me = uiState.me
+    val rival = uiState.rival
+    // Centred when it fits, scrolling from the top when landscape leaves too little height.
+    Column(
         modifier = modifier
+            .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+    Row(
+        modifier = Modifier
             .widthIn(max = 720.dp)
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+            .padding(horizontal = Space.s24, vertical = Space.s16),
+        horizontalArrangement = Arrangement.spacedBy(Space.s32),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text("Next match", style = MaterialTheme.typography.titleLarge)
-            val me = uiState.me
-            val rival = uiState.rival
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s16)) {
+            Label("Tonight")
             if (me != null && rival != null) {
-                Text(
-                    "Tonight: ${me.name} ${me.matches} – ${rival.matches} ${rival.name}",
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(Space.s12),
+                ) {
+                    Text("${me.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
+                    Text(
+                        "–",
+                        style = Rivals.type.display.copy(fontSize = 24.sp),
+                        color = Rivals.colors.hairline,
+                        modifier = Modifier.padding(bottom = Space.s8),
+                    )
+                    Text("${rival.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Label(me.name, color = Rivals.colors.you)
+                    Label(rival.name, color = Rivals.colors.rival)
+                }
             }
-            MatchSettingsPicker(settings, { settings = it })
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = { onStart(settings) },
-                modifier = Modifier.fillMaxWidth().height(72.dp),
-            ) { Text("Start match", style = MaterialTheme.typography.titleMedium) }
-            OutlinedButton(onClick = onEndSession, modifier = Modifier.fillMaxWidth()) { Text("End session") }
-            if (uiState.canUndo) {
-                TextButton(onClick = onUndo, modifier = Modifier.fillMaxWidth()) { Text("Undo last frame") }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s12)) {
+            Label("Next match")
+            MatchSettingsPicker(settings, { settings = it })
+            PrimaryButton("Start match", { onStart(settings) })
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Space.s8),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextAction("End session", onEndSession)
+                Spacer(Modifier.weight(1f))
+                if (uiState.canUndo) TextAction("Undo last frame", onUndo)
+                TextAction("Home", onBack)
             }
-            TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text("Back to home") }
         }
     }
-}
-
-@Composable
-private fun ConfirmDialog(
-    title: String,
-    text: String,
-    confirmLabel: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(text) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    }
 }
 
 private val previewMatch = Match(
@@ -538,7 +677,7 @@ private val previewMatch = Match(
     frameWins = mapOf("a" to 4, "b" to 2),
 )
 
-@Preview(widthDp = 840, heightDp = 390)
+@Preview(widthDp = 915, heightDp = 412)
 @Composable
 private fun SessionContentPreview() {
     RivalsTheme {
@@ -546,7 +685,7 @@ private fun SessionContentPreview() {
             SessionUiState(
                 loading = false,
                 me = PlayerSide("a", "Kevin", frames = 4, matches = 2),
-                rival = PlayerSide("b", "Dave", frames = 2, matches = 1),
+                rival = PlayerSide("b", "Julian", frames = 2, matches = 1),
                 match = previewMatch,
                 lastFrameEvents = setOf(FrameEvent.BREAK_AND_RUN),
                 canUndo = true,
@@ -557,7 +696,7 @@ private fun SessionContentPreview() {
     }
 }
 
-@Preview(widthDp = 840, heightDp = 390)
+@Preview(widthDp = 915, heightDp = 412)
 @Composable
 private fun BetweenMatchesPreview() {
     RivalsTheme {
@@ -565,7 +704,7 @@ private fun BetweenMatchesPreview() {
             SessionUiState(
                 loading = false,
                 me = PlayerSide("a", "Kevin", frames = 0, matches = 2),
-                rival = PlayerSide("b", "Dave", frames = 0, matches = 1),
+                rival = PlayerSide("b", "Julian", frames = 0, matches = 1),
                 canUndo = true,
             ),
             SessionActions(),

@@ -44,7 +44,7 @@ class RivalryUiTest {
         show(ready.copy(recentVenues = listOf("The Crown")), onStart = { s, v -> started = s to v })
 
         compose.onNodeWithText("Start session").performClick()
-        compose.onNodeWithText("9-ball").performClick()
+        compose.onNodeWithText("9-BALL").performClick()
         compose.onNodeWithText("+").performClick()
         compose.onNodeWithText("The Crown").performClick()
         compose.onNodeWithText("Start").performClick()

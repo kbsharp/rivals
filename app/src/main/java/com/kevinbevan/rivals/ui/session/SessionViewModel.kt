@@ -34,6 +34,22 @@ import kotlinx.coroutines.launch
 /** One player's side of the scoreboard. */
 data class PlayerSide(val uid: String, val name: String, val frames: Int, val matches: Int)
 
+/**
+ * A match that has just been won, for the panel that dims the board. Both phones work it out
+ * from the same snapshot, so the result shows on the rival's phone too.
+ */
+data class MatchResult(
+    val matchId: String,
+    val number: Int,
+    val gameLabel: String,
+    val winnerId: String,
+    val winnerName: String,
+    val winnerFrames: Int,
+    val loserFrames: Int,
+    /** What happens next, and where tonight stands: one sentence. */
+    val next: String,
+)
+
 data class SessionUiState(
     val loading: Boolean = true,
     /** The session has ended (here or on the other phone), or doesn't exist. */
@@ -46,6 +62,8 @@ data class SessionUiState(
     val lastSettings: MatchSettings = DefaultMatchSettings,
     /** Events tagged on the session's last frame; `null` when no frame has been played. */
     val lastFrameEvents: Set<FrameEvent>? = null,
+    /** The match just won, while the panel is still up; `null` once it's been seen. */
+    val justWon: MatchResult? = null,
     val canUndo: Boolean = false,
     /** Some of what's on screen is saved on this phone but not yet on the server. */
     val pendingSync: Boolean = false,
@@ -66,6 +84,8 @@ class SessionViewModel(
         val message: String? = null,
         /** This phone just ended the session, so leave even if the snapshot hasn't caught up. */
         val exited: Boolean = false,
+        /** The match whose result has already been seen on this phone. */
+        val resultSeen: String? = null,
     )
 
     private val local = MutableStateFlow(Local())
@@ -115,12 +135,27 @@ class SessionViewModel(
             frames = running?.frameWins?.winsOf(uid) ?: 0,
             matches = s.matchWins.winsOf(uid),
         )
+        val me = side(myId)
+        val rivalSide = side(rivalId)
         SessionUiState(
             loading = false,
             ended = s.status == Status.ENDED,
-            me = side(myId),
-            rival = side(rivalId),
+            me = me,
+            rival = rivalSide,
             match = running,
+            justWon = justWon(latestFirst, running, local.resultSeen)?.let { (ended, winnerId) ->
+                MatchResult(
+                    matchId = ended.id,
+                    number = ended.number,
+                    gameLabel = ended.settings.gameType.label,
+                    winnerId = winnerId,
+                    winnerName = if (winnerId == myId) me.name else rivalSide.name,
+                    winnerFrames = ended.frameWins.winsOf(winnerId),
+                    loserFrames = ended.frameWins.filterKeys { it != winnerId }.values.sum(),
+                    next = "Match ${running!!.number} starts now. " +
+                        "Tonight ${me.matches} – ${rivalSide.matches}.",
+                )
+            },
             lastSettings = latest?.settings ?: DefaultMatchSettings,
             lastFrameEvents = lastFrame?.events,
             canUndo = latestFirst.take(2).any { it.framesPlayed > 0 },
@@ -142,8 +177,9 @@ class SessionViewModel(
     fun recordFrame(winnerId: String) = act {
         val recordedBy = (if (guest) createdBy else authRepository.currentUser?.uid)
             ?: return@act say("Sign in again to record frames")
-        val outcome = sessionRepository.recordFrame(sessionId, winnerId, recordedBy)
-        if (outcome.matchEnded) say("${nameOf(winnerId)} wins the match!")
+        // A won match is announced by the panel on the board, not by a snackbar.
+        local.update { it.copy(resultSeen = null) }
+        sessionRepository.recordFrame(sessionId, winnerId, recordedBy)
     }
 
     fun toggleEvent(event: FrameEvent) = act {
@@ -168,6 +204,12 @@ class SessionViewModel(
         local.update { it.copy(exited = true) }
     }
 
+    /** The match-won panel has been read (or timed out): let the next match have the board. */
+    fun dismissResult() {
+        val seen = uiState.value.justWon?.matchId ?: return
+        local.update { it.copy(resultSeen = seen) }
+    }
+
     fun dismissMessage() = local.update { it.copy(message = null) }
 
     private fun say(message: String) = local.update { it.copy(message = message) }
@@ -188,6 +230,23 @@ class SessionViewModel(
     }
 
     companion object {
+        /**
+         * The match that was just won, if the board should still be showing it: the previous
+         * match ended with a winner, the next one has started, and nothing has been played on
+         * it yet. Returns the match and its winner.
+         */
+        private fun justWon(
+            latestFirst: List<Match>,
+            running: Match?,
+            seen: String?,
+        ): Pair<Match, String>? {
+            if (running == null || running.framesPlayed > 0) return null
+            val previous = latestFirst.getOrNull(1) ?: return null
+            if (previous.status != Status.ENDED || previous.id == seen) return null
+            val winner = previous.winnerId ?: return null
+            return previous to winner
+        }
+
         val Factory = viewModelFactory {
             initializer {
                 val container = appContainer()

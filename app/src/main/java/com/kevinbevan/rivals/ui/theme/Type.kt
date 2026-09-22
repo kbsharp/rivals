@@ -39,6 +39,12 @@ private val Centred = LineHeightStyle(
     trim = LineHeightStyle.Trim.None,
 )
 
+/** For a number that stands on its own: the box hugs the glyphs, with no leading around them. */
+private val Trimmed = LineHeightStyle(
+    alignment = LineHeightStyle.Alignment.Center,
+    trim = LineHeightStyle.Trim.Both,
+)
+
 private fun montserrat(size: Int, lineHeight: Int, weight: FontWeight) = TextStyle(
     fontFamily = Montserrat,
     fontWeight = weight,
@@ -66,9 +72,9 @@ private fun barlow(size: Int, lineHeight: Int, weight: FontWeight) = TextStyle(
 @Immutable
 data class RivalsTypography(
     /** The scoreboard numbers. Size it where it is used. */
-    val score: TextStyle = montserrat(96, 96, FontWeight.ExtraBold),
+    val score: TextStyle = montserrat(96, 96, FontWeight.ExtraBold).copy(lineHeightStyle = Trimmed),
     /** Head-to-head on Home. */
-    val display: TextStyle = montserrat(56, 60, FontWeight.ExtraBold),
+    val display: TextStyle = montserrat(56, 60, FontWeight.ExtraBold).copy(lineHeightStyle = Trimmed),
     /** Screen titles, the match-won line. */
     val headline: TextStyle = montserrat(24, 30, FontWeight.Bold),
     /** A number inside a row: a session's score, a stat's value. */

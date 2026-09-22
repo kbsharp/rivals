@@ -49,7 +49,7 @@ class HomeUiTest {
         compose.onNodeWithText("Quick game").performClick()
         compose.onNodeWithText("Player 1").performTextInput("Tom")
         compose.onNodeWithText("Player 2").performTextInput("Sam")
-        compose.onNodeWithText("9-ball").performClick()
+        compose.onNodeWithText("9-BALL").performClick()
         compose.onNodeWithText("Start").performClick()
 
         assertEquals(("Tom" to "Sam") to MatchSettings(GameType.NINE_BALL, raceTo = 5), started)

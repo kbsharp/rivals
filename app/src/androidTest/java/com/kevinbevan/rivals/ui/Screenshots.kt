@@ -2,6 +2,9 @@ package com.kevinbevan.rivals.ui
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -53,6 +56,7 @@ import com.kevinbevan.rivals.ui.invite.AddRivalContent
 import com.kevinbevan.rivals.ui.invite.AddRivalUiState
 import com.kevinbevan.rivals.ui.rivalry.RivalryContent
 import com.kevinbevan.rivals.ui.rivalry.RivalryUiState
+import com.kevinbevan.rivals.ui.session.MatchResult
 import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
 import com.kevinbevan.rivals.ui.session.SessionContent
@@ -83,8 +87,14 @@ class Screenshots {
             RivalsTheme(darkTheme = dark) {
                 if (landscape) {
                     // The scoreboard locks the phone to landscape; render it at a landscape phone's size.
+                    // It also hides the system bars, so consume the emulator's insets: otherwise the
+                    // render is padded by bars that aren't there in the app.
                     DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(915.dp, 412.dp))) {
-                        Box(Modifier.testTag(FRAME)) { content() }
+                        Box(
+                            Modifier
+                                .testTag(FRAME)
+                                .consumeWindowInsets(WindowInsets.safeDrawing),
+                        ) { content() }
                     }
                 } else {
                     content()
@@ -113,6 +123,7 @@ class Screenshots {
     @Test fun sessionLight() = shoot("session", dark = false, landscape = true) { SessionScreen() }
     @Test fun sessionDark() = shoot("session", dark = true, landscape = true) { SessionScreen() }
     @Test fun sessionBetweenMatchesDark() = shoot("session-next", dark = true, landscape = true) { SessionScreen(running = false) }
+    @Test fun sessionMatchWonDark() = shoot("session-won", dark = true, landscape = true) { MatchWonScreen() }
     @Test fun historyDark() = shoot("history", dark = true) { History() }
     @Test fun historyEmptyDark() = shoot("history-empty", dark = true) { HistoryContent(HistoryUiState(loading = false), {}, {}) }
     @Test fun signInDark() = shoot("sign-in", dark = true) { SignInContent(SignInUiState(), {}, {}, {}) }
@@ -163,6 +174,21 @@ class Screenshots {
             lastFrameEvents = emptySet(),
             canUndo = true,
             pendingSync = true,
+        ),
+        SessionActions(),
+    )
+
+    @Composable private fun MatchWonScreen() = SessionContent(
+        SessionUiState(
+            loading = false,
+            me = PlayerSide("a", "Kevin", frames = 0, matches = 3),
+            rival = PlayerSide("b", "Julian", frames = 0, matches = 1),
+            match = Match(
+                "m5", 5, MatchSettings(GameType.EIGHT_BALL, 5), Status.ACTIVE, emptyMap(),
+                startedAt = Instant.now(),
+            ),
+            justWon = MatchResult("m4", 4, "8-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Tonight 3 – 1."),
+            canUndo = true,
         ),
         SessionActions(),
     )
