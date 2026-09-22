@@ -6,44 +6,34 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.runtime.remember
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
@@ -56,9 +46,19 @@ import com.kevinbevan.rivals.model.MatchWithFrames
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.model.winsOf
+import com.kevinbevan.rivals.ui.components.EmptyState
+import com.kevinbevan.rivals.ui.components.ErrorState
+import com.kevinbevan.rivals.ui.components.HeadToHead
+import com.kevinbevan.rivals.ui.components.IconAction
+import com.kevinbevan.rivals.ui.components.Label
+import com.kevinbevan.rivals.ui.components.LoadingState
+import com.kevinbevan.rivals.ui.components.TopBar
+import com.kevinbevan.rivals.ui.session.ConfirmDialog
 import com.kevinbevan.rivals.ui.session.describe
 import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
+import com.kevinbevan.rivals.ui.theme.Shapes
+import com.kevinbevan.rivals.ui.theme.Space
 import java.time.Instant
 
 @Composable
@@ -73,177 +73,101 @@ fun SessionDetailScreen(
     SessionDetailContent(uiState, onBack, onDelete = viewModel::delete)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * One night, match by match. The scoreboard heads it, each match is a row rather than a card,
+ * and its frames are boxed digits in the winner's colour — a tagged frame is ringed in white.
+ */
 @Composable
-internal fun SessionDetailContent(uiState: SessionDetailUiState, onBack: () -> Unit, onDelete: () -> Unit) {
+internal fun SessionDetailContent(
+    uiState: SessionDetailUiState,
+    onBack: () -> Unit,
+    onDelete: () -> Unit,
+) {
     val session = uiState.session
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
-    var menuOpen by remember { mutableStateOf(false) }
     if (confirmingDelete) {
-        AlertDialog(
-            onDismissRequest = { confirmingDelete = false },
-            title = { Text("Delete this session?") },
-            text = { Text("Its matches and frames go too, and it comes off the head-to-head. This can't be undone.") },
-            confirmButton = {
-                TextButton(onClick = { confirmingDelete = false; onDelete() }) { Text("Delete") }
-            },
-            dismissButton = { TextButton(onClick = { confirmingDelete = false }) { Text("Cancel") } },
+        ConfirmDialog(
+            title = "Delete this session?",
+            text = "Its matches and frames go too, and it comes off the head to head. " +
+                "This can't be undone.",
+            confirmLabel = "Delete",
+            destructive = true,
+            onConfirm = { confirmingDelete = false; onDelete() },
+            onDismiss = { confirmingDelete = false },
         )
     }
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(if (session != null) formatDay(session.startedAt) else "Session")
-                        if (session != null) {
-                            val details = listOfNotNull(
-                                formatTimes(session.startedAt, session.endedAt).ifEmpty { null },
-                                session.venue,
-                            ).joinToString(" · ")
-                            if (details.isNotEmpty()) Text(details, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    if (session != null && session.status == Status.ENDED) {
-                        IconButton(onClick = { menuOpen = true }) {
-                            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "More")
-                        }
-                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                            DropdownMenuItem(
-                                text = { Text("Delete session") },
-                                onClick = {
-                                    menuOpen = false
-                                    confirmingDelete = true
-                                },
-                            )
-                        }
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        val me = uiState.me
-        val rival = uiState.rival
-        when {
-            uiState.loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-            uiState.error != null || me == null || rival == null -> Box(
-                Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                contentAlignment = Alignment.Center,
-            ) { Text(uiState.error.orEmpty(), textAlign = TextAlign.Center) }
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item { Summary(me, rival) }
-                if (uiState.matches.isEmpty()) {
-                    item { Text("No matches were played.", Modifier.padding(8.dp)) }
-                }
-                items(uiState.matches, key = { it.match.id }) { MatchCard(it, me, rival) }
-            }
-        }
-    }
-}
 
-@Composable
-private fun Summary(me: DetailPlayer, rival: DetailPlayer) {
-    val colors = Rivals.colors
-    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            NameTag(me.name, colors.you, colors.onFg)
-            Text(
-                "${me.matchWins} – ${rival.matchWins}",
-                style = MaterialTheme.typography.displaySmall,
-            )
-            NameTag(rival.name, colors.rival, colors.onFg)
-        }
-        Text(
-            "matches won",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun NameTag(name: String, container: Color, content: Color) {
-    Text(
-        name,
+    val me = uiState.me
+    val rival = uiState.rival
+    Column(
         modifier = Modifier
-            .background(container, MaterialTheme.shapes.small)
-            .padding(horizontal = 10.dp, vertical = 4.dp),
-        color = content,
-        style = MaterialTheme.typography.titleMedium,
-        maxLines = 1,
-    )
+            .fillMaxSize()
+            .background(Rivals.colors.base)
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = Space.gutter)
+            .padding(bottom = Space.s24),
+        verticalArrangement = Arrangement.spacedBy(Space.section),
+    ) {
+        DetailTopBar(
+            title = if (session != null) formatDay(session.startedAt) else "Session",
+            canDelete = session != null && session.status == Status.ENDED,
+            onBack = onBack,
+            onDelete = { confirmingDelete = true },
+        )
+
+        when {
+            uiState.loading -> LoadingState("Opening the session")
+            uiState.error != null -> ErrorState(uiState.error)
+            me == null || rival == null -> EmptyState(
+                title = "Session not found",
+                body = "It may have been deleted on the other phone.",
+            )
+            else -> {
+                Header(session, me, rival)
+                if (uiState.matches.isEmpty()) {
+                    EmptyState(
+                        title = "No matches",
+                        body = "This session ended before a match was played.",
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(Space.s24)) {
+                        uiState.matches.forEach { MatchRow(it, me, rival) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun MatchCard(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlayer) {
-    val match = item.match
-    val colors = Rivals.colors
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Match ${match.number}", style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        match.settings.describe(),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "${match.frameWins.winsOf(me.uid)} – ${match.frameWins.winsOf(rival.uid)}",
-                        style = MaterialTheme.typography.headlineSmall,
-                    )
-                    Text(
-                        when {
-                            match.status == Status.ACTIVE -> "In progress"
-                            match.winnerId == me.uid -> "${me.name} won"
-                            match.winnerId == rival.uid -> "${rival.name} won"
-                            else -> "No winner"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            if (item.frames.isNotEmpty()) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+private fun DetailTopBar(
+    title: String,
+    canDelete: Boolean,
+    onBack: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    TopBar(title, onBack = onBack) {
+        if (canDelete) {
+            Box {
+                IconAction(R.drawable.ic_more_vert, "More", { menuOpen = true })
+                DropdownMenu(
+                    expanded = menuOpen,
+                    onDismissRequest = { menuOpen = false },
+                    containerColor = Rivals.colors.surface,
+                    shape = Shapes.panel,
                 ) {
-                    item.frames.forEach { frame ->
-                        val mine = frame.winnerId == me.uid
-                        FrameDot(
-                            number = frame.number,
-                            winnerName = if (mine) me.name else rival.name,
-                            events = frame.events,
-                            container = if (mine) colors.you else colors.rival,
-                            content = if (mine) colors.onFg else colors.onFg,
-                        )
-                    }
-                }
-                val tagged = item.frames.filter { it.events.isNotEmpty() }
-                if (tagged.isNotEmpty()) {
-                    Text(
-                        tagged.joinToString(" · ") { f ->
-                            val who = if (f.winnerId == me.uid) me.name else rival.name
-                            f.events.joinToString(", ") { it.label } + ": frame ${f.number}, $who"
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "Delete session",
+                                style = Rivals.type.body,
+                                color = Rivals.colors.live,
+                            )
                         },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        onClick = { menuOpen = false; onDelete() },
                     )
                 }
             }
@@ -251,33 +175,123 @@ private fun MatchCard(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlay
     }
 }
 
-/** One frame: its number, in the winner's colour, ringed when something was tagged on it. */
+/** The night's score, with where and when under it. */
 @Composable
-private fun FrameDot(
+private fun Header(session: Session?, me: DetailPlayer, rival: DetailPlayer) {
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+        Label("Matches won")
+        HeadToHead(
+            yourScore = me.matchWins,
+            rivalScore = rival.matchWins,
+            yourName = me.name,
+            rivalName = rival.name,
+        )
+        val detail = listOfNotNull(
+            session?.venue?.takeIf { it.isNotBlank() },
+            session?.let { formatTimes(it.startedAt, it.endedAt).ifEmpty { null } },
+        ).joinToString(" · ")
+        if (detail.isNotEmpty()) {
+            Text(detail, style = Rivals.type.body, color = Rivals.colors.fg2)
+        }
+    }
+}
+
+@Composable
+private fun MatchRow(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlayer) {
+    val match = item.match
+    val outcome = when {
+        match.status == Status.ACTIVE -> "In progress" to Rivals.colors.fg3
+        match.winnerId == me.uid -> "${me.name} won" to Rivals.colors.you
+        match.winnerId == rival.uid -> "${rival.name} won" to Rivals.colors.rival
+        else -> "No winner" to Rivals.colors.fg3
+    }
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(Space.s12),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Label(
+                "Match ${match.number} · ${match.settings.describe()}",
+                modifier = Modifier.weight(1f),
+            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    "${match.frameWins.winsOf(me.uid)} – ${match.frameWins.winsOf(rival.uid)}",
+                    style = Rivals.type.number,
+                    color = Rivals.colors.fg,
+                    textAlign = TextAlign.End,
+                )
+                Label(outcome.first, color = outcome.second)
+            }
+        }
+        if (item.frames.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(Space.s8),
+                verticalArrangement = Arrangement.spacedBy(Space.s8),
+            ) {
+                item.frames.forEach { frame ->
+                    val mine = frame.winnerId == me.uid
+                    FrameBox(
+                        number = frame.number,
+                        winnerName = if (mine) me.name else rival.name,
+                        events = frame.events,
+                        color = if (mine) Rivals.colors.you else Rivals.colors.rival,
+                        tint = if (mine) Rivals.colors.youTint else Rivals.colors.rivalTint,
+                    )
+                }
+            }
+            val tagged = item.frames.filter { it.events.isNotEmpty() }
+            if (tagged.isNotEmpty()) {
+                Text(
+                    tagged.joinToString(" · ") { f ->
+                        val who = if (f.winnerId == me.uid) me.name else rival.name
+                        f.events.joinToString(", ") { it.label } + ": frame ${f.number}, $who"
+                    },
+                    style = Rivals.type.caption,
+                    color = Rivals.colors.fg3,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * One frame: its number, boxed in the winner's colour, ringed in white when something was
+ * tagged on it.
+ */
+@Composable
+private fun FrameBox(
     number: Int,
     winnerName: String,
     events: Set<FrameEvent>,
-    container: Color,
-    content: Color,
+    color: Color,
+    tint: Color,
 ) {
     val tagged = events.isNotEmpty()
     Box(
         modifier = Modifier
-            .size(32.dp)
-            .then(if (tagged) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+            .size(36.dp)
+            .then(if (tagged) Modifier.border(2.dp, Rivals.colors.fg, Shapes.chip) else Modifier)
             .padding(if (tagged) 3.dp else 0.dp)
-            .background(container, CircleShape)
+            .background(tint, Shapes.chip)
             .semantics {
                 contentDescription = "Frame $number to $winnerName" +
                     events.joinToString("") { ", ${it.label.lowercase()}" }
             },
         contentAlignment = Alignment.Center,
     ) {
-        Text(number.toString(), color = content, style = MaterialTheme.typography.labelMedium)
+        Text(
+            number.toString(),
+            color = color,
+            style = Rivals.type.number.copy(fontSize = 15.sp),
+        )
     }
 }
 
-@Preview(heightDp = 800)
+@Preview(heightDp = 900)
 @Composable
 private fun SessionDetailPreview() {
     val start = Instant.parse("2026-09-21T19:30:00Z")
@@ -294,7 +308,7 @@ private fun SessionDetailPreview() {
                     venue = "The Crown", createdBy = "a", matchWins = mapOf("a" to 1, "b" to 1),
                 ),
                 me = DetailPlayer("a", "Kevin", 1),
-                rival = DetailPlayer("b", "Dave", 1),
+                rival = DetailPlayer("b", "Julian", 1),
                 matches = listOf(
                     MatchWithFrames(match(1, 3, 1, "a"), frames("a", "b", "a", "a")),
                     MatchWithFrames(match(2, 2, 3, "b"), frames("b", "a", "b", "a", "b")),
