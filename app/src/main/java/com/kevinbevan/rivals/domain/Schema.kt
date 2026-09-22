@@ -23,6 +23,7 @@ object Schema {
     const val BREAKER_ID = "breakerId"
     const val RECORDED_BY = "recordedBy"
     const val RECORDED_AT = "recordedAt"
+    const val EVENTS = "events"
 
     /** Dotted path for [Write.Update]. Firebase uids are alphanumeric, so they're safe path segments. */
     fun matchWinsOf(uid: String) = "$MATCH_WINS.$uid"

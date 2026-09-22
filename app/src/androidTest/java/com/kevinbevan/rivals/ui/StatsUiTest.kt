@@ -8,11 +8,12 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.kevinbevan.rivals.domain.BreakRecord
+import com.kevinbevan.rivals.domain.Count
 import com.kevinbevan.rivals.domain.NightsRecord
 import com.kevinbevan.rivals.domain.Record
 import com.kevinbevan.rivals.domain.Stats
 import com.kevinbevan.rivals.domain.Streak
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.ui.stats.StatsContent
 import com.kevinbevan.rivals.ui.stats.StatsUiState
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
@@ -35,8 +36,7 @@ class StatsUiTest {
         byGameType = emptyMap(),
         currentStreak = Streak("b", 1),
         longestStreaks = mapOf("a" to 3, "b" to 1),
-        myBreaks = BreakRecord(4, 3),
-        rivalBreaks = BreakRecord(0, 0),
+        specials = mapOf(FrameEvent.BREAK_AND_RUN to Count(4, 0), FrameEvent.GOLDEN_BREAK to Count(0, 1)),
     )
 
     @Test
@@ -46,7 +46,7 @@ class StatsUiTest {
     }
 
     @Test
-    fun recordsStreaksAndBreaksReadFromMySide() {
+    fun recordsStreaksAndSpecialsReadFromMySide() {
         show(StatsUiState(loading = false, myName = "Kevin", rivalName = "Julian", stats = stats))
         compose.onNodeWithText("Kevin 3").assertIsDisplayed()
         compose.onNodeWithText("75%").assertIsDisplayed()
@@ -54,7 +54,7 @@ class StatsUiTest {
         compose.onNodeWithText("Kevin won 2, lost 1").assertIsDisplayed()
         val list = compose.onNode(hasScrollAction())
         list.performScrollToNode(hasText("Julian won the last match"))
-        list.performScrollToNode(hasText("75% (3 of 4)"))
-        compose.onNodeWithText("no breaks").assertIsDisplayed()
+        list.performScrollToNode(hasText("Break & run"))
+        compose.onNodeWithText("Golden break").assertIsDisplayed()
     }
 }

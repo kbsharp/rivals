@@ -13,6 +13,7 @@
             android:value="${crashlyticsEnabled}" />
         <activity
             android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"
             android:exported="true"
             android:screenOrientation="portrait">
             <intent-filter>

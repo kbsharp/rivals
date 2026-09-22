@@ -51,7 +51,8 @@ sessions/{sessionId}/matches/{matchId}        // a race to N frames
   winnerId?, startedAt, endedAt?
 
 sessions/{sessionId}/matches/{matchId}/frames/{frameId}
-  number, winnerId, breakerId?, recordedBy, recordedAt
+  number, winnerId, breakerId? (legacy), recordedBy, recordedAt
+  events?: ["break-and-run" | "golden-break"]   // tagged after the fact, credited to the winner
 ```
 
 - Recording or undoing a frame is one batched write: the frame doc, plus a `FieldValue.increment` on the match tally. When a match finishes, the same write also updates the session tally.
@@ -85,13 +86,12 @@ If a Google account that isn't on the list signs in, Firestore reads fail with `
 1. **Sign in**: a single "Sign in with Google" button.
 2. **Home**: the all-time head-to-head record, and a button to resume the active session or start a new one.
 3. **Session** (the main screen):
-   - a big tap target per player to record a frame win
-   - the current match score and race-to
-   - undo last frame
-   - end match and end session
-   - usable one-handed while holding a cue
+   - landscape and full screen: each player's half of the screen is the tap target for a frame win
+   - a small pill with the match clock, the match and race-to, and tonight's score
+   - everything else sits behind one floating menu: tag the last frame (break & run, golden break), undo, change game or end match, end session
+   - keep it as clean as possible; don't add on-screen controls without a strong reason
 4. **History**: past sessions, newest first. Tapping one opens its detail with matches and frames.
-5. **Stats** (later): win % overall and by game type, streaks, and break-and-win rate.
+5. **Stats**: win % overall and by game type, streaks, and counts of tagged specials.
 
 ## Commands
 

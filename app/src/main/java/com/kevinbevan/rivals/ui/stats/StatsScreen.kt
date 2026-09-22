@@ -41,12 +41,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
-import com.kevinbevan.rivals.domain.BreakRecord
+import com.kevinbevan.rivals.domain.Count
 import com.kevinbevan.rivals.domain.GameTypeStats
 import com.kevinbevan.rivals.domain.NightsRecord
 import com.kevinbevan.rivals.domain.Record
 import com.kevinbevan.rivals.domain.Stats
 import com.kevinbevan.rivals.domain.Streak
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.ui.theme.LocalPlayerColors
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
@@ -123,7 +124,7 @@ private fun StatsList(stats: Stats, me: String, rival: String, modifier: Modifie
             }
         }
         item {
-            Section("Breaking") { Breaking(stats.myBreaks, stats.rivalBreaks, me, rival) }
+            Section("Specials") { Specials(stats.specials, me, rival) }
         }
     }
 }
@@ -256,31 +257,25 @@ private fun ByGame(byGameType: Map<GameType, GameTypeStats>, me: String, rival: 
 }
 
 @Composable
-private fun Breaking(mine: BreakRecord, theirs: BreakRecord, me: String, rival: String) {
-    if (mine.broke + theirs.broke == 0) {
+private fun Specials(specials: Map<FrameEvent, Count>, me: String, rival: String) {
+    if (specials.values.all { it.mine + it.theirs == 0 }) {
         Text(
-            "No breaks recorded yet. Pick who's breaking on the Session screen.",
+            "Nothing tagged yet. Tag a frame from the game menu during a match.",
             style = MaterialTheme.typography.bodyMedium,
         )
         return
     }
-    BreakLine(me, mine)
-    BreakLine(rival, theirs)
-    Text(
-        "Frames won by the player who broke",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
-@Composable
-private fun BreakLine(name: String, record: BreakRecord) {
-    Row(Modifier.semantics(mergeDescendants = true) {}) {
-        Text(name, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Text(
-            if (record.broke == 0) "no breaks" else "${percent(record.rate)} (${record.wonAfterBreaking} of ${record.broke})",
-            style = MaterialTheme.typography.bodyLarge,
-        )
+    Row {
+        Spacer(Modifier.weight(1f))
+        Text(me, Modifier.width(72.dp), style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.End, maxLines = 1)
+        Text(rival, Modifier.width(72.dp), style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.End, maxLines = 1)
+    }
+    specials.forEach { (event, count) ->
+        Row(Modifier.semantics(mergeDescendants = true) {}) {
+            Text(event.label, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+            Text("${count.mine}", Modifier.width(72.dp), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End)
+            Text("${count.theirs}", Modifier.width(72.dp), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.End)
+        }
     }
 }
 
@@ -307,8 +302,7 @@ private fun StatsPreview() {
                     ),
                     currentStreak = Streak("b", 2),
                     longestStreaks = mapOf("a" to 5, "b" to 3),
-                    myBreaks = BreakRecord(40, 26),
-                    rivalBreaks = BreakRecord(38, 21),
+                    specials = mapOf(FrameEvent.BREAK_AND_RUN to Count(3, 1), FrameEvent.GOLDEN_BREAK to Count(0, 1)),
                 ),
             ),
             onBack = {},

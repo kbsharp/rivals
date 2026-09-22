@@ -1,6 +1,7 @@
 package com.kevinbevan.rivals.domain
 
 import com.kevinbevan.rivals.model.Frame
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.Session
@@ -25,10 +26,8 @@ data class NightsRecord(val won: Int = 0, val lost: Int = 0, val drawn: Int = 0)
 /** A run of consecutive match wins. [playerId] is `null` when there's no run (no matches yet). */
 data class Streak(val playerId: String?, val length: Int)
 
-/** Frames a player broke, and how many of those they went on to win. */
-data class BreakRecord(val broke: Int = 0, val wonAfterBreaking: Int = 0) {
-    val rate: Double? get() = if (broke == 0) null else wonAfterBreaking.toDouble() / broke
-}
+/** How many times each side did something, e.g. a break and run. */
+data class Count(val mine: Int = 0, val theirs: Int = 0)
 
 data class GameTypeStats(val matches: Record, val frames: Record)
 
@@ -45,8 +44,8 @@ data class Stats(
     val currentStreak: Streak,
     /** Each player's longest run of match wins. */
     val longestStreaks: Map<String, Int>,
-    val myBreaks: BreakRecord,
-    val rivalBreaks: BreakRecord,
+    /** Tagged frame events, credited to the frame winner. Every [FrameEvent] has an entry. */
+    val specials: Map<FrameEvent, Count>,
 )
 
 /**
@@ -112,8 +111,10 @@ object StatsCalculator {
             byGameType = byGameType,
             currentStreak = currentStreak(winners),
             longestStreaks = listOf(myId, rivalId).associateWith { longestStreak(winners, it) },
-            myBreaks = breakRecord(knownFrames, myId),
-            rivalBreaks = breakRecord(knownFrames, rivalId),
+            specials = FrameEvent.entries.associateWith { event ->
+                val tagged = knownFrames.filter { event in it.frame.events }
+                Count(tagged.count { it.frame.winnerId == myId }, tagged.count { it.frame.winnerId == rivalId })
+            },
         )
     }
 
@@ -131,10 +132,5 @@ object StatsCalculator {
             best = maxOf(best, run)
         }
         return best
-    }
-
-    private fun breakRecord(frames: List<SessionFrame>, playerId: String): BreakRecord {
-        val broke = frames.filter { it.frame.breakerId == playerId }
-        return BreakRecord(broke.size, broke.count { it.frame.winnerId == playerId })
     }
 }

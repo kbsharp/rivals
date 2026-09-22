@@ -38,6 +38,7 @@ data class Frame(
     val breakerId: String? = null,
     val recordedBy: String,
     val recordedAt: Instant? = null,
+    val events: Set<FrameEvent> = emptySet(),
 )
 
 /** Wins for [uid] in a tally map, treating a missing key as zero. */

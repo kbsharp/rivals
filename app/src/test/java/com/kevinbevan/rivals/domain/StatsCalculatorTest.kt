@@ -1,5 +1,6 @@
 package com.kevinbevan.rivals.domain
 
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.MatchSettings
 import java.time.Instant
@@ -40,8 +41,14 @@ class StatsCalculatorTest {
     }
 
     private inner class Night(val id: String) {
-        fun frame(winner: String, breaker: String? = null) {
-            store.apply(rules.recordFrame(store.session(id), store.activeMatch(id)!!, winner, a, breaker).plan)
+        fun frame(winner: String, vararg events: FrameEvent) {
+            val plan = rules.recordFrame(store.session(id), store.activeMatch(id)!!, winner, a).plan
+            store.apply(plan)
+            if (events.isEmpty()) return
+            val doc = plan.first { it.doc is DocPath.FrameDoc }.doc as DocPath.FrameDoc
+            val match = store.matches(id).single { it.id == doc.matchId }
+            val frame = store.frames(id, doc.matchId).single { it.id == doc.frameId }
+            store.apply(rules.setFrameEvents(store.session(id), match, frame, events.toSet()))
         }
         fun newGame(settings: MatchSettings) {
             store.apply(rules.changeSettings(store.session(id), store.activeMatch(id)!!, settings))
@@ -63,21 +70,22 @@ class StatsCalculatorTest {
         assertNull(s.matches.winRate)
         assertEquals(Streak(null, 0), s.currentStreak)
         assertEquals(emptyMap<GameType, GameTypeStats>(), s.byGameType)
+        assertEquals(FrameEvent.entries.associateWith { Count() }, s.specials)
     }
 
     @Test
     fun aRealisticFortnight() {
         // Night 1 (8-ball, race to 2): A wins 2–1, then B wins 2–0, then A wins 2–0. A takes the night 2–1.
         night("2026-09-01T19:00:00Z", eight2) {
-            frame(a, breaker = a); frame(b, breaker = b); frame(a, breaker = a)
-            frame(b, breaker = b); frame(b, breaker = a)
-            frame(a, breaker = b); frame(a, breaker = a)
+            frame(a, FrameEvent.BREAK_AND_RUN); frame(b); frame(a, FrameEvent.BREAK_AND_RUN)
+            frame(b, FrameEvent.GOLDEN_BREAK); frame(b)
+            frame(a); frame(a, FrameEvent.BREAK_AND_RUN, FrameEvent.GOLDEN_BREAK)
         }
         // Night 2 (9-ball, race to 1): B, B, B. Then a frame of an unfinished race-to-2 8-ball match.
         night("2026-09-08T19:00:00Z", nine1) {
             frame(b); frame(b); frame(b)
             newGame(eight2)
-            frame(a, breaker = b)
+            frame(a)
         }
 
         val s = stats()
@@ -96,10 +104,9 @@ class StatsCalculatorTest {
         assertEquals(Streak(b, 3), s.currentStreak)
         assertEquals(mapOf(a to 1, b to 3), s.longestStreaks)
 
-        // A broke 4 frames and won 3 of them; B broke 4 and won 2.
-        assertEquals(BreakRecord(broke = 4, wonAfterBreaking = 3), s.myBreaks)
-        assertEquals(BreakRecord(broke = 4, wonAfterBreaking = 2), s.rivalBreaks)
-        assertEquals(0.75, s.myBreaks.rate!!, 1e-9)
+        // Specials go to the frame winner: A ran out 3 times (one also a golden break), B had 1 golden break.
+        assertEquals(Count(mine = 3, theirs = 0), s.specials.getValue(FrameEvent.BREAK_AND_RUN))
+        assertEquals(Count(mine = 1, theirs = 1), s.specials.getValue(FrameEvent.GOLDEN_BREAK))
     }
 
     @Test

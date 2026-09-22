@@ -1,6 +1,7 @@
 package com.kevinbevan.rivals.ui.history
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -44,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
 import com.kevinbevan.rivals.model.Frame
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
@@ -212,24 +214,48 @@ private fun MatchCard(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlay
                         FrameDot(
                             number = frame.number,
                             winnerName = if (mine) me.name else rival.name,
+                            events = frame.events,
                             container = if (mine) colors.me else colors.rival,
                             content = if (mine) colors.onMe else colors.onRival,
                         )
                     }
+                }
+                val tagged = item.frames.filter { it.events.isNotEmpty() }
+                if (tagged.isNotEmpty()) {
+                    Text(
+                        tagged.joinToString(" · ") { f ->
+                            val who = if (f.winnerId == me.uid) me.name else rival.name
+                            f.events.joinToString(", ") { it.label } + ": frame ${f.number}, $who"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
         }
     }
 }
 
-/** One frame: its number, in the winner's colour. */
+/** One frame: its number, in the winner's colour, ringed when something was tagged on it. */
 @Composable
-private fun FrameDot(number: Int, winnerName: String, container: Color, content: Color) {
+private fun FrameDot(
+    number: Int,
+    winnerName: String,
+    events: Set<FrameEvent>,
+    container: Color,
+    content: Color,
+) {
+    val tagged = events.isNotEmpty()
     Box(
         modifier = Modifier
             .size(32.dp)
+            .then(if (tagged) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+            .padding(if (tagged) 3.dp else 0.dp)
             .background(container, CircleShape)
-            .semantics { contentDescription = "Frame $number to $winnerName" },
+            .semantics {
+                contentDescription = "Frame $number to $winnerName" +
+                    events.joinToString("") { ", ${it.label.lowercase()}" }
+            },
         contentAlignment = Alignment.Center,
     ) {
         Text(number.toString(), color = content, style = MaterialTheme.typography.labelMedium)

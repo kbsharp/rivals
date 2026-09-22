@@ -4,6 +4,7 @@ import com.kevinbevan.rivals.domain.DocPath.FrameDoc
 import com.kevinbevan.rivals.domain.DocPath.MatchDoc
 import com.kevinbevan.rivals.domain.DocPath.SessionDoc
 import com.kevinbevan.rivals.model.Frame
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.MatchWithFrames
@@ -178,6 +179,20 @@ class ScoreRules(private val newId: () -> String) {
         val id = newId()
         val number = (latest?.number ?: 0) + 1
         return listOf(newMatch(session.id, id, number, settings, session.playerIds)) to id
+    }
+
+    /**
+     * Replaces the tagged [events] on [frame] of [match], e.g. marking it a break and run.
+     * Works on an ended match too, since the winning frame is often the one worth tagging.
+     */
+    fun setFrameEvents(session: Session, match: Match, frame: Frame, events: Set<FrameEvent>): WritePlan {
+        check(session.status == Status.ACTIVE) { "Session ${session.id} has ended" }
+        return listOf(
+            Write.Update(
+                FrameDoc(session.id, match.id, frame.id),
+                mapOf(Schema.EVENTS to events.sortedBy { it.ordinal }.map { it.wire }),
+            ),
+        )
     }
 
     /** Changes how [match] is played, e.g. switching game type. Only allowed before its first frame. */

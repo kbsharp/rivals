@@ -11,6 +11,7 @@ import com.kevinbevan.rivals.domain.Schema
 import com.kevinbevan.rivals.domain.Write
 import com.kevinbevan.rivals.domain.WritePlan
 import com.kevinbevan.rivals.model.Frame
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
@@ -54,6 +55,7 @@ fun frameFrom(id: String, d: Map<String, Any?>) = Frame(
     breakerId = d[Schema.BREAKER_ID] as? String,
     recordedBy = d[Schema.RECORDED_BY] as? String ?: "",
     recordedAt = instant(d[Schema.RECORDED_AT]),
+    events = (d[Schema.EVENTS] as? List<*>).orEmpty().mapNotNull { FrameEvent.fromWire(it as? String) }.toSet(),
 )
 
 private fun int(value: Any?): Int? = (value as? Number)?.toInt()

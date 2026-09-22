@@ -8,13 +8,14 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.kevinbevan.rivals.domain.BreakRecord
+import com.kevinbevan.rivals.domain.Count
 import com.kevinbevan.rivals.domain.GameTypeStats
 import com.kevinbevan.rivals.domain.NightsRecord
 import com.kevinbevan.rivals.domain.Record
 import com.kevinbevan.rivals.domain.Stats
 import com.kevinbevan.rivals.domain.Streak
 import com.kevinbevan.rivals.model.Frame
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
@@ -79,8 +80,7 @@ class Screenshots {
             me = PlayerSide("a", "Kevin", frames = 4, matches = 2),
             rival = PlayerSide("b", "Julian", frames = 2, matches = 1),
             match = Match("m", 4, MatchSettings(GameType.EIGHT_BALL, 5), Status.ACTIVE, mapOf("a" to 4, "b" to 2)),
-            frameWinners = listOf("Kevin", "Julian", "Kevin", "Kevin", "Julian", "Kevin"),
-            breakerId = "b",
+            lastFrameEvents = emptySet(),
             canUndo = true,
             pendingSync = true,
         ),
@@ -96,7 +96,7 @@ class Screenshots {
                     GameType.EIGHT_BALL to GameTypeStats(Record(9, 5), Record(44, 35)),
                     GameType.NINE_BALL to GameTypeStats(Record(3, 4), Record(17, 20)),
                 ),
-                Streak("b", 2), mapOf("a" to 5, "b" to 3), BreakRecord(40, 26), BreakRecord(38, 21),
+                Streak("b", 2), mapOf("a" to 5, "b" to 3), mapOf(FrameEvent.BREAK_AND_RUN to Count(3, 1), FrameEvent.GOLDEN_BREAK to Count(0, 1)),
             ),
         ),
         onBack = {},

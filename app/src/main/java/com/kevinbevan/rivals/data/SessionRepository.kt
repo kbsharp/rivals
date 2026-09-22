@@ -18,6 +18,7 @@ import com.kevinbevan.rivals.domain.SessionFrame
 import com.kevinbevan.rivals.domain.SessionMatch
 import com.kevinbevan.rivals.domain.WritePlan
 import com.kevinbevan.rivals.model.Frame
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.MatchWithFrames
@@ -172,6 +173,21 @@ class SessionRepository(
             previous?.let { MatchWithLastFrame(it, loadLastFrame(sessionId, it)) },
         ) ?: return false
         commit(plan)
+        true
+    }
+
+    /**
+     * Tags or untags [event] on the session's last frame: the latest match's, or the previous
+     * match's when the latest is the empty follow-on started after a race was won. Returns
+     * false if no frame has been played.
+     */
+    suspend fun toggleLastFrameEvent(sessionId: String, event: FrameEvent): Boolean = mutex.withLock {
+        val session = loadSession(sessionId)
+        val (match, frame) = loadMatches(sessionId).take(2).firstNotNullOfOrNull { m ->
+            loadLastFrame(sessionId, m)?.let { m to it }
+        } ?: return false
+        val events = if (event in frame.events) frame.events - event else frame.events + event
+        commit(rules.setFrameEvents(session, match, frame, events))
         true
     }
 

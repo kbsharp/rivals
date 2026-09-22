@@ -3,6 +3,7 @@ package com.kevinbevan.rivals.domain
 import com.kevinbevan.rivals.domain.DocPath.FrameDoc
 import com.kevinbevan.rivals.domain.DocPath.MatchDoc
 import com.kevinbevan.rivals.domain.DocPath.SessionDoc
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
@@ -381,6 +382,46 @@ class ScoreRulesTest {
     }
 
     // changeSettings
+
+    @Test
+    fun theRaceWinningFrameCanBeTaggedAfterTheNextMatchStarts() {
+        val id = start(MatchSettings(GameType.NINE_BALL, raceTo = 1))
+        win(id, a)
+        // The session's last frame is in the previous (ended) match; the new one is empty.
+        val (latest, previous) = store.latestTwo(id)
+        assertNull(latest.lastFrame)
+        val frame = previous!!.lastFrame!!
+        store.apply(rules.setFrameEvents(store.session(id), previous.match, frame, setOf(FrameEvent.GOLDEN_BREAK)))
+        assertEquals(setOf(FrameEvent.GOLDEN_BREAK), store.frames(id, previous.match.id).single().events)
+
+        val tagged = store.frames(id, previous.match.id).single()
+        store.apply(rules.setFrameEvents(store.session(id), previous.match, tagged, emptySet()))
+        assertEquals(emptySet<FrameEvent>(), store.frames(id, previous.match.id).single().events)
+    }
+
+    @Test
+    fun eventsAreStoredInAStableOrderAndUnknownOnesAreDropped() {
+        val id = start()
+        win(id, a)
+        val match = store.activeMatch(id)!!
+        val frame = store.frames(id, match.id).single()
+        val plan = rules.setFrameEvents(store.session(id), match, frame, setOf(FrameEvent.GOLDEN_BREAK, FrameEvent.BREAK_AND_RUN))
+        assertEquals(listOf("break-and-run", "golden-break"), (plan.single() as Write.Update).fields[Schema.EVENTS])
+        val read = com.kevinbevan.rivals.data.frameFrom("f", mapOf(Schema.EVENTS to listOf("golden-break", "trick-shot")))
+        assertEquals(setOf(FrameEvent.GOLDEN_BREAK), read.events)
+    }
+
+    @Test
+    fun framesInAnEndedSessionCantBeTagged() {
+        val id = start()
+        win(id, a)
+        val match = store.activeMatch(id)!!
+        val frame = store.frames(id, match.id).single()
+        store.apply(rules.endSession(store.session(id), store.matches(id)))
+        assertThrows(IllegalStateException::class.java) {
+            rules.setFrameEvents(store.session(id), match, frame, setOf(FrameEvent.BREAK_AND_RUN))
+        }
+    }
 
     @Test
     fun changeSettingsRewritesAnEmptyMatch() {

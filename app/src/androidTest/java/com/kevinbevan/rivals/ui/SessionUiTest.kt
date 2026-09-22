@@ -2,13 +2,13 @@ package com.kevinbevan.rivals.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
@@ -17,6 +17,7 @@ import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
 import com.kevinbevan.rivals.ui.session.SessionContent
 import com.kevinbevan.rivals.ui.session.SessionUiState
+import com.kevinbevan.rivals.ui.session.formatElapsed
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -37,7 +38,7 @@ class SessionUiTest {
         me = PlayerSide("a", "Kevin", frames = a, matches = matchesA),
         rival = PlayerSide("b", "Julian", frames = b, matches = matchesB),
         match = match(a, b),
-        breakerId = "a",
+        lastFrameEvents = if (a + b > 0) emptySet() else null,
         canUndo = a + b > 0 || matchesA + matchesB > 0,
     )
 
@@ -56,30 +57,44 @@ class SessionUiTest {
     @Test
     fun theScoreRaceAndHillAreShown() {
         show(state(a = 4, b = 2))
-        compose.onNodeWithText("Match 2").assertIsDisplayed()
-        compose.onNodeWithText("8-ball · race to 5").assertIsDisplayed()
+        compose.onNodeWithText("Match 2 · 8-ball · race to 5").assertIsDisplayed()
+        compose.onNodeWithText("Tonight 1 – 0").assertIsDisplayed()
         compose.onNodeWithText("on the hill").assertIsDisplayed()
     }
 
     @Test
-    fun theBreakerCanBeChanged() {
-        var chosen: String? = null
-        show(state(), SessionActions(onChooseBreaker = { chosen = it }))
-        compose.onNodeWithTag("breaker-a").assertIsSelected()
-        compose.onNodeWithTag("breaker-b").performClick()
-        assertEquals("b", chosen)
+    fun theMenuTagsTheLastFrame() {
+        val toggled = mutableListOf<FrameEvent>()
+        show(
+            state().copy(lastFrameEvents = setOf(FrameEvent.GOLDEN_BREAK)),
+            SessionActions(onToggleEvent = { toggled += it }),
+        )
+        compose.onNodeWithContentDescription("Game menu").performClick()
+        compose.onNodeWithText("Last frame").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Tagged").assertIsDisplayed()
+        compose.onNodeWithText("Break & run").performClick()
+        assertEquals(listOf(FrameEvent.BREAK_AND_RUN), toggled)
     }
 
     @Test
-    fun undoIsOffWithNothingToUndo() {
+    fun withNothingPlayedThereIsNothingToTagOrUndo() {
         show(state(a = 0, b = 0, matchesA = 0))
+        compose.onNodeWithContentDescription("Game menu").performClick()
+        compose.onNodeWithText("Last frame").assertDoesNotExist()
         compose.onNodeWithText("Undo last frame").assertIsNotEnabled()
+    }
+
+    @Test
+    fun theMatchClockShowsTimeSinceTheMatchStarted() {
+        assertEquals("0:00", formatElapsed(-5))
+        assertEquals("4:07", formatElapsed(247))
+        assertEquals("1:02:03", formatElapsed(3723))
     }
 
     @Test
     fun beforeTheFirstFrameTheGameCanBeChangedButNotEnded() {
         show(state(a = 0, b = 0))
-        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithContentDescription("Game menu").performClick()
         compose.onNodeWithText("Change game").assertIsDisplayed()
         compose.onNodeWithText("End match").assertDoesNotExist()
     }
@@ -88,7 +103,7 @@ class SessionUiTest {
     fun endingARaceEarlyWarnsItWontCount() {
         var ended = false
         show(state(a = 3, b = 1), SessionActions(onEndMatch = { ended = true }))
-        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithContentDescription("Game menu").performClick()
         compose.onNodeWithText("Change game").assertDoesNotExist()
         compose.onNodeWithText("End match").performClick()
         compose.onNodeWithText("won't count", substring = true).assertIsDisplayed()
@@ -100,7 +115,7 @@ class SessionUiTest {
     fun endingANightWithNothingPlayedSaysItWillBeDeleted() {
         var ended = false
         show(state(a = 0, b = 0, matchesA = 0), SessionActions(onEndSession = { ended = true }))
-        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithContentDescription("Game menu").performClick()
         compose.onNodeWithText("End session").performClick()
         compose.onNodeWithText("will be deleted", substring = true).assertIsDisplayed()
         compose.onNodeWithText("End session").performClick()

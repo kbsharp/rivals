@@ -146,7 +146,17 @@ _Decision 2026-09-22: built before the first Play upload. The Play Console steps
 **Exit:** the stats match a hand count on real data.
 _Built 2026-09-22 and tested against hand counts in `StatsCalculatorTest`; 🧑 compare against a real night once there is one. The players' colours (green for you, blue for your rival) were validated for colour blindness and contrast in both themes, and the app now has a full green Material colour scheme rather than falling back to the default purple. `Screenshots` renders every screen, light and dark, into `app/build/screenshots`._
 
+## Phase 9: Scoreboard redesign
+_2026-09-22._
+- [x] The game screen goes landscape (either way up) with system bars hidden, and each player's half of the screen is their tap target. A small pill shows the match clock, the match and race, and tonight's score. Everything else sits behind a floating menu: tag the last frame (break & run, golden break), undo, change game or end match, end session, back to home
+- [x] Dropped the "who broke" picker; Stats swaps break-and-win for a Specials table of tagged events (credited to the frame winner), and History rings tagged frames and lists them
+- [ ] 🧑 Try it on the phone during a real game
+
+## Phase 10: Guests and rivalries (planned)
+Decided 2026-09-22: no forced sign-in. Guests get the scoreboard with typed names, saved on the phone and attachable to a rivalry after signing in. Signed-in players find a rival by **exact email** (no browsing the player base), or share an invite link if the rival isn't on Rivals yet. Everything played inside a rivalry is recorded to it. The email allow-list in the rules gives way to per-rivalry membership rules.
+
 ---
 
 ## Open questions
+- What happens to the test sessions in the live Firestore when the rivalry model lands: wipe them (Phase 7 already planned to), or migrate them into a rivalry?
 None. Settled 2026-09-22: the friend is `julianjones56@gmail.com`; the repo is private at `github.com/kbsharp/rivals`; Stats goes before the first upload (see Phase 8).
