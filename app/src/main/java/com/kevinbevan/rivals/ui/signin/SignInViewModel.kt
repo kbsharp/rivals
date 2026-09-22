@@ -2,15 +2,12 @@ package com.kevinbevan.rivals.ui.signin
 
 import android.content.Context
 import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.kevinbevan.rivals.auth.AuthRepository
-import com.kevinbevan.rivals.data.NOT_ALLOWED_MESSAGE
 import com.kevinbevan.rivals.data.PlayerRepository
-import com.kevinbevan.rivals.data.isPermissionDenied
 import com.kevinbevan.rivals.ui.appContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,15 +45,10 @@ class SignInViewModel(
                 // User backed out of the account picker; not an error.
                 _uiState.update { it.copy(inProgress = false) }
                 return@launch
-            } catch (_: NoCredentialException) {
-                "No Google account on this device. Add one in Settings, then try again."
             } catch (e: Exception) {
-                authRepository.signOut()
-                if (e.isPermissionDenied()) {
-                    NOT_ALLOWED_MESSAGE
-                } else {
-                    "Sign-in failed: ${e.message ?: e::class.simpleName}"
-                }
+                // Only a Firebase session needs undoing; a failed account picker leaves none.
+                if (authRepository.currentUser != null) authRepository.signOut()
+                signInErrorMessage(e)
             }
             _uiState.update { SignInUiState(error = error, signedIn = error == null) }
         }

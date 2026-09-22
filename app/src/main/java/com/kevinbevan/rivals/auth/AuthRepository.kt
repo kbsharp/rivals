@@ -5,6 +5,7 @@ import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.ClearCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.firebase.auth.FirebaseAuth
@@ -69,8 +70,13 @@ class AuthRepository(
     suspend fun signOut(reason: String? = null) {
         signOutReason = reason
         auth.signOut()
-        // Forget the chosen account so the picker shows again next time.
-        credentialManager.clearCredentialState(ClearCredentialStateRequest())
+        // Forget the chosen account so the picker shows again next time. Best effort: it throws
+        // when no credential provider is available (e.g. outdated Play services), and signing
+        // out of Firebase above is what matters.
+        try {
+            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+        } catch (_: ClearCredentialException) {
+        }
     }
 }
 

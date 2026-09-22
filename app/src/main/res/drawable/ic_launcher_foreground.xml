@@ -6,5 +6,8 @@
     <!-- 8-ball -->
     <path android:fillColor="#111111" android:pathData="M54,30a24,24 0,1 1,0 48a24,24 0,1 1,0 -48z" />
     <path android:fillColor="#FFFFFF" android:pathData="M54,42a11,11 0,1 1,0 22a11,11 0,1 1,0 -22z" />
-    <path android:fillColor="#111111" android:pathData="M54,45.5a3.5,3.5 0,1 1,0 7a3.5,3.5 0,1 1,0 -7zM54,53.5a4.5,4.5 0,1 1,0 9a4.5,4.5 0,1 1,0 -9z" />
+    <path android:strokeColor="#111111" android:strokeWidth="1.87"
+        android:pathData="M54,47.51a2.86,2.86 0,1 1,0 5.72a2.86,2.86 0,1 1,0 -5.72z" />
+    <path android:strokeColor="#111111" android:strokeWidth="1.87"
+        android:pathData="M54,53.23a3.63,3.63 0,1 1,0 7.26a3.63,3.63 0,1 1,0 -7.26z" />
 </vector>

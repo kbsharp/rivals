@@ -113,7 +113,7 @@ Night-out usability:
 
 Confidence:
 - [x] ⭐ Compose UI tests for Home, Session, History and detail (16, in `app/src/androidTest/.../ui`), run by `scripts/emulator-tests.sh` and CI
-- [ ] ⭐ Check on the oldest supported Android: an API 26 emulator (sign-in through Credential Manager is the risky part)
+- [x] ⭐ Check on the oldest supported Android: an API 26 emulator (`api26` AVD). All instrumented tests pass (`AVD=api26 scripts/emulator-tests.sh`). It found a real crash: when Credential Manager has no provider (outdated Play services), the sign-in error handler's sign-out threw again. Fixed: clearing credentials is best effort, and the user is told to update Play services
 - [x] ⭐ Firebase Crashlytics, so a crash on the friend's phone reaches us with a stack trace. Collects from release builds only; the R8 mapping file uploads with `bundleRelease`
 - [x] 🧑 GitHub remote: private, `github.com/kbsharp/rivals` (2026-09-22)
 - [x] GitHub Actions (`.github/workflows/ci.yml`) running `test`, `lint`, `assembleDebug` and the emulator tests on every push and PR. `google-services.json` is the `GOOGLE_SERVICES_JSON` repository secret (base64)
@@ -127,7 +127,7 @@ _2026-09-22: the data and usability items are done. The break alternates by itse
 - [x] Release `signingConfig` read from `keystore.properties` (the build still works without it, for CI), R8/minify enabled. No ProGuard rules needed so far: the app maps Firestore data by hand, so there are no model classes to keep
 - [x] A `minified` build type: release code signed with the debug key, installable over the debug app (`./gradlew installMinified`)
 - [ ] Smoke-test the minified build on the phone before uploading. R8 breakage only shows up in release builds. Installed 2026-09-22 and cold-starts cleanly; 🧑 a tap-through is still to do
-- [ ] 512×512 Play icon and a feature graphic, rendered from the launcher icon
+- [x] 512×512 Play icon and 1024×500 feature graphic in `play/` (SVG sources plus PNGs). The launcher icon's 8 is now drawn as two rings rather than two dots
 - [ ] 🧑 Play Console "App content": privacy policy URL, Data safety form (Google account email, name and game scores, stored in Firebase), content rating, target audience. I'll draft the answers and a one-page privacy policy
 - [ ] `./gradlew bundleRelease`
 - [ ] 🧑 Set up the app in Play Console, create the internal testing track, add both testers, upload the AAB
