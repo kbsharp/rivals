@@ -97,6 +97,7 @@ If a Google account that isn't on the list signs in, Firestore reads fail with `
 
 - `./gradlew assembleDebug` and `./gradlew installDebug`
 - `./gradlew test` and `./gradlew lint`
+- `scripts/emulator-tests.sh` runs the instrumented tests (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect, and the allow-list. Needs the `pool36` emulator running; never touches the real project
 - `./gradlew bundleRelease` builds the AAB for Play
 - `firebase deploy --only firestore:rules`
 
@@ -120,7 +121,8 @@ Ask me to do these; don't try to work around them.
 - The `applicationId` and Kotlin package are `com.kevinbevan.rivals` (confirmed). It becomes permanent once uploaded to Play.
 - Increment `versionCode` on every upload.
 - Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
-- When a chunk of work builds and passes `test` and `lint`, always do both without asking: install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r` when the emulator is attached too), and commit.
+- Anything that syncs between phones or depends on the rules gets an emulator test in `app/src/androidTest`, rather than relying on two real devices.
+- When a chunk of work builds and passes `test`, `lint` and (if it touches data or rules) `scripts/emulator-tests.sh`, always do both without asking: install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r` when the emulator is attached too), and commit.
 
 ## Distribution
 
@@ -135,7 +137,7 @@ The app only has two users, so use Play's **internal testing** track:
 - [x] 1. **Scaffold**: a Compose + M3 app with the version catalog and the SDK levels above, running on the emulator.
 - [x] 2. **Auth**: Firebase wired up, Credential Manager Google sign-in feeding Firebase Auth, upsert `players/{uid}` on sign-in, and sign-out.
 - [x] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
-- [ ] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
+- [x] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
 - [ ] 5. **History**: the session list and session detail.
 - [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload.
 - [ ] 7. **Stats**: the stats screen.

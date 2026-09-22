@@ -59,14 +59,14 @@ _Done 2026-09-22: 27 tests in `ScoreRulesTest`, run against `FakeStore` (an in-m
 ## Phase 4: Security rules (Milestone 3) ✅
 - [x] 🧑 Supply both Gmail addresses for the allow-list: `iambevan@gmail.com` and `kbevan.dev@gmail.com` (the second stands in for the friend's account for now)
 - [x] Add `firestore.rules`, `firebase.json` and `.firebaserc` to the repo
-- [ ] Rules unit tests with the Firestore emulator (deferred; the rules are a single allow-list)
+- [x] Rules tests with the Firestore emulator (`RulesTest`, added 2026-09-22 with the Phase 5 emulator tests): allowed account, another Google account, unverified email, signed out
 - [x] 🧑 Log in with `firebase login` (the Firebase CLI), then run `firebase deploy --only firestore:rules`
 - [x] App: catch `PERMISSION_DENIED`, show "This account isn't allowed", then sign out
 
 **Exit:** a third Google account sees the message and is signed out, and both allowed accounts work.
 _Verified 2026-09-22 on a Pixel 10a: `iambevan@` signs in and `players/{uid}` is created, and sign-out works. Rejecting an account that isn't on the list is written but untested._
 
-## Phase 5: Session flow (Milestone 4), the core of the app
+## Phase 5: Session flow (Milestone 4), the core of the app ✅
 - [x] `data/SessionRepository`: the active-session Flow, and start/end session. One active session is enforced by a check rather than a transaction (see below)
 - [x] Matches and frames Flows (folded into `SessionRepository` rather than a separate `MatchRepository`)
 - [x] Record and undo a frame as one `WriteBatch` built from the Phase 2 write plan, using `FieldValue.increment`
@@ -77,10 +77,10 @@ _Verified 2026-09-22 on a Pixel 10a: `iambevan@` signs in and `players/{uid}` is
 - [x] Optional: haptic feedback on each frame tap
 - [x] 🧑 Sign in once with the second account (`kbevan.dev@`) so it has a `players` doc; Start stays disabled until the rival exists
 - [x] Verify airplane-mode play and sync on reconnect (2026-09-22, Pixel 10a)
-- [ ] Verify live updates on a second device (the `pool36` emulator signed in as the other account stands in for the second phone)
+- [x] Verify live updates on a second device: automated instead, in `SyncTest` (`scripts/emulator-tests.sh`), which plays through two separate Firebase clients, one per account, against the local emulators
 
 **Exit:** a full night can be played in airplane mode, syncs on reconnect, and shows up live on the second phone.
-_Code done 2026-09-22 (29 unit tests, lint clean); device verification outstanding. Decisions:_
+_Done 2026-09-22. Airplane mode checked by hand on the Pixel; live two-phone sync, offline play with reconnect, and joining an already-active session are covered by `SyncTest` on the Firebase emulators. Decisions:_
 - _No transaction for "one active session": transactions need the network, and a session must be startable with no signal. Start checks for an active session and joins it if there is one; if two phones both start one offline, everyone reads the oldest as the live one._
 - _Commits aren't awaited (they only complete on server ack). Firestore applies them to the local cache at once; actions are serialised with a mutex and read state cache-first, so fast double taps plan against up-to-date state._
 - _Added `ScoreRules.changeSettings` to switch game type or race on a match with no frames yet ("Change game"). "End match" only appears once a frame is played; after ending by hand the screen offers a next-match setup._
