@@ -78,7 +78,7 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeContent(
+internal fun HomeContent(
     uiState: HomeUiState,
     onStartSession: (MatchSettings, String?) -> Unit,
     onResumeSession: (String) -> Unit,

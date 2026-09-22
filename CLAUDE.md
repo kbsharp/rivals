@@ -97,9 +97,10 @@ If a Google account that isn't on the list signs in, Firestore reads fail with `
 
 - `./gradlew assembleDebug` and `./gradlew installDebug`
 - `./gradlew test` and `./gradlew lint`
-- `scripts/emulator-tests.sh` runs the instrumented tests (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect, and the allow-list. Needs the `pool36` emulator running; never touches the real project
+- `scripts/emulator-tests.sh` runs the instrumented tests (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect, the allow-list, and Compose UI tests of each screen. Boots the `pool36` emulator headless if none is running; never touches the real project
 - CI: `.github/workflows/ci.yml` runs all of the above on every push to `github.com/kbsharp/rivals` (private). Check with `gh run list` / `gh run view`
-- `./gradlew bundleRelease` builds the AAB for Play
+- `./gradlew installMinified` installs the R8-shrunk release code signed with the debug key, to catch R8 problems before an upload
+- `./gradlew bundleRelease` builds the AAB for Play (signed when `keystore.properties` exists)
 - `firebase deploy --only firestore:rules`
 
 ## Things only I can do

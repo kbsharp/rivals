@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -113,7 +114,7 @@ private enum class SessionDialog { CHANGE_SETTINGS, END_MATCH, END_SESSION }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
+internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
     var dialog by rememberSaveable { mutableStateOf<SessionDialog?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -239,7 +240,7 @@ private fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                             container = MaterialTheme.colorScheme.primaryContainer,
                             content = MaterialTheme.colorScheme.onPrimaryContainer,
                             onClick = { actions.onRecordFrame(me.uid) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).testTag("score-${me.uid}"),
                         )
                         ScoreButton(
                             name = rival.name,
@@ -248,7 +249,7 @@ private fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                             container = MaterialTheme.colorScheme.tertiaryContainer,
                             content = MaterialTheme.colorScheme.onTertiaryContainer,
                             onClick = { actions.onRecordFrame(rival.uid) },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).testTag("score-${rival.uid}"),
                         )
                     }
                 } else {
@@ -366,6 +367,7 @@ private fun BreakerSelector(
                     selected = breakerId == player.uid,
                     onClick = { onChoose(player.uid) },
                     shape = SegmentedButtonDefaults.itemShape(i, 2),
+                    modifier = Modifier.testTag("breaker-${player.uid}"),
                 ) { Text(player.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
         }

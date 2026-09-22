@@ -112,9 +112,9 @@ Night-out usability:
 - [x] Delete a past session from History (with a confirm), for the odd night recorded by mistake
 
 Confidence:
-- [ ] ⭐ Compose UI tests for Home, Session, History and detail, run by `scripts/emulator-tests.sh` against the Firebase emulators
+- [x] ⭐ Compose UI tests for Home, Session, History and detail (16, in `app/src/androidTest/.../ui`), run by `scripts/emulator-tests.sh` and CI
 - [ ] ⭐ Check on the oldest supported Android: an API 26 emulator (sign-in through Credential Manager is the risky part)
-- [ ] ⭐ Firebase Crashlytics, so a crash on the friend's phone reaches us with a stack trace
+- [x] ⭐ Firebase Crashlytics, so a crash on the friend's phone reaches us with a stack trace. Collects from release builds only; the R8 mapping file uploads with `bundleRelease`
 - [x] 🧑 GitHub remote: private, `github.com/kbsharp/rivals` (2026-09-22)
 - [x] GitHub Actions (`.github/workflows/ci.yml`) running `test`, `lint`, `assembleDebug` and the emulator tests on every push and PR. `google-services.json` is the `GOOGLE_SERVICES_JSON` repository secret (base64)
 
@@ -124,8 +124,9 @@ _2026-09-22: the data and usability items are done. The break alternates by itse
 ## Phase 7: Release (Milestone 6)
 - [ ] Before the first upload: deploy the rules with Julian's address, and (asking first) wipe the test sessions and the stand-in `kbevan.dev@` player from the live Firestore, so Julian comes up as the rival and the head-to-head starts at 0–0
 - [ ] 🧑 Create the upload keystore and `keystore.properties` (gitignored)
-- [ ] Release `signingConfig` read from `keystore.properties` (the build still works without it, for CI), R8/minify enabled, ProGuard rules as needed (`proguard-rules.pro` is empty today; the app maps Firestore data by hand, so there are no model classes to keep)
-- [ ] Smoke-test the minified release build on the phone before uploading. R8 breakage only shows up in release builds
+- [x] Release `signingConfig` read from `keystore.properties` (the build still works without it, for CI), R8/minify enabled. No ProGuard rules needed so far: the app maps Firestore data by hand, so there are no model classes to keep
+- [x] A `minified` build type: release code signed with the debug key, installable over the debug app (`./gradlew installMinified`)
+- [ ] Smoke-test the minified build on the phone before uploading. R8 breakage only shows up in release builds. Installed 2026-09-22 and cold-starts cleanly; 🧑 a tap-through is still to do
 - [ ] 512×512 Play icon and a feature graphic, rendered from the launcher icon
 - [ ] 🧑 Play Console "App content": privacy policy URL, Data safety form (Google account email, name and game scores, stored in Firebase), content rating, target audience. I'll draft the answers and a one-page privacy policy
 - [ ] `./gradlew bundleRelease`

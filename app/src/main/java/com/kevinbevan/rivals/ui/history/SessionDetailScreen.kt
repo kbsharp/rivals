@@ -77,7 +77,7 @@ private fun playerColors() = MaterialTheme.colorScheme.let {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SessionDetailContent(uiState: SessionDetailUiState, onBack: () -> Unit, onDelete: () -> Unit) {
+internal fun SessionDetailContent(uiState: SessionDetailUiState, onBack: () -> Unit, onDelete: () -> Unit) {
     val session = uiState.session
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
     if (confirmingDelete) {

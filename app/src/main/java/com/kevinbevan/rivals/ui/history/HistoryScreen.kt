@@ -45,7 +45,7 @@ fun HistoryScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HistoryContent(
+internal fun HistoryContent(
     uiState: HistoryUiState,
     onOpenSession: (String) -> Unit,
     onBack: () -> Unit,
