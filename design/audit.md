@@ -18,12 +18,12 @@ The Phase 11 draft brief proposed a base tinted towards baize green. The referen
 
 ## Bugs found by the new renders (fix regardless of direction)
 
-1. **Between-matches panel, dark theme: black text on black.** "Next match", "Tonight: …", "Race to" and the setting labels are unreadable (`session-next-dark.png`). The panel is also cut off at the bottom in landscape, so the rows below Race to can't be seen.
-2. **Match clock renders black on the dark pill** (`session-dark.png`); the rest of the pill is light. Both bugs come from `onSurface` being resolved against the wrong background.
-3. **The pill and the menu button sit on the divide** between the two halves, over both colours, which weakens the one idea of the screen (left is Kevin, right is Julian).
-4. **Stats empty copy is out of date:** "once your rival has signed in" (rivals now accept an invite, so the real empty case is "no sessions yet").
-5. **Rivalry title says "You v Julian"** while the score below says "Kevin"; pick one voice.
-6. **Session detail puts Delete in the top bar in the accent colour**, styled as the page's main action.
+1. **Between-matches panel, dark theme: black text on black.** "Next match", "Tonight: …", "Race to" and the setting labels are unreadable (`session-next-dark.png`). The panel also scrolls in landscape, so the lower settings sit below the fold. *Fixed.*
+2. **Match clock renders black on the dark pill** (`session-dark.png`); the rest of the pill is light. Both came from text with no `Surface` to set its colour. *Fixed.*
+3. **The pill and the menu button sit on the divide** between the two halves, over both colours, which weakens the one idea of the screen (left is Kevin, right is Julian). *Moved into the scoreboard mock-ups.*
+4. **Stats empty copy is out of date:** "once your rival has signed in" (rivals now accept an invite, so the real empty case is "no sessions yet"). *Fixed.*
+5. **Rivalry title says "You v Julian"** while the score below says "Kevin"; pick one voice. *Fixed: the title is the rival's name and your side reads "You".*
+6. **Session detail puts Delete in the top bar in the accent colour**, styled as the page's main action. *Fixed: moved to the overflow menu.*
 
 ## Top 10 issues, ranked
 

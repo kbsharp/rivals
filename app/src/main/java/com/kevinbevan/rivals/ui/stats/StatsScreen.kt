@@ -81,7 +81,7 @@ internal fun StatsContent(uiState: StatsUiState, onBack: () -> Unit) {
         val message = when {
             uiState.loading -> null
             uiState.error != null -> uiState.error
-            stats == null -> "Stats appear once your rival has signed in and you've played."
+            stats == null -> "No sessions yet. Your stats build up from your first night together."
             stats.frames.played == 0 -> "No frames played yet. Your stats will build up from your first night."
             else -> null
         }

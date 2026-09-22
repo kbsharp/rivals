@@ -68,6 +68,6 @@ class RivalryUiTest {
         show(ready.copy(myWins = 12, rivalWins = 9))
         compose.onNodeWithText("12").assertIsDisplayed()
         compose.onNodeWithText("9").assertIsDisplayed()
-        compose.onNodeWithText("Julian").assertIsDisplayed()
+        compose.onNodeWithText("You").assertIsDisplayed()
     }
 }

@@ -89,7 +89,8 @@ class HistoryUiTest {
     fun deletingASessionAsksFirst() {
         var deleted = false
         compose.setContent { RivalsTheme { SessionDetailContent(detail, {}, { deleted = true }) } }
-        compose.onNodeWithText("Delete").performClick()
+        compose.onNodeWithContentDescription("More").performClick()
+        compose.onNodeWithText("Delete session").performClick()
         compose.onNodeWithText("can't be undone", substring = true).assertIsDisplayed()
         assertTrue(!deleted)
         compose.onNode(hasText("Delete") and hasAnyAncestor(isDialog())).performClick()

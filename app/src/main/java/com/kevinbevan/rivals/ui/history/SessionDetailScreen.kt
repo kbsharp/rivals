@@ -20,6 +20,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.runtime.remember
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -75,6 +78,7 @@ fun SessionDetailScreen(
 internal fun SessionDetailContent(uiState: SessionDetailUiState, onBack: () -> Unit, onDelete: () -> Unit) {
     val session = uiState.session
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
+    var menuOpen by remember { mutableStateOf(false) }
     if (confirmingDelete) {
         AlertDialog(
             onDismissRequest = { confirmingDelete = false },
@@ -108,7 +112,18 @@ internal fun SessionDetailContent(uiState: SessionDetailUiState, onBack: () -> U
                 },
                 actions = {
                     if (session != null && session.status == Status.ENDED) {
-                        TextButton(onClick = { confirmingDelete = true }) { Text("Delete") }
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(painterResource(R.drawable.ic_more_vert), contentDescription = "More")
+                        }
+                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Delete session") },
+                                onClick = {
+                                    menuOpen = false
+                                    confirmingDelete = true
+                                },
+                            )
+                        }
                     }
                 },
             )

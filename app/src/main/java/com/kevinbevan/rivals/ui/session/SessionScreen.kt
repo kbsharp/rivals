@@ -165,7 +165,9 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
     val me = uiState.me
     val rival = uiState.rival
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) {
+    // A Surface, not a bare background, so text inherits onSurface rather than defaulting to black.
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    Box(Modifier.fillMaxSize()) {
         when {
             uiState.loading || me == null || rival == null ->
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -223,6 +225,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(bottom = 80.dp),
         )
+    }
     }
 
     when (dialog) {
@@ -333,6 +336,8 @@ private fun MatchInfo(uiState: SessionUiState, match: Match, modifier: Modifier 
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f),
+        // contentColorFor doesn't recognise the translucent colour, so say it outright.
+        contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
         Column(
             Modifier.padding(horizontal = 16.dp, vertical = 8.dp),

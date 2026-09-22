@@ -108,7 +108,7 @@ internal fun RivalryContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("You v ${uiState.rivalName}") },
+                title = { Text(uiState.rivalName) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(painterResource(R.drawable.ic_arrow_back), contentDescription = "Back")
@@ -151,7 +151,7 @@ internal fun RivalryContent(
 
             Text("Head to head", style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PlayerTotal(uiState.myName, uiState.myWins, Modifier.weight(1f))
+                PlayerTotal("You", uiState.myWins, Modifier.weight(1f))
                 Text("–", style = MaterialTheme.typography.displayMedium)
                 PlayerTotal(uiState.rivalName, uiState.rivalWins, Modifier.weight(1f))
             }
