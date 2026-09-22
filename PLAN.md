@@ -182,31 +182,34 @@ every screen pass works from the same brief, references and screenshot loop._
 
 **Exit:** met. The brief is agreed, the refs are in the repo, and every screen and state renders.
 
-## Phase 12: Screen passes
-_Each pass: change → render → look → critique against `design/brief.md` and `design/ref/` → fix.
-Passes are separate so each can be judged on its own. Install and commit after each green pass._
+## Phase 12: Screen passes ✅
+_2026-09-22. Each pass: change → render → look → critique against `design/brief.md` and
+`design/ref/` → fix. Everything the brief asks for is built; what's left is Kevin's own look at
+it on the phone._
 
-- [ ] **Tokens first.** Bundle Montserrat and Barlow (both OFL) in `res/font`, and rebuild
-      `ui/theme` around the brief's palette, type scale, spacing and shapes. Keep the light theme
-      compiling (derive it later); replace the M3 colour roles the screens use today
-- [ ] **Scoreboard:** white tabular score, player name and race pips in their colour, one status
-      line along the bottom with the menu in the corner (nothing on the centre line), a score roll,
-      and the match-won panel with Undo
-- [ ] **Home:** head-to-head in white, the last-10 bar, tonight's score, one primary action; invite
-      row, plain rows for Add a rival and Quick game, then games on this phone
-- [ ] **Rivalry:** win-percentage ring, all-time score, primary action, SESSIONS | STATS tabs.
-      This folds History and Stats into the rivalry screen; the old routes can go once it's in
-- [ ] **Stats:** the mirrored table (leader's value white and bold, the other grey) and the ring
-- [ ] **History and session detail:** rows not cards, the scoreboard header, frames as boxed digits
-- [ ] **Sign in, Invite, Add a rival:** Invite shown as a scoreboard (Kevin vs you, 0–0), Add a
-      rival as three rows rather than divided sections
-- [ ] **States:** a written empty, loading and error state for every screen
-- [ ] **Motion and haptics** across the app
-- [ ] **Launcher icon** and Play graphics in the new palette
+- [x] **Tokens first.** Montserrat and Barlow bundled in `res/font`; `ui/theme` rebuilt on the
+      brief's palette, type scale, spacing, shapes and motion, reached through `Rivals.colors`
+      and `Rivals.type`. `ui/components` is the vocabulary the screens are built from. The light
+      theme is derived from the dark one, not designed
+- [x] **Scoreboard:** white tabular score on charcoal, name and race pips in the player's colour,
+      one status line along the bottom with the menu in the corner, a score roll, and the
+      match-won panel with Undo. Both phones work the result out from the same snapshot
+- [x] **Home:** head-to-head in white, the form bar, tonight's score, one primary action; invites
+      and other rivals as rows, then Add a rival and Quick game, then games on this phone. The
+      bar counts nights rather than matches (see the brief)
+- [x] **Rivalry:** win-percentage ring, all-time score, primary action, SESSIONS | STATS tabs.
+      History and Stats are folded in; their screens, view models and routes are gone
+- [x] **Stats:** the mirrored table, with the game-type breakdown in the same shape
+- [x] **History and session detail:** rows not cards, the scoreboard header, frames as boxed digits
+- [x] **Sign in, Invite, Add a rival:** Invite and Sign in are scoreboards at 0 – 0; Add a rival is
+      three rows that open one at a time
+- [x] **States:** a written empty, loading and error state on every screen, and a render of each
+- [x] **Motion and haptics** across the app, on the brief's timings
+- [x] **Launcher icon** and Play graphics in the new palette, built by `scripts/play-graphics.sh`
 - [ ] 🧑 Try each pass on the phone in a dim room; a final critique in both themes
 
-**Exit:** every screen matches the brief in the dark theme, checked on the phone, and the light
-theme is derived and legible.
+**Exit:** met in the renders — every screen matches the brief in the dark theme and the light
+theme is derived and legible. Kevin's look on a real phone is the last word.
 
 ---
 

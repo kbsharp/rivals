@@ -83,15 +83,16 @@ Show a clear message when Firestore refuses something; don't fail silently.
 
 ## Screens
 
-1. **Home** (no account needed): Quick game (or resume it), your rivals with the head to head, invites to accept, Add a rival, and guest games on the phone that can be saved to a rivalry.
-2. **Sign in**: optional, reached from Home or an invite. **Add a rival**: exact email, share link, or invite code. **Invite**: opened from a share link. **Rivalry**: one rival's head to head, start or resume a session, History, Stats.
-3. **Session** (the main screen):
+1. **Home** (no account needed): the rival you're playing as a head to head with a form bar and one primary action, then invites, any other rivals, Add a rival, Quick game, and guest games on the phone that can be saved to a rivalry.
+2. **Sign in** and **Invite** are both scoreboards at 0 – 0 with one button. **Add a rival**: three rows — exact email, share link, invite code — one open at a time.
+3. **Rivalry**: the win ring and all-time score, the primary action, then **SESSIONS | STATS** tabs. Sessions is the nights you've played; Stats is the mirrored table. Neither is a screen of its own any more.
+4. **Session** (the main screen):
    - landscape and full screen: each player's half of the screen is the tap target for a frame win
-   - a small pill with the match clock, the match and race-to, and tonight's score
-   - everything else sits behind one floating menu: tag the last frame (break & run, golden break), undo, change game or end match, end session
+   - one quiet status line along the bottom: the match clock, the match, the game and race, tonight's score, and the menu in the corner. Nothing sits on the centre line
+   - everything else sits behind that menu: tag the last frame (break & run, golden break), undo, change game or end match, end session
+   - when a match is won the board dims and a panel names the winner, with Undo in it
    - keep it as clean as possible; don't add on-screen controls without a strong reason
-4. **History**: past sessions, newest first. Tapping one opens its detail with matches and frames.
-5. **Stats**: win % overall and by game type, streaks, and counts of tagged specials.
+5. **Session detail**: one night, match by match, with its frames as boxed digits.
 
 ## Design
 
@@ -104,6 +105,14 @@ screenshots. The mock-ups of the agreed direction are at
 In short: charcoal `#131418`, white scores, teal `#6FD3C4` for you, apricot `#F0A883` for your
 rival, red `#FF4757` only for live and delete. Montserrat for numbers (tabular figures), Barlow
 for text. No dividers, no grey cards, one primary action per screen.
+
+The tokens live in `ui/theme`: reach them through `Rivals.colors`, `Rivals.type`, `Space`,
+`Shapes` and `Motion`, never with a literal. `ui/components` holds the vocabulary every screen is
+built from — `Label`, `PrimaryButton`, `ListRow`, `Panel`, `RivalsTextField`, the written
+`EmptyState`/`LoadingState`/`ErrorState`, and the scoreboard parts (`HeadToHead`, `Pips`,
+`FormBar`, `WinRing`, `Tabs`, `StatRow`). Build a screen from those; add to them rather than
+reaching for a Material component. The fonts are bundled under `res/font` (OFL, see
+`docs/licenses`), so nothing is downloaded at runtime.
 
 The loop for any UI work: change → `scripts/emulator-tests.sh` (which renders every screen and
 state into `app/build/screenshots`) → look at the PNGs → critique against the brief and the refs →
@@ -118,6 +127,7 @@ their own renders; add a render whenever a pass introduces a new state.
 - CI: `.github/workflows/ci.yml` runs all of the above on every push to `github.com/kbsharp/rivals` (private). Check with `gh run list` / `gh run view`
 - `./gradlew installMinified` installs the R8-shrunk release code signed with the debug key, to catch R8 problems before an upload
 - `./gradlew bundleRelease` builds the AAB for Play (signed when `keystore.properties` exists)
+- `scripts/play-graphics.sh` renders `play/*.png` from their SVGs with the app's bundled fonts
 - `firebase deploy --only firestore:rules`
 
 ## Things only I can do
@@ -163,4 +173,4 @@ The app only has two users, so use Play's **internal testing** track:
 - [x] 7. **Stats**: the stats screen.
 - [x] 8. **Guests and rivalries**: no forced sign-in, quick games on the phone, invites by email or
       link, membership security rules.
-- [ ] 9. **Design pass**: every screen rebuilt on `design/brief.md` (PLAN.md, Phase 12).
+- [x] 9. **Design pass**: every screen rebuilt on `design/brief.md` (PLAN.md, Phase 12).

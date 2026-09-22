@@ -50,7 +50,7 @@ Two families, both open licence, bundled in the app (not downloaded):
 | Step | Spec | Used for |
 |---|---|---|
 | score | Montserrat 800, sized to ~45% of the half's height | The scoreboard numbers |
-| display | Montserrat 800 · 56 / 60 | Head-to-head on Home |
+| display | Montserrat 800 · 56 / 60 | Head-to-head on a session, an invite, Sign in |
 | headline | Montserrat 700 · 24 / 30 | Screen titles, the match-won line |
 | title | Barlow 600 · 20 / 26 | Row titles, card headings |
 | body | Barlow 400 · 16 / 22 | Sentences |
@@ -95,6 +95,21 @@ Two families, both open licence, bundled in the app (not downloaded):
   leader's value white and bold and the other grey. Sessions is one row per night, with only the
   "you won" caption in colour.
 
+## What Phase 12 settled
+
+The screens are built. Three things the brief didn't pin down, decided in the building:
+
+- **Home's all-time score is 96 / 96**, not the 56 / 60 `display` step. The mock-up draws it at
+  96 on a 390dp phone and 56 is too quiet to be the screen's hero; `display` keeps its size
+  everywhere else.
+- **Home's form bar counts nights, not matches.** Home reads sessions; per-match form would be a
+  collection-group query per rivalry. A drawn night is `hairline`, so the bar has three states.
+  The mock-up says "last 10 matches"; the rivalry screen's Stats tab has the per-match record.
+- **The light theme is derived, not designed.** The neutrals invert (`base` #F7F8FA, `surface`
+  white, `fg` #15171C) and the two player colours darken until they carry 4.5:1 on the light
+  ground: `you` #13756A, `rival` #9A4F1E, `live` #C81E2C. Warm against cool, and close in
+  lightness, as the palette rules ask. It is legible rather than drawn.
+
 ## Open design questions
 
 - The scoreboard has no colour fill, so in a bright room the halves are told apart only by the
@@ -102,4 +117,3 @@ Two families, both open licence, bundled in the app (not downloaded):
   rather than colouring the numbers.
 - Teal and apricot are close in lightness, so the form bar on Home reads as texture until you look
   at it. Check it on the phone before trusting it as a glanceable stat.
-- Light theme is not designed yet; derive it once the dark screens are done.
