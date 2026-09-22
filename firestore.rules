@@ -5,7 +5,7 @@ service cloud.firestore {
     function isMember() {
       return request.auth != null
         && request.auth.token.email_verified == true
-        && request.auth.token.email in ['iambevan@gmail.com', 'kbevan.dev@gmail.com'];
+        && request.auth.token.email in ['iambevan@gmail.com', 'julianjones56@gmail.com'];
     }
     match /{document=**} {
       allow read, write: if isMember();

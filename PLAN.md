@@ -9,7 +9,7 @@ Pinned toolchain (current stable as of 2026-09-21): Gradle 9.7.1, AGP 9.4.1 (bui
 ## Phase 0: Environment and repo ✅
 - [x] Local git repo, `CLAUDE.md` and this plan
 - [x] JDK 21 (mise) and Android SDK (`~/Android/Sdk`: platform 36, build-tools, platform-tools)
-- [ ] 🧑 Optional: create a GitHub remote (`gh repo create pool-score-tracker --private --source . --push`)
+- [x] 🧑 GitHub remote: `github.com/kbsharp/rivals` (private)
 - [x] Optional: an emulator (`emulator` plus a system image) or a phone with USB debugging
 
 ## Phase 1: Scaffold (Milestone 1) ✅
@@ -100,26 +100,29 @@ _Code done 2026-09-22 (32 unit tests, lint clean). History cards show date, time
 **Goal:** everything that's cheaper to settle before real nights get recorded, so the first Play build is the one you keep using. Items marked ⭐ are recommended; the rest are optional.
 
 Data you can't backfill later:
-- [ ] ⭐ Record who broke each frame (`breakerId`), so break-and-win stats have data from night one. Proposal: a small "who broke" toggle on the Session screen that defaults to alternating, so it costs no taps in the usual case
-- [ ] ⭐ Venue: optional field when starting a session (already in the data model, with no UI)
-- [ ] 🧑 ⭐ The friend's real Gmail address: swap it for `kbevan.dev@` in `firestore.rules`, the emulator tests and `CLAUDE.md`, then redeploy the rules
+- [x] ⭐ Record who broke each frame (`breakerId`), so break-and-win stats have data from night one. Proposal: a small "who broke" toggle on the Session screen that defaults to alternating, so it costs no taps in the usual case
+- [x] ⭐ Venue: optional field when starting a session (already in the data model, with no UI)
+- [x] 🧑 ⭐ The friend's real Gmail address, `julianjones56@gmail.com`: swapped in for `kbevan.dev@` in `firestore.rules`, the emulator tests and `CLAUDE.md` (2026-09-22). Deployed with the test-data wipe in Phase 7, so the stand-in account keeps working until then
 
 Night-out usability:
-- [ ] ⭐ Keep the screen awake on the Session screen
-- [ ] ⭐ Ending a session with no frames played deletes it, rather than leaving a 0–0 night in History
-- [ ] ⭐ Lock to portrait (the Session layout is built for one-handed portrait use)
-- [ ] Tell the two players apart when their Google first names match (as the test accounts do): fall back to full name or email
-- [ ] Delete a past session from History (with a confirm), for the odd night recorded by mistake
+- [x] ⭐ Keep the screen awake on the Session screen
+- [x] ⭐ Ending a session with no frames played deletes it, rather than leaving a 0–0 night in History
+- [x] ⭐ Lock to portrait (the Session layout is built for one-handed portrait use)
+- [x] Tell the two players apart when their Google first names match (as the test accounts do): fall back to full name or email
+- [x] Delete a past session from History (with a confirm), for the odd night recorded by mistake
 
 Confidence:
 - [ ] ⭐ Compose UI tests for Home, Session, History and detail, run by `scripts/emulator-tests.sh` against the Firebase emulators
 - [ ] ⭐ Check on the oldest supported Android: an API 26 emulator (sign-in through Credential Manager is the risky part)
 - [ ] ⭐ Firebase Crashlytics, so a crash on the friend's phone reaches us with a stack trace
-- [ ] 🧑 GitHub remote (private) plus GitHub Actions running `test`, `lint` and the emulator tests on every push. Needs a yes or no (open question 2)
+- [x] 🧑 GitHub remote: private, `github.com/kbsharp/rivals` (2026-09-22)
+- [ ] GitHub Actions running `test`, `lint` and the emulator tests on every push. `google-services.json` goes in as a repository secret
 
 **Exit:** every ⭐ item done or consciously dropped, and all tests green.
+_2026-09-22: the data and usability items are done. The break alternates by itself from the last frame with a breaker recorded (across matches too); tapping a name overrides it until the next frame. Recent venues are offered as chips. `scripts/emulator-tests.sh` now boots a headless emulator when none is running._
 
 ## Phase 7: Release (Milestone 6)
+- [ ] Before the first upload: deploy the rules with Julian's address, and (asking first) wipe the test sessions and the stand-in `kbevan.dev@` player from the live Firestore, so Julian comes up as the rival and the head-to-head starts at 0–0
 - [ ] 🧑 Create the upload keystore and `keystore.properties` (gitignored)
 - [ ] Release `signingConfig` read from `keystore.properties` (the build still works without it, for CI), R8/minify enabled, ProGuard rules as needed (`proguard-rules.pro` is empty today; the app maps Firestore data by hand, so there are no model classes to keep)
 - [ ] Smoke-test the minified release build on the phone before uploading. R8 breakage only shows up in release builds
@@ -133,6 +136,7 @@ Confidence:
 **Exit:** both phones install from the opt-in link and signing in works.
 
 ## Phase 8: Stats (Milestone 7)
+_Decision 2026-09-22: built before the first Play upload. The Play Console steps only you can do (account, app content, testers) take a while, so Stats gets built alongside them rather than holding up the release, and Julian's first install arrives complete._
 - [ ] Compute on the client from sessions, matches and frames: overall win %, win % by game type, current and longest streaks, and break-and-win rate (frames with `breakerId`)
 - [ ] Pure calculators with unit tests, plus the Stats screen
 - [ ] Optional: record `breakerId` on the Session screen (for example, a toggle for who broke)
@@ -142,6 +146,4 @@ Confidence:
 ---
 
 ## Open questions
-1. The friend's Gmail address: swap it for `kbevan.dev@gmail.com` in `firestore.rules`, then redeploy
-2. A GitHub remote: private repo, yes or no? (It also gates CI; see Phase 6½)
-3. Stats before or after the first Play upload? The plan puts it after, since the release can go out without it and `breakerId` gets recorded from Phase 6½ either way
+None. Settled 2026-09-22: the friend is `julianjones56@gmail.com`; the repo is private at `github.com/kbsharp/rivals`; Stats goes before the first upload (see Phase 8).

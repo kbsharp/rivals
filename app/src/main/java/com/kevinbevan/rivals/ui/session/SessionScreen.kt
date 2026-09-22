@@ -25,12 +25,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,11 +74,19 @@ fun SessionScreen(
         if (uiState.ended) onExit()
     }
 
+    // The phone sits on the table between shots; don't let it lock mid-frame.
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
+
     SessionContent(
         uiState = uiState,
         actions = SessionActions(
             onBack = onExit,
             onRecordFrame = viewModel::recordFrame,
+            onChooseBreaker = viewModel::chooseBreaker,
             onUndo = viewModel::undo,
             onEndMatch = viewModel::endMatch,
             onStartMatch = viewModel::startMatch,
@@ -87,6 +100,7 @@ fun SessionScreen(
 class SessionActions(
     val onBack: () -> Unit = {},
     val onRecordFrame: (String) -> Unit = {},
+    val onChooseBreaker: (String) -> Unit = {},
     val onUndo: () -> Unit = {},
     val onEndMatch: () -> Unit = {},
     val onStartMatch: (MatchSettings) -> Unit = {},
@@ -206,6 +220,15 @@ private fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
             }
 
             // Bottom half, within thumb reach: the score buttons, or the next-match setup.
+            if (match != null) {
+                BreakerSelector(
+                    me = me,
+                    rival = rival,
+                    breakerId = uiState.breakerId,
+                    onChoose = actions.onChooseBreaker,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+            }
             Box(Modifier.weight(1.3f).fillMaxWidth()) {
                 if (match != null) {
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -259,7 +282,11 @@ private fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
             text = buildString {
                 val me = uiState.me
                 val rival = uiState.rival
-                if (me != null && rival != null) {
+                val nothingPlayed = me != null && rival != null && me.matches + rival.matches == 0 &&
+                    !uiState.canUndo && (match?.framesPlayed ?: 0) == 0
+                if (nothingPlayed) {
+                    append("Nothing's been played, so this session will be deleted rather than kept in History.")
+                } else if (me != null && rival != null) {
                     append("Final score: ${me.name} ${me.matches} – ${rival.matches} ${rival.name}.")
                 }
                 if (match != null && match.framesPlayed > 0) {
@@ -322,6 +349,29 @@ private fun ScoreButton(
     }
 }
 
+/** Who's breaking the next frame. Alternates by itself; tap to correct it. */
+@Composable
+private fun BreakerSelector(
+    me: PlayerSide,
+    rival: PlayerSide,
+    breakerId: String?,
+    onChoose: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text("Breaking", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(end = 12.dp))
+        SingleChoiceSegmentedButtonRow(Modifier.weight(1f)) {
+            listOf(me, rival).forEachIndexed { i, player ->
+                SegmentedButton(
+                    selected = breakerId == player.uid,
+                    onClick = { onChoose(player.uid) },
+                    shape = SegmentedButtonDefaults.itemShape(i, 2),
+                ) { Text(player.name, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+            }
+        }
+    }
+}
+
 @Composable
 private fun NextMatchPanel(
     initial: MatchSettings,
@@ -379,6 +429,7 @@ private fun SessionContentPreview() {
                 rival = PlayerSide("b", "Dave", frames = 2, matches = 1),
                 match = previewMatch,
                 frameWinners = listOf("Kevin", "Dave", "Kevin", "Kevin", "Dave", "Kevin"),
+                breakerId = "b",
                 canUndo = true,
                 pendingSync = true,
             ),

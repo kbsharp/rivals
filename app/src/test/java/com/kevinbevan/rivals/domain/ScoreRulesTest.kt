@@ -6,6 +6,7 @@ import com.kevinbevan.rivals.domain.DocPath.SessionDoc
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.model.MatchWithFrames
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 import org.junit.Assert.assertEquals
@@ -351,7 +352,7 @@ class ScoreRulesTest {
     fun endingASessionDropsTheEmptyFollowOnMatch() {
         val id = start(MatchSettings(GameType.EIGHT_BALL, raceTo = 1))
         win(id, a)
-        store.apply(rules.endSession(store.session(id), store.activeMatch(id)))
+        store.apply(rules.endSession(store.session(id), store.matches(id)))
 
         val session = store.session(id)
         assertEquals(Status.ENDED, session.status)
@@ -364,7 +365,7 @@ class ScoreRulesTest {
     fun endingASessionEndsAMatchInProgress() {
         val id = start(open)
         win(id, b)
-        store.apply(rules.endSession(store.session(id), store.activeMatch(id)))
+        store.apply(rules.endSession(store.session(id), store.matches(id)))
         val match = store.matches(id).single()
         assertEquals(Status.ENDED, match.status)
         assertEquals(b, match.winnerId)
@@ -374,8 +375,9 @@ class ScoreRulesTest {
     @Test
     fun endingASessionTwiceIsRejected() {
         val id = start()
-        store.apply(rules.endSession(store.session(id), store.activeMatch(id)))
-        assertThrows(IllegalStateException::class.java) { rules.endSession(store.session(id), null) }
+        win(id, a)
+        store.apply(rules.endSession(store.session(id), store.matches(id)))
+        assertThrows(IllegalStateException::class.java) { rules.endSession(store.session(id), store.matches(id)) }
     }
 
     // changeSettings
@@ -398,6 +400,43 @@ class ScoreRulesTest {
         assertThrows(IllegalStateException::class.java) {
             rules.changeSettings(store.session(id), store.activeMatch(id)!!, open)
         }
+    }
+
+    @Test
+    fun endingASessionWithNothingPlayedDeletesIt() {
+        val id = start()
+        store.apply(rules.endSession(store.session(id), store.matches(id)))
+        assertTrue(store.docs.isEmpty())
+    }
+
+    @Test
+    fun endingASessionAfterAnUndoneFrameDeletesIt() {
+        val id = start()
+        win(id, a)
+        undo(id)
+        store.apply(rules.endSession(store.session(id), store.matches(id)))
+        assertTrue(store.docs.isEmpty())
+    }
+
+    // deleteSession
+
+    @Test
+    fun deletingASessionRemovesEveryDocInIt() {
+        val id = start(MatchSettings(GameType.EIGHT_BALL, raceTo = 2))
+        win(id, a); win(id, b); win(id, a) // match 1 to A, match 2 started
+        win(id, b)
+        store.apply(rules.endSession(store.session(id), store.matches(id)))
+        val matches = store.matches(id).map { MatchWithFrames(it, store.frames(id, it.id)) }
+        assertEquals(4, matches.sumOf { it.frames.size })
+
+        store.apply(rules.deleteSession(store.session(id), matches))
+        assertTrue(store.docs.isEmpty())
+    }
+
+    @Test
+    fun deletingASessionThatIsStillRunningIsRejected() {
+        val id = start()
+        assertThrows(IllegalStateException::class.java) { rules.deleteSession(store.session(id), emptyList()) }
     }
 
     // headToHead

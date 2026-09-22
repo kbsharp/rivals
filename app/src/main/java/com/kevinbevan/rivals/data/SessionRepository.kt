@@ -115,23 +115,33 @@ class SessionRepository(
      * has to be startable in the pool hall with no signal. Two phones starting a session
      * offline at the same moment could both succeed; readers then pick the oldest.
      */
-    suspend fun startSession(myId: String, rivalId: String, settings: MatchSettings): String =
+    suspend fun startSession(
+        myId: String,
+        rivalId: String,
+        settings: MatchSettings,
+        venue: String? = null,
+    ): String =
         mutex.withLock {
             val active = sessions.whereEqualTo(Schema.STATUS, Status.ACTIVE.wire).get().await()
                 .documents.map { it.toSession() }
             oldestActive(active)?.let { return it.id }
-            val outcome = rules.startSession(listOf(myId, rivalId), createdBy = myId, settings)
+            val outcome = rules.startSession(listOf(myId, rivalId), createdBy = myId, settings, venue)
             commit(outcome.plan)
             outcome.sessionId
         }
 
-    /** Records a frame won by [winnerId] in the running match. */
-    suspend fun recordFrame(sessionId: String, winnerId: String, recordedBy: String): RecordOutcome =
+    /** Records a frame won by [winnerId] in the running match, broken by [breakerId] if known. */
+    suspend fun recordFrame(
+        sessionId: String,
+        winnerId: String,
+        recordedBy: String,
+        breakerId: String? = null,
+    ): RecordOutcome =
         mutex.withLock {
             val session = loadSession(sessionId)
             val match = loadMatches(sessionId).firstOrNull()?.takeIf { it.status == Status.ACTIVE }
                 ?: error("There's no match running")
-            rules.recordFrame(session, match, winnerId, recordedBy).also { commit(it.plan) }
+            rules.recordFrame(session, match, winnerId, recordedBy, breakerId).also { commit(it.plan) }
         }
 
     /** Takes back the session's last frame. Returns false if there was nothing to undo. */
@@ -169,10 +179,24 @@ class SessionRepository(
         commit(rules.changeSettings(loadSession(sessionId), match, settings))
     }
 
-    suspend fun endSession(sessionId: String): Unit = mutex.withLock {
+    /**
+     * Ends the session. Returns true if nothing had been played, so it was deleted instead;
+     * see [ScoreRules.endSession].
+     */
+    suspend fun endSession(sessionId: String): Boolean = mutex.withLock {
         val session = loadSession(sessionId)
-        if (session.status == Status.ENDED) return
-        commit(rules.endSession(session, loadMatches(sessionId).firstOrNull()))
+        if (session.status == Status.ENDED) return false
+        val matches = loadMatches(sessionId)
+        commit(rules.endSession(session, matches))
+        matches.all { it.framesPlayed == 0 }
+    }
+
+    /** Deletes a finished session with all its matches and frames. */
+    suspend fun deleteSession(sessionId: String): Unit = mutex.withLock {
+        val session = loadSession(sessionId)
+        val matches = loadMatches(sessionId).map { MatchWithFrames(it, loadFrames(sessionId, it)) }
+        // A batch holds at most 500 writes; a long night's frames could exceed that.
+        rules.deleteSession(session, matches).chunked(MAX_BATCH).forEach(::commit)
     }
 
     // Loading current state for an action. The cache already holds everything the screen is
@@ -193,14 +217,16 @@ class SessionRepository(
         return snap.documents.map { it.toMatch() }.sortedByDescending { it.number }
     }
 
-    private suspend fun loadLastFrame(sessionId: String, match: Match): Frame? {
-        if (match.framesPlayed == 0) return null
+    private suspend fun loadLastFrame(sessionId: String, match: Match): Frame? =
+        loadFrames(sessionId, match).maxWithOrNull(compareBy<Frame> { it.number }.thenBy { it.recordedAt })
+
+    private suspend fun loadFrames(sessionId: String, match: Match): List<Frame> {
+        if (match.framesPlayed == 0) return emptyList()
         val query = framesQuery(sessionId, match.id)
         var snap: QuerySnapshot = query.get(Source.CACHE).await()
         // Fewer cached frames than the tally says means some were never downloaded.
         if (snap.size() < match.framesPlayed) snap = query.get().await()
         return snap.documents.map { it.toFrame() }
-            .maxWithOrNull(compareBy<Frame> { it.number }.thenBy { it.recordedAt })
     }
 
     private suspend fun getCacheFirst(ref: DocumentReference): DocumentSnapshot = try {
@@ -222,6 +248,8 @@ class SessionRepository(
         db.ref(DocPath.MatchDoc(sessionId, matchId)).collection(Schema.FRAMES).orderBy(Schema.NUMBER)
 
     companion object {
+        private const val MAX_BATCH = 450
+
         /** Ended sessions, newest first. Sorted here rather than in a query, so no index is needed. */
         fun pastSessions(sessions: List<Session>): List<Session> =
             sessions.filter { it.status == Status.ENDED }

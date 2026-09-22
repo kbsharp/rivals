@@ -9,10 +9,11 @@ import androidx.navigation.toRoute
 import com.kevinbevan.rivals.auth.AuthRepository
 import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.SessionRepository
-import com.kevinbevan.rivals.data.Synced
+import com.kevinbevan.rivals.domain.ScoreRules
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
+import com.kevinbevan.rivals.model.displayNames
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
 import com.kevinbevan.rivals.ui.messageFor
@@ -47,6 +48,8 @@ data class SessionUiState(
     val lastSettings: MatchSettings = DefaultMatchSettings,
     /** Frame winners' names for the running match, oldest first. */
     val frameWinners: List<String> = emptyList(),
+    /** Who's breaking the next frame; recorded with it. `null` until someone picks. */
+    val breakerId: String? = null,
     val canUndo: Boolean = false,
     /** Some of what's on screen is saved on this phone but not yet on the server. */
     val pendingSync: Boolean = false,
@@ -62,35 +65,55 @@ class SessionViewModel(
     private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
-    private val message = MutableStateFlow<String?>(null)
+    /** A breaker picked by hand. It only holds until the next frame is recorded (on either phone). */
+    private data class BreakerChoice(val afterFrameId: String?, val uid: String)
+
+    private data class Local(
+        val message: String? = null,
+        val breaker: BreakerChoice? = null,
+        /** This phone just ended the session, so leave even if the snapshot hasn't caught up. */
+        val exited: Boolean = false,
+    )
+
+    private val local = MutableStateFlow(Local())
 
     private val matches = sessionRepository.observeMatches(sessionId)
 
-    // Listening to the latest match's frames also keeps them in the cache for undo.
-    private val latestFrames = matches
-        .map { snap -> snap.value.maxByOrNull { it.number }?.id }
+    // Frames of the latest two matches, latest first: shown on screen, used to alternate the
+    // break across a match boundary, and kept in the cache for undo.
+    private val recentFrames = matches
+        .map { snap -> snap.value.sortedByDescending { it.number }.take(2).map { it.id } }
         .distinctUntilChanged()
-        .flatMapLatest { matchId ->
-            if (matchId == null) flowOf(Synced(emptyList(), false))
-            else sessionRepository.observeFrames(sessionId, matchId)
+        .flatMapLatest { ids ->
+            if (ids.isEmpty()) flowOf(emptyList())
+            else combine(ids.map { sessionRepository.observeFrames(sessionId, it) }) { it.toList() }
         }
+
+    /** The frame a manual breaker choice was made after; see [BreakerChoice]. */
+    private var lastFrameId: String? = null
 
     val uiState: StateFlow<SessionUiState> = combine(
         sessionRepository.observeSession(sessionId),
         matches,
-        latestFrames,
+        recentFrames,
         playerRepository.observePlayers(),
-        message,
-    ) { session, matches, frames, players, message ->
+        local,
+    ) { session, matches, recent, players, local ->
         val s = session.value
-            ?: return@combine SessionUiState(loading = false, ended = true, message = message)
-        val names = players.associate { it.uid to it.shortName }
+        if (s == null || local.exited) return@combine SessionUiState(loading = false, ended = true)
+        val names = displayNames(players)
         val myId = authRepository.currentUser?.uid?.takeIf { it in s.playerIds } ?: s.playerIds.firstOrNull().orEmpty()
         val rivalId = s.playerIds.firstOrNull { it != myId }.orEmpty()
 
         val latestFirst = matches.value.sortedByDescending { it.number }
         val latest = latestFirst.getOrNull(0)
         val running = latest?.takeIf { it.status == Status.ACTIVE }
+        val latestFrames = recent.getOrNull(0)?.value.orEmpty()
+        val newestFirst = recent.flatMap { it.value.asReversed() }
+        lastFrameId = newestFirst.firstOrNull()?.id
+        val breakerId = local.breaker?.takeIf { it.afterFrameId == lastFrameId }?.uid
+            ?: ScoreRules.alternateBreaker(newestFirst.firstNotNullOfOrNull { it.breakerId }, s.playerIds)
+
         fun side(uid: String) = PlayerSide(
             uid = uid,
             name = names[uid] ?: "Player",
@@ -104,10 +127,11 @@ class SessionViewModel(
             rival = side(rivalId),
             match = running,
             lastSettings = latest?.settings ?: DefaultMatchSettings,
-            frameWinners = if (running == null) emptyList() else frames.value.map { names[it.winnerId] ?: "?" },
+            frameWinners = if (running == null) emptyList() else latestFrames.map { names[it.winnerId] ?: "?" },
+            breakerId = breakerId,
             canUndo = latestFirst.take(2).any { it.framesPlayed > 0 },
-            pendingSync = session.hasPendingWrites || matches.hasPendingWrites || frames.hasPendingWrites,
-            message = message,
+            pendingSync = session.hasPendingWrites || matches.hasPendingWrites || recent.any { it.hasPendingWrites },
+            message = local.message,
         )
     }
         .catch { emit(SessionUiState(loading = false, message = authRepository.messageFor(it))) }
@@ -116,35 +140,40 @@ class SessionViewModel(
     init {
         viewModelScope.launch {
             sessionRepository.writeErrors.collect {
-                message.value = "Couldn't save to the server: ${authRepository.messageFor(it)}"
+                say("Couldn't save to the server: ${authRepository.messageFor(it)}")
             }
         }
     }
 
     fun recordFrame(winnerId: String) = act {
         val recordedBy = authRepository.currentUser?.uid ?: return@act
-        val outcome = sessionRepository.recordFrame(sessionId, winnerId, recordedBy)
-        if (outcome.matchEnded) {
-            message.value = "${nameOf(winnerId)} wins the match!"
-        }
+        val outcome = sessionRepository.recordFrame(sessionId, winnerId, recordedBy, uiState.value.breakerId)
+        if (outcome.matchEnded) say("${nameOf(winnerId)} wins the match!")
     }
 
+    fun chooseBreaker(uid: String) = local.update { it.copy(breaker = BreakerChoice(lastFrameId, uid)) }
+
     fun undo() = act {
-        if (!sessionRepository.undoLastFrame(sessionId)) message.value = "Nothing to undo"
+        if (!sessionRepository.undoLastFrame(sessionId)) say("Nothing to undo")
     }
 
     fun endMatch() = act {
         val winner = sessionRepository.endMatch(sessionId)
-        message.value = if (winner != null) "${nameOf(winner)} wins the match" else "Match ended with no winner"
+        say(if (winner != null) "${nameOf(winner)} wins the match" else "Match ended with no winner")
     }
 
     fun startMatch(settings: MatchSettings) = act { sessionRepository.startMatch(sessionId, settings) }
 
     fun changeSettings(settings: MatchSettings) = act { sessionRepository.changeSettings(sessionId, settings) }
 
-    fun endSession() = act { sessionRepository.endSession(sessionId) }
+    fun endSession() = act {
+        sessionRepository.endSession(sessionId)
+        local.update { it.copy(exited = true) }
+    }
 
-    fun dismissMessage() = message.update { null }
+    fun dismissMessage() = local.update { it.copy(message = null) }
+
+    private fun say(message: String) = local.update { it.copy(message = message) }
 
     private fun nameOf(uid: String): String =
         uiState.value.let { listOfNotNull(it.me, it.rival) }.firstOrNull { it.uid == uid }?.name ?: "Player"
@@ -156,7 +185,7 @@ class SessionViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                message.value = authRepository.messageFor(e)
+                say(authRepository.messageFor(e))
             }
         }
     }

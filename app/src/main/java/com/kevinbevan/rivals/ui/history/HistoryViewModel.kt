@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.kevinbevan.rivals.auth.AuthRepository
 import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.SessionRepository
+import com.kevinbevan.rivals.model.displayNames
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
 import com.kevinbevan.rivals.ui.messageFor
@@ -48,10 +49,11 @@ class HistoryViewModel(
         sessionRepository.observeSessions(),
     ) { user, players, sessions ->
         val myId = user?.uid.orEmpty()
+        val names = displayNames(players)
         HistoryUiState(
             loading = false,
-            myName = players.firstOrNull { it.uid == myId }?.shortName.orEmpty(),
-            rivalName = players.firstOrNull { it.uid != myId }?.shortName ?: "Rival",
+            myName = names[myId].orEmpty(),
+            rivalName = players.firstOrNull { it.uid != myId }?.let { names[it.uid] } ?: "Rival",
             items = SessionRepository.pastSessions(sessions.value).map { s ->
                 val rivalId = s.playerIds.firstOrNull { it != myId }.orEmpty()
                 HistoryItem(

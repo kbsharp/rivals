@@ -1,6 +1,7 @@
 package com.kevinbevan.rivals.emulator
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.kevinbevan.rivals.domain.DocPath
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
@@ -128,5 +129,36 @@ class SyncTest {
         b.sessions.observeSession(first).awaitValue("B sees A's session") { it.value != null }
         val second = b.sessions.startSession(b.uid, a.uid, race2)
         assertEquals(first, second)
+    }
+
+    @Test
+    fun endingASessionWithNothingPlayedDeletesItEverywhere(): Unit = runBlocking {
+        val id = a.sessions.startSession(a.uid, b.uid, race2)
+        b.sessions.observeSession(id).awaitValue("B sees the session") { it.value != null }
+        assertTrue(a.sessions.endSession(id))
+        b.sessions.observeSession(id).awaitValue("B sees it deleted") { it.value == null }
+        b.sessions.observeMatches(id).awaitValue("B sees its match deleted") { it.value.isEmpty() }
+    }
+
+    @Test
+    fun deletingAPastSessionRemovesItAndEverythingInIt(): Unit = runBlocking {
+        val id = a.sessions.startSession(a.uid, b.uid, race2)
+        repeat(3) { a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid) } // 2–0, then 1–0
+        assertEquals(false, a.sessions.endSession(id))
+        b.sessions.observeSession(id).awaitValue("B sees it ended") { it.value?.status == Status.ENDED }
+
+        b.sessions.deleteSession(id)
+        a.sessions.observeSession(id).awaitValue("A sees it deleted") { it.value == null }
+        assertEquals(0, a.db.collectionGroup("frames").get().await().size())
+        assertEquals(0, a.db.collectionGroup("matches").get().await().size())
+    }
+
+    @Test
+    fun theBreakerIsRecordedWithTheFrame(): Unit = runBlocking {
+        val id = a.sessions.startSession(a.uid, b.uid, race2)
+        val matchId = a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid, breakerId = b.uid)
+            .plan.first().doc.let { (it as DocPath.FrameDoc).matchId }
+        val frame = b.sessions.observeFrames(id, matchId).awaitValue("B gets the frame") { it.value.size == 1 }
+        assertEquals(b.uid, frame.value.single().breakerId)
     }
 }

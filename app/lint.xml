@@ -6,4 +6,12 @@
     <issue id="ObsoleteSdkInt">
         <ignore path="src/main/res/mipmap-anydpi-v26" />
     </issue>
+    <!-- Portrait on purpose: the Session screen is a one-handed phone layout (CLAUDE.md).
+         Android 16+ ignores the lock on large screens, where the layout still works. -->
+    <issue id="LockedOrientationActivity">
+        <ignore path="src/main/AndroidManifest.xml" />
+    </issue>
+    <issue id="DiscouragedApi">
+        <ignore path="src/main/AndroidManifest.xml" />
+    </issue>
 </lint>

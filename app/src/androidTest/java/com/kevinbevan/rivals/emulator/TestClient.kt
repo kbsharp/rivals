@@ -103,7 +103,7 @@ class TestClient(private val email: String, private val emailVerified: Boolean =
     companion object {
         // The two accounts on the rules allow-list.
         const val PLAYER_A = "iambevan@gmail.com"
-        const val PLAYER_B = "kbevan.dev@gmail.com"
+        const val PLAYER_B = "julianjones56@gmail.com"
     }
 }
 

@@ -2,18 +2,25 @@ package com.kevinbevan.rivals.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -30,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,7 +46,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.ui.session.DefaultMatchSettings
-import com.kevinbevan.rivals.ui.session.MatchSettingsDialog
+import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 
 @Composable
@@ -72,7 +80,7 @@ fun HomeScreen(
 @Composable
 private fun HomeContent(
     uiState: HomeUiState,
-    onStartSession: (MatchSettings) -> Unit,
+    onStartSession: (MatchSettings, String?) -> Unit,
     onResumeSession: (String) -> Unit,
     onOpenHistory: () -> Unit,
     onOpenStats: () -> Unit,
@@ -161,17 +169,61 @@ private fun HomeContent(
     }
 
     if (choosingSettings) {
-        MatchSettingsDialog(
-            title = "New session",
-            confirmLabel = "Start",
-            initial = DefaultMatchSettings,
-            onConfirm = {
+        NewSessionDialog(
+            recentVenues = uiState.recentVenues,
+            onStart = { settings, venue ->
                 choosingSettings = false
-                onStartSession(it)
+                onStartSession(settings, venue)
             },
             onDismiss = { choosingSettings = false },
         )
     }
+}
+
+/** Match settings for the first match, plus an optional venue. */
+@Composable
+private fun NewSessionDialog(
+    recentVenues: List<String>,
+    onStart: (MatchSettings, String?) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var settings by remember { mutableStateOf(DefaultMatchSettings) }
+    var venue by rememberSaveable { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New session") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                MatchSettingsPicker(settings, { settings = it })
+                OutlinedTextField(
+                    value = venue,
+                    onValueChange = { venue = it },
+                    label = { Text("Venue (optional)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (recentVenues.isNotEmpty()) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        recentVenues.forEach { v ->
+                            FilterChip(
+                                selected = venue.trim().equals(v, ignoreCase = true),
+                                onClick = { venue = v },
+                                label = { Text(v) },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onStart(settings, venue.trim().ifEmpty { null }) }) { Text("Start") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @Composable
@@ -188,7 +240,7 @@ private fun HomeContentPreview() {
     RivalsTheme {
         HomeContent(
             HomeUiState(loading = false, myName = "Kevin", rivalId = "b", rivalName = "Dave", myWins = 12, rivalWins = 9),
-            {}, {}, {}, {}, {}, {},
+            { _, _ -> }, {}, {}, {}, {}, {},
         )
     }
 }

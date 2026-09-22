@@ -6,6 +6,7 @@ import com.kevinbevan.rivals.domain.DocPath.SessionDoc
 import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.model.MatchWithFrames
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.model.winsOf
@@ -194,11 +195,21 @@ class ScoreRules(private val newId: () -> String) {
     /**
      * Ends the session. A running match with no frames is deleted, since it was only ever the
      * automatic follow-on; one with frames is ended by hand as in [endMatch].
+     *
+     * If no frame was played all night, the session is deleted outright rather than leaving a
+     * 0–0 night in the history.
+     *
+     * @param matches every match in the session.
      */
-    fun endSession(session: Session, activeMatch: Match?): WritePlan {
+    fun endSession(session: Session, matches: List<Match>): WritePlan {
         check(session.status == Status.ACTIVE) { "Session ${session.id} has already ended" }
+        if (matches.all { it.framesPlayed == 0 }) {
+            return matches.map { Write.Delete(MatchDoc(session.id, it.id)) } +
+                Write.Delete(SessionDoc(session.id))
+        }
         val plan = mutableListOf<Write>()
-        if (activeMatch != null && activeMatch.status == Status.ACTIVE) {
+        val activeMatch = matches.filter { it.status == Status.ACTIVE }.maxByOrNull { it.number }
+        if (activeMatch != null) {
             plan += if (activeMatch.framesPlayed == 0) {
                 listOf(Write.Delete(MatchDoc(session.id, activeMatch.id)))
             } else {
@@ -213,6 +224,18 @@ class ScoreRules(private val newId: () -> String) {
             ),
         )
         return plan
+    }
+
+    /**
+     * Deletes a finished session and everything in it, e.g. a night recorded by mistake.
+     * Frames go first and the session last, so if a large delete is split across batches,
+     * a partial failure never leaves frames behind an already-deleted session.
+     */
+    fun deleteSession(session: Session, matches: List<MatchWithFrames>): WritePlan {
+        check(session.status == Status.ENDED) { "End session ${session.id} before deleting it" }
+        return matches.flatMap { m -> m.frames.map { Write.Delete(FrameDoc(session.id, m.match.id, it.id)) } } +
+            matches.map { Write.Delete(MatchDoc(session.id, it.match.id)) } +
+            Write.Delete(SessionDoc(session.id))
     }
 
     private fun removeFrame(session: Session, match: Match, frame: Frame): WritePlan {
@@ -280,6 +303,13 @@ class ScoreRules(private val newId: () -> String) {
             if (leader == null || leader.value == 0) return null
             return leader.key.takeIf { second == null || leader.value > second.value }
         }
+
+        /**
+         * Who breaks next, assuming players alternate: whoever didn't break the last frame
+         * that has a breaker recorded. `null` if there's nothing to go on yet.
+         */
+        fun alternateBreaker(lastBreakerId: String?, playerIds: List<String>): String? =
+            lastBreakerId?.let { last -> playerIds.firstOrNull { it != last } }
 
         /** All-time match wins per player, summed over every session (active ones included). */
         fun headToHead(sessions: List<Session>): Map<String, Int> =

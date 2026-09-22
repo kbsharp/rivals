@@ -9,6 +9,7 @@ import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.SessionRepository
 import com.kevinbevan.rivals.domain.ScoreRules
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.model.displayNames
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
 import com.kevinbevan.rivals.ui.messageFor
@@ -34,6 +35,8 @@ data class HomeUiState(
     val myWins: Int = 0,
     val rivalWins: Int = 0,
     val activeSession: ActiveSessionSummary? = null,
+    /** Venues from past sessions, most recent first, to offer when starting a new one. */
+    val recentVenues: List<String> = emptyList(),
     val pendingSync: Boolean = false,
     val starting: Boolean = false,
     val error: String? = null,
@@ -63,13 +66,14 @@ class HomeViewModel(
     ) { user, players, sessions, local ->
         val myId = user?.uid
         val rival = players.firstOrNull { it.uid != myId }
+        val names = displayNames(players)
         val totals = ScoreRules.headToHead(sessions.value)
         val active = SessionRepository.oldestActive(sessions.value)
         HomeUiState(
             loading = false,
-            myName = players.firstOrNull { it.uid == myId }?.shortName ?: user?.displayName.orEmpty(),
+            myName = myId?.let(names::get) ?: user?.displayName.orEmpty(),
             rivalId = rival?.uid,
-            rivalName = rival?.shortName,
+            rivalName = rival?.uid?.let(names::get),
             myWins = myId?.let { totals.winsOf(it) } ?: 0,
             rivalWins = rival?.let { totals.winsOf(it.uid) } ?: 0,
             activeSession = active?.let {
@@ -79,6 +83,11 @@ class HomeViewModel(
                     rivalWins = rival?.uid?.let(it.matchWins::winsOf) ?: 0,
                 )
             },
+            recentVenues = sessions.value
+                .sortedByDescending { it.startedAt }
+                .mapNotNull { it.venue?.trim()?.takeIf(String::isNotEmpty) }
+                .distinctBy { it.lowercase() }
+                .take(4),
             pendingSync = sessions.hasPendingWrites,
             starting = local.starting,
             error = local.error,
@@ -88,14 +97,14 @@ class HomeViewModel(
         .catch { emit(HomeUiState(loading = false, error = authRepository.messageFor(it))) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    fun startSession(settings: MatchSettings) {
+    fun startSession(settings: MatchSettings, venue: String?) {
         val myId = authRepository.currentUser?.uid ?: return
         val rival = uiState.value.rivalId ?: return
         if (local.value.starting) return
         local.update { it.copy(starting = true, error = null) }
         viewModelScope.launch {
             try {
-                val id = sessionRepository.startSession(myId, rival, settings)
+                val id = sessionRepository.startSession(myId, rival, settings, venue)
                 local.update { it.copy(starting = false, openSessionId = id) }
             } catch (e: CancellationException) {
                 throw e
