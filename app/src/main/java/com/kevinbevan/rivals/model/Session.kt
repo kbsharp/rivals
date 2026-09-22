@@ -13,4 +13,8 @@ data class Session(
     val createdBy: String,
     /** Denormalised count of matches won, keyed by uid. */
     val matchWins: Map<String, Int>,
+    /** The rivalry this night counts towards; `null` for a guest game kept on the phone. */
+    val rivalryId: String? = null,
+    /** Typed-in names, keyed by player id. Only guest games have them; rivals use their profiles. */
+    val names: Map<String, String> = emptyMap(),
 )

@@ -7,13 +7,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.toRoute
 import com.kevinbevan.rivals.auth.AuthRepository
-import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.SessionRepository
 import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
-import com.kevinbevan.rivals.model.displayNames
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
 import com.kevinbevan.rivals.ui.messageFor
@@ -58,8 +56,9 @@ data class SessionUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionViewModel(
     private val sessionId: String,
+    /** A quick game on the phone: nobody's signed in to it, so frames are recorded by its creator. */
+    private val guest: Boolean,
     private val authRepository: AuthRepository,
-    playerRepository: PlayerRepository,
     private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
@@ -73,6 +72,15 @@ class SessionViewModel(
 
     private val matches = sessionRepository.observeMatches(sessionId)
 
+    private val session = sessionRepository.observeSession(sessionId)
+
+    private val names = session
+        .map { it.value }
+        .distinctUntilChanged { a, b -> a?.playerIds == b?.playerIds && a?.names == b?.names }
+        .flatMapLatest { s -> if (s == null) flowOf(emptyMap()) else sessionRepository.observeNames(s) }
+
+    private var createdBy: String? = null
+
     // Frames of the latest two matches, latest first: the last frame is the one events are
     // tagged on, which may be the previous match's winner; both are kept in the cache for undo.
     private val recentFrames = matches
@@ -84,16 +92,16 @@ class SessionViewModel(
         }
 
     val uiState: StateFlow<SessionUiState> = combine(
-        sessionRepository.observeSession(sessionId),
+        session,
         matches,
         recentFrames,
-        playerRepository.observePlayers(),
+        names,
         local,
-    ) { session, matches, recent, players, local ->
+    ) { session, matches, recent, names, local ->
         val s = session.value
         if (s == null || local.exited) return@combine SessionUiState(loading = false, ended = true)
-        val names = displayNames(players)
-        val myId = authRepository.currentUser?.uid?.takeIf { it in s.playerIds } ?: s.playerIds.firstOrNull().orEmpty()
+        createdBy = s.createdBy
+        val myId = authRepository.currentUser?.uid?.takeIf { !guest && it in s.playerIds } ?: s.playerIds.firstOrNull().orEmpty()
         val rivalId = s.playerIds.firstOrNull { it != myId }.orEmpty()
 
         val latestFirst = matches.value.sortedByDescending { it.number }
@@ -120,19 +128,20 @@ class SessionViewModel(
             message = local.message,
         )
     }
-        .catch { emit(SessionUiState(loading = false, message = authRepository.messageFor(it))) }
+        .catch { emit(SessionUiState(loading = false, message = messageFor(it))) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionUiState())
 
     init {
         viewModelScope.launch {
             sessionRepository.writeErrors.collect {
-                say("Couldn't save to the server: ${authRepository.messageFor(it)}")
+                say(if (guest) "Couldn't save the game on this phone: ${messageFor(it)}" else "Couldn't save to the server: ${messageFor(it)}")
             }
         }
     }
 
     fun recordFrame(winnerId: String) = act {
-        val recordedBy = authRepository.currentUser?.uid ?: return@act
+        val recordedBy = (if (guest) createdBy else authRepository.currentUser?.uid)
+            ?: return@act say("Sign in again to record frames")
         val outcome = sessionRepository.recordFrame(sessionId, winnerId, recordedBy)
         if (outcome.matchEnded) say("${nameOf(winnerId)} wins the match!")
     }
@@ -173,7 +182,7 @@ class SessionViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                say(authRepository.messageFor(e))
+                say(messageFor(e))
             }
         }
     }
@@ -182,11 +191,12 @@ class SessionViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
+                val route = createSavedStateHandle().toRoute<SessionRoute>()
                 SessionViewModel(
-                    sessionId = createSavedStateHandle().toRoute<SessionRoute>().sessionId,
+                    sessionId = route.sessionId,
+                    guest = route.guest,
                     authRepository = container.authRepository,
-                    playerRepository = container.playerRepository,
-                    sessionRepository = container.sessionRepository,
+                    sessionRepository = container.sessions(route.guest),
                 )
             }
         }

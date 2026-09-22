@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.kevinbevan.rivals",
+      "sha256_cert_fingerprints": [
+        "DE:F8:80:6F:FE:72:FC:A1:7D:5B:57:73:E8:50:77:5A:62:F3:46:84:6C:1E:3D:07:4D:3F:69:8E:7A:55:02:12"
+      ]
+    }
+  }
+]

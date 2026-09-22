@@ -1,6 +1,6 @@
 # Rivals
 
-Android app for tracking scores between friends, starting with pool: me and a friend. Both of us sign in with Google, and every session, match and frame is stored in Firestore and synced between our phones in real time.
+Android app for tracking scores between friends, starting with pool. Anyone can keep score in a quick game without an account (saved on the phone). Signing in with Google lets you invite a rival; every session, match and frame in a rivalry is stored in Firestore and synced between both phones in real time.
 
 It's pool-only for now, but golf and other sports may follow. Keep pool-specific concepts (frames, 8-ball/9-ball, breaks) in the data model and domain logic rather than baked into the app's structure, but don't build for other sports yet.
 
@@ -33,11 +33,23 @@ Work through the milestones at the bottom in order, and tick each one off in thi
 ## Data model (Firestore)
 
 ```
-players/{uid}
+players/{uid}                                 // get by uid only, never listed
   displayName, email, photoUrl, createdAt
+
+emails/{lower-cased email}                    // find a rival by exact address
+  uid
+
+rivalries/{uidA_uidB}                         // uids in order: one rivalry per pair
+  playerIds: [uidA, uidB]                     // sorted
+  status: "pending" | "active"                // pending = email invite not yet accepted
+  invitedBy, createdAt, acceptedAt?, inviteCode?
+
+invites/{code}                                // share link: rivals-15bd9.web.app/invite/{code}
+  from, fromName, createdAt                   // single use, 30 days; readable signed out
 
 sessions/{sessionId}                          // one night out
   playerIds: [uidA, uidB]
+  rivalryId
   status: "active" | "ended"
   startedAt, endedAt?, venue?, createdBy
   matchWins: { uidA: n, uidB: n }             // denormalised tally
@@ -49,42 +61,30 @@ sessions/{sessionId}/matches/{matchId}        // a race to N frames
   status: "active" | "ended"
   frameWins: { uidA: n, uidB: n }             // denormalised tally
   winnerId?, startedAt, endedAt?
+  playerIds                                   // copied from the session, for stats queries
 
 sessions/{sessionId}/matches/{matchId}/frames/{frameId}
   number, winnerId, breakerId? (legacy), recordedBy, recordedAt
   events?: ["break-and-run" | "golden-break"]   // tagged after the fact, credited to the winner
+  playerIds
 ```
 
+Guest (quick) games use the same documents, kept on the phone in `guest-games.json` by `LocalSessionStore` and played through the same `SessionRepository`. Their players are `guest-a` / `guest-b` with typed `names`. Saving one to a rivalry (`GuestClaim`) copies it to Firestore with the guest ids swapped for uids.
+
 - Recording or undoing a frame is one batched write: the frame doc, plus a `FieldValue.increment` on the match tally. When a match finishes, the same write also updates the session tally.
-- Only one session can be active at a time.
+- Only one session can be active per rivalry (and one guest game per phone).
 - When a match hits its race-to, end it and start the next match automatically with the same settings.
 
 ## Security rules
 
-Only our two Google accounts can read or write anything. Keep `firestore.rules` and `firebase.json` in the repo and deploy them with the Firebase CLI.
+`firestore.rules` (kept in the repo with `firebase.json`, deployed with the Firebase CLI) is membership-based: anyone can sign in with Google, and a player can read and write only their own profile and email index entry, their rivalries, and the sessions (with matches and frames) they play in. A session can only be created in an active rivalry between exactly its two players. Profiles and the email index can be fetched by id but never listed, so the player base can't be browsed. `RulesTest` covers all of this against the emulator.
 
-```
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    function isMember() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in ['iambevan@gmail.com', 'julianjones56@gmail.com'];
-    }
-    match /{document=**} {
-      allow read, write: if isMember();
-    }
-  }
-}
-```
-
-If a Google account that isn't on the list signs in, Firestore reads fail with `PERMISSION_DENIED`. Handle that by showing a "this account isn't allowed" message and signing out. Don't fail silently.
+Show a clear message when Firestore refuses something; don't fail silently.
 
 ## Screens
 
-1. **Sign in**: a single "Sign in with Google" button.
-2. **Home**: the all-time head-to-head record, and a button to resume the active session or start a new one.
+1. **Home** (no account needed): Quick game (or resume it), your rivals with the head to head, invites to accept, Add a rival, and guest games on the phone that can be saved to a rivalry.
+2. **Sign in**: optional, reached from Home or an invite. **Add a rival**: exact email, share link, or invite code. **Invite**: opened from a share link. **Rivalry**: one rival's head to head, start or resume a session, History, Stats.
 3. **Session** (the main screen):
    - landscape and full screen: each player's half of the screen is the tap target for a frame win
    - a small pill with the match clock, the match and race-to, and tonight's score

@@ -79,6 +79,28 @@ class ScoreRulesTest {
     }
 
     @Test
+    fun matchesAndFramesCarryThePlayersForStatsQueries() {
+        val id = start()
+        win(id, a)
+        store.docs.filterKeys { it is MatchDoc || it is FrameDoc }.values.forEach {
+            assertEquals(listOf(a, b), it[Schema.PLAYER_IDS])
+        }
+    }
+
+    @Test
+    fun aRivalsSessionRecordsItsRivalryAndAGuestGameItsNames() {
+        val rivals = rules.startSession(listOf(a, b), a, race3, rivalryId = "a_b")
+        store.apply(rivals.plan)
+        assertEquals("a_b", store.session(rivals.sessionId).rivalryId)
+        assertTrue(store.session(rivals.sessionId).names.isEmpty())
+
+        val guest = rules.startSession(listOf(a, b), a, race3, names = mapOf(a to "Tom", b to "Sam"))
+        store.apply(guest.plan)
+        assertEquals(null, store.session(guest.sessionId).rivalryId)
+        assertEquals(mapOf(a to "Tom", b to "Sam"), store.session(guest.sessionId).names)
+    }
+
+    @Test
     fun startSessionOmitsBlankVenue() {
         val id = start(venue = " ")
         assertFalse(Schema.VENUE in store.docs.getValue(SessionDoc(id)))
@@ -505,6 +527,6 @@ class ScoreRulesTest {
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun deepCopy(docs: Map<DocPath, MutableMap<String, Any?>>): Map<DocPath, Map<String, Any?>> =
+    private fun deepCopy(docs: Docs): Docs =
         docs.mapValues { (_, d) -> d.mapValues { (_, v) -> if (v is Map<*, *>) v.toMap() else v } }
 }

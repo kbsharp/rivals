@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rivals invite</title>
+  <style>
+    :root { --bg: #f4f8f4; --fg: #17211a; --muted: #4a5a4e; --accent: #1b6c3a; --card: #ffffff; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #0f1511; --fg: #dfe6df; --muted: #a9b5ab; --accent: #8ed79f; --card: #18211b; }
+    }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 system-ui, sans-serif; }
+    main { max-width: 28rem; margin: 0 auto; padding: 3rem 1rem; }
+    .card { background: var(--card); border-radius: 16px; padding: 1.5rem; }
+    h1 { font-size: 1.5rem; margin: 0 0 .5rem; }
+    p { color: var(--muted); }
+    code { font-size: 1.6rem; letter-spacing: .15em; color: var(--accent); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="card">
+      <h1>You've been invited to a rivalry</h1>
+      <p>Someone wants to keep score against you on Rivals, the pool score tracker.</p>
+      <p>If you have the app, it should have opened this link. If not, install Rivals, open it, choose
+        <strong>Add a rival</strong>, and enter this code:</p>
+      <p><code id="code"></code></p>
+    </div>
+  </main>
+  <script>
+    var code = location.pathname.split('/').filter(Boolean)[1] || '';
+    document.getElementById('code').textContent = code.toUpperCase();
+  </script>
+</body>
+</html>

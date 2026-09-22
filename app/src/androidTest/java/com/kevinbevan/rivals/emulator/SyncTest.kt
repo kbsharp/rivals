@@ -1,9 +1,14 @@
 package com.kevinbevan.rivals.emulator
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.kevinbevan.rivals.domain.DocPath
+import com.kevinbevan.rivals.data.GuestRepository
+import com.kevinbevan.rivals.data.LocalSessionStore
+import com.kevinbevan.rivals.data.SessionRepository
+import com.kevinbevan.rivals.domain.ScoreRules
 import com.kevinbevan.rivals.model.GameType
+import com.kevinbevan.rivals.model.RivalryStatus
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.model.Rivalry
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.model.winsOf
 import kotlinx.coroutines.runBlocking
@@ -19,7 +24,7 @@ import org.junit.runner.RunWith
  * The Phase 5 exit test, automated: two "phones" (separate Firebase clients) playing through
  * [com.kevinbevan.rivals.data.SessionRepository] against the Firestore and Auth emulators.
  *
- * Runs with real `firestore.rules`, so it also proves both allowed accounts can play.
+ * Runs with real `firestore.rules`, so it also proves rivals can do everything they need to.
  */
 @RunWith(AndroidJUnit4::class)
 class SyncTest {
@@ -27,14 +32,16 @@ class SyncTest {
 
     private lateinit var a: TestClient
     private lateinit var b: TestClient
+    private lateinit var rivalry: Rivalry
 
     @Before
     fun setUp(): Unit = runBlocking {
         Emulators.reset()
         a = TestClient(TestClient.PLAYER_A)
         b = TestClient(TestClient.PLAYER_B)
-        a.signIn()
-        b.signIn()
+        a.signUp()
+        b.signUp()
+        rivalry = TestClient.becomeRivals(a, b)
     }
 
     @After
@@ -45,7 +52,7 @@ class SyncTest {
 
     @Test
     fun eachActionShowsUpLiveOnTheOtherPhone(): Unit = runBlocking {
-        val id = a.sessions.startSession(a.uid, b.uid, race2)
+        val id = a.start(rivalry, race2)
         val onB = b.sessions.observeMatches(id)
         val onA = a.sessions.observeMatches(id)
 
@@ -88,7 +95,7 @@ class SyncTest {
         a.db.disableNetwork().await()
 
         // Everything below happens with A offline: nothing waits on the server.
-        val id = a.sessions.startSession(a.uid, b.uid, race2)
+        val id = a.start(rivalry, race2)
         a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid)
         a.sessions.recordFrame(id, winnerId = b.uid, recordedBy = a.uid)
         a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid) // A wins match 1
@@ -125,15 +132,15 @@ class SyncTest {
 
     @Test
     fun startingWhenASessionIsActiveJoinsIt(): Unit = runBlocking {
-        val first = a.sessions.startSession(a.uid, b.uid, race2)
+        val first = a.start(rivalry, race2)
         b.sessions.observeSession(first).awaitValue("B sees A's session") { it.value != null }
-        val second = b.sessions.startSession(b.uid, a.uid, race2)
+        val second = b.start(rivalry, race2)
         assertEquals(first, second)
     }
 
     @Test
     fun endingASessionWithNothingPlayedDeletesItEverywhere(): Unit = runBlocking {
-        val id = a.sessions.startSession(a.uid, b.uid, race2)
+        val id = a.start(rivalry, race2)
         b.sessions.observeSession(id).awaitValue("B sees the session") { it.value != null }
         assertTrue(a.sessions.endSession(id))
         b.sessions.observeSession(id).awaitValue("B sees it deleted") { it.value == null }
@@ -142,40 +149,73 @@ class SyncTest {
 
     @Test
     fun deletingAPastSessionRemovesItAndEverythingInIt(): Unit = runBlocking {
-        val id = a.sessions.startSession(a.uid, b.uid, race2)
+        val id = a.start(rivalry, race2)
         repeat(3) { a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid) } // 2–0, then 1–0
         assertEquals(false, a.sessions.endSession(id))
         b.sessions.observeSession(id).awaitValue("B sees it ended") { it.value?.status == Status.ENDED }
 
         b.sessions.deleteSession(id)
         a.sessions.observeSession(id).awaitValue("A sees it deleted") { it.value == null }
-        assertEquals(0, a.db.collectionGroup("frames").get().await().size())
-        assertEquals(0, a.db.collectionGroup("matches").get().await().size())
-    }
-
-    @Test
-    fun theBreakerIsRecordedWithTheFrame(): Unit = runBlocking {
-        val id = a.sessions.startSession(a.uid, b.uid, race2)
-        val matchId = a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid, breakerId = b.uid)
-            .plan.first().doc.let { (it as DocPath.FrameDoc).matchId }
-        val frame = b.sessions.observeFrames(id, matchId).awaitValue("B gets the frame") { it.value.size == 1 }
-        assertEquals(b.uid, frame.value.single().breakerId)
+        assertEquals(0, a.db.collectionGroup("frames").whereArrayContains("playerIds", a.uid).get().await().size())
+        assertEquals(0, a.db.collectionGroup("matches").whereArrayContains("playerIds", a.uid).get().await().size())
     }
 
     @Test
     fun statsSeeEveryMatchAndFrameAcrossSessions(): Unit = runBlocking {
         // Stats reads through collection-group queries, which the rules must allow.
-        val first = a.sessions.startSession(a.uid, b.uid, race2)
+        val first = a.start(rivalry, race2)
         repeat(2) { a.sessions.recordFrame(first, winnerId = a.uid, recordedBy = a.uid) }
         a.sessions.endSession(first)
-        val second = a.sessions.startSession(a.uid, b.uid, race2)
+        val second = a.start(rivalry, race2)
         a.sessions.recordFrame(second, winnerId = b.uid, recordedBy = a.uid)
 
-        val frames = b.sessions.observeAllFrames().awaitValue("B sees all 3 frames") { it.size == 3 }
+        val frames = b.rivalries.observeAllFrames(b.uid).awaitValue("B sees all 3 frames") { it.size == 3 }
         assertEquals(mapOf(first to 2, second to 1), frames.groupingBy { it.sessionId }.eachCount())
-        val matches = b.sessions.observeAllMatches().awaitValue("B sees both sessions' matches") {
+        val matches = b.rivalries.observeAllMatches(b.uid).awaitValue("B sees both sessions' matches") {
             it.map { m -> m.sessionId }.toSet() == setOf(first, second)
         }
         assertEquals(a.uid, matches.single { it.sessionId == first }.match.winnerId)
+    }
+
+    @Test
+    fun aGuestGameSavedToTheRivalryShowsUpForTheRival(): Unit = runBlocking {
+        // Played on A's phone with no account, as a quick game.
+        val local = LocalSessionStore(file = null)
+        val rules = ScoreRules(newId = { a.db.collection("_").document().id })
+        val guests = GuestRepository(local, rules)
+        val guestSessions = SessionRepository(local, rules)
+        val game = guests.startGame("Kev" to "Jules", race2)
+        val (me, them) = GuestRepository.PLAYER_A to GuestRepository.PLAYER_B
+        guestSessions.recordFrame(game, them, recordedBy = me)
+        guestSessions.recordFrame(game, them, recordedBy = me) // Jules wins match 1
+        guestSessions.recordFrame(game, me, recordedBy = me)
+        guestSessions.endSession(game)
+
+        a.rivalries.claimGuestGame(guests.docsOf(game), game, mapOf(me to a.uid, them to b.uid), rivalry)
+
+        val session = b.sessions.observeSession(game).awaitValue("B gets the saved game") {
+            it.value?.status == Status.ENDED
+        }.value!!
+        assertEquals(rivalry.id, session.rivalryId)
+        assertEquals(mapOf(a.uid to 0, b.uid to 1), session.matchWins)
+        val frames = b.rivalries.observeAllFrames(b.uid).awaitValue("B's stats see its frames") { it.size == 3 }
+        assertEquals(setOf(game), frames.map { it.sessionId }.toSet())
+    }
+
+    @Test
+    fun aShareLinkMakesRivalsWithoutAnEmailInvite(): Unit = runBlocking {
+        TestClient("sam@example.com").use { sam ->
+            sam.signUp()
+            val code = a.rivalries.createInvite(a.player)
+            val invite = sam.rivalries.loadInvite(code)!!
+            assertEquals(a.uid, invite.from)
+            val id = sam.rivalries.acceptInvite(sam.uid, invite)
+
+            val r = a.rivalries.observeRivalry(id).awaitValue("A sees Sam accepted") { it?.status == RivalryStatus.ACTIVE }!!
+            assertEquals(setOf(a.uid, sam.uid), r.playerIds.toSet())
+            assertEquals(null, sam.rivalries.loadInvite(code)) // used up
+            // And they can play straight away.
+            sam.start(r, race2)
+        }
     }
 }

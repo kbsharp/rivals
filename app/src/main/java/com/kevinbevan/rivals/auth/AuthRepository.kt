@@ -30,11 +30,6 @@ class AuthRepository(
 ) {
     val currentUser: FirebaseUser? get() = auth.currentUser
 
-    private var signOutReason: String? = null
-
-    /** Why the last sign-out happened, if it wasn't the user's choice. Cleared once read. */
-    fun takeSignOutReason(): String? = signOutReason.also { signOutReason = null }
-
     val authState: Flow<FirebaseUser?> = callbackFlow {
         val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser) }
         auth.addAuthStateListener(listener)
@@ -63,12 +58,8 @@ class AuthRepository(
         return user.toPlayer()
     }
 
-    /**
-     * Signs out. A [reason] is kept for the sign-in screen to show, e.g. when Firestore starts
-     * refusing this account.
-     */
-    suspend fun signOut(reason: String? = null) {
-        signOutReason = reason
+    /** Signs out. Guest games on the phone are kept. */
+    suspend fun signOut() {
         auth.signOut()
         // Forget the chosen account so the picker shows again next time. Best effort: it throws
         // when no credential provider is available (e.g. outdated Play services), and signing

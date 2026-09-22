@@ -25,8 +25,18 @@ import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.ui.history.DetailPlayer
 import com.kevinbevan.rivals.ui.history.SessionDetailContent
 import com.kevinbevan.rivals.ui.history.SessionDetailUiState
+import com.kevinbevan.rivals.model.Player
+import com.kevinbevan.rivals.ui.home.GuestGame
+import com.kevinbevan.rivals.ui.home.GuestSide
+import com.kevinbevan.rivals.ui.home.HomeActions
 import com.kevinbevan.rivals.ui.home.HomeContent
 import com.kevinbevan.rivals.ui.home.HomeUiState
+import com.kevinbevan.rivals.ui.home.InviteCard
+import com.kevinbevan.rivals.ui.home.RivalCard
+import com.kevinbevan.rivals.ui.invite.AddRivalContent
+import com.kevinbevan.rivals.ui.invite.AddRivalUiState
+import com.kevinbevan.rivals.ui.rivalry.RivalryContent
+import com.kevinbevan.rivals.ui.rivalry.RivalryUiState
 import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
 import com.kevinbevan.rivals.ui.session.SessionContent
@@ -62,6 +72,12 @@ class Screenshots {
 
     @Test fun homeLight() = shoot("home", dark = false) { Home() }
     @Test fun homeDark() = shoot("home", dark = true) { Home() }
+    @Test fun guestHomeLight() = shoot("home-guest", dark = false) { SignedOutHome() }
+    @Test fun guestHomeDark() = shoot("home-guest", dark = true) { SignedOutHome() }
+    @Test fun rivalryLight() = shoot("rivalry", dark = false) { Rivalry() }
+    @Test fun rivalryDark() = shoot("rivalry", dark = true) { Rivalry() }
+    @Test fun addRivalLight() = shoot("add-rival", dark = false) { AddRival() }
+    @Test fun addRivalDark() = shoot("add-rival", dark = true) { AddRival() }
     @Test fun sessionLight() = shoot("session", dark = false) { SessionScreen() }
     @Test fun sessionDark() = shoot("session", dark = true) { SessionScreen() }
     @Test fun statsLight() = shoot("stats", dark = false) { StatsScreen() }
@@ -70,8 +86,27 @@ class Screenshots {
     @Test fun detailDark() = shoot("detail", dark = true) { Detail() }
 
     @Composable private fun Home() = HomeContent(
-        HomeUiState(loading = false, myName = "Kevin", rivalId = "b", rivalName = "Julian", myWins = 12, rivalWins = 9),
-        { _, _ -> }, {}, {}, {}, {}, {},
+        HomeUiState(
+            loading = false,
+            signedIn = true,
+            myName = "Kevin",
+            rivals = listOf(RivalCard("r1", "Julian", myWins = 12, rivalWins = 9, live = true)),
+            invites = listOf(InviteCard("r2", "Sam", incoming = true)),
+            guestGames = listOf(GuestGame("g", active = false, startedAt = start, GuestSide("a", "Kevin", 2), GuestSide("b", "Tom", 1))),
+        ),
+        HomeActions(),
+    )
+
+    @Composable private fun SignedOutHome() = HomeContent(HomeUiState(loading = false), HomeActions())
+
+    @Composable private fun Rivalry() = RivalryContent(
+        RivalryUiState(loading = false, myName = "Kevin", rivalName = "Julian", myWins = 12, rivalWins = 9),
+        { _, _ -> }, {}, {}, {}, {}, {}, {},
+    )
+
+    @Composable private fun AddRival() = AddRivalContent(
+        AddRivalUiState(searched = "julian@example.com", found = Player("b", "Julian Jones", "julian@example.com", null)),
+        {}, {}, {}, {}, {}, {},
     )
 
     @Composable private fun SessionScreen() = SessionContent(

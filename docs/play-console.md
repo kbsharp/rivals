@@ -64,4 +64,4 @@ Google Play's account-deletion policy applies to apps that let people create an 
 
 ## Access for review
 
-App access: **All or some functionality is restricted**. Only two allow-listed Google accounts can sign in, so reviewers of an internal-testing release won't need access. If Play asks for review access later, add a test account to the rules allow-list first.
+App access: **All functionality is available without special access**. Quick games need no account, and any Google account can sign in and invite a rival. A reviewer can make a second test account to try rivalries.

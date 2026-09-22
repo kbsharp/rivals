@@ -1,0 +1,164 @@
+package com.kevinbevan.rivals.ui.rivalry
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.createSavedStateHandle
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
+import androidx.navigation.toRoute
+import com.kevinbevan.rivals.auth.AuthRepository
+import com.kevinbevan.rivals.data.PlayerRepository
+import com.kevinbevan.rivals.data.RivalryRepository
+import com.kevinbevan.rivals.data.SessionRepository
+import com.kevinbevan.rivals.domain.ScoreRules
+import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.model.Rivalry
+import com.kevinbevan.rivals.model.RivalryStatus
+import com.kevinbevan.rivals.model.displayNames
+import com.kevinbevan.rivals.model.winsOf
+import com.kevinbevan.rivals.ui.appContainer
+import com.kevinbevan.rivals.ui.messageFor
+import com.kevinbevan.rivals.ui.navigation.RivalryRoute
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+/** Tonight's session, as far as the rivalry screen needs to know. */
+data class ActiveSessionSummary(val id: String, val myWins: Int, val rivalWins: Int)
+
+data class RivalryUiState(
+    val loading: Boolean = true,
+    val myName: String = "",
+    val rivalName: String = "Rival",
+    /** Sessions can start once the rival has accepted. */
+    val accepted: Boolean = true,
+    val myWins: Int = 0,
+    val rivalWins: Int = 0,
+    val activeSession: ActiveSessionSummary? = null,
+    /** Venues from past sessions, most recent first, to offer when starting a new one. */
+    val recentVenues: List<String> = emptyList(),
+    val pendingSync: Boolean = false,
+    val starting: Boolean = false,
+    val error: String? = null,
+    /** One-off navigation to a session; cleared by [RivalryViewModel.onSessionOpened]. */
+    val openSessionId: String? = null,
+    /** The rivalry was removed here or on the other phone; leave. */
+    val gone: Boolean = false,
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class RivalryViewModel(
+    val rivalryId: String,
+    private val authRepository: AuthRepository,
+    playerRepository: PlayerRepository,
+    private val rivalryRepository: RivalryRepository,
+) : ViewModel() {
+
+    private data class LocalState(
+        val starting: Boolean = false,
+        val error: String? = null,
+        val openSessionId: String? = null,
+        val removed: Boolean = false,
+    )
+
+    private val local = MutableStateFlow(LocalState())
+    private var rivalry: Rivalry? = null
+
+    val uiState: StateFlow<RivalryUiState> = authRepository.authState.filterNotNull().flatMapLatest { user ->
+        val me = user.uid
+        combine(
+            rivalryRepository.observeRivalry(rivalryId),
+            rivalryRepository.observeSessions(me),
+            playerRepository.observePlayers(Rivalry.playersOf(rivalryId)),
+            local,
+        ) { r, allSessions, players, local ->
+            rivalry = r
+            if (r == null || local.removed) return@combine RivalryUiState(loading = false, gone = true)
+            val rivalId = r.rivalOf(me)
+            val names = displayNames(players)
+            val sessions = allSessions.value.filter { it.rivalryId == rivalryId }
+            val totals = ScoreRules.headToHead(sessions)
+            val active = SessionRepository.oldestActive(sessions)
+            RivalryUiState(
+                loading = false,
+                myName = names[me] ?: user.displayName.orEmpty(),
+                rivalName = names[rivalId] ?: "Rival",
+                accepted = r.status == RivalryStatus.ACTIVE,
+                myWins = totals.winsOf(me),
+                rivalWins = totals.winsOf(rivalId),
+                activeSession = active?.let {
+                    ActiveSessionSummary(it.id, it.matchWins.winsOf(me), it.matchWins.winsOf(rivalId))
+                },
+                recentVenues = sessions
+                    .sortedByDescending { it.startedAt }
+                    .mapNotNull { it.venue?.trim()?.takeIf(String::isNotEmpty) }
+                    .distinctBy { it.lowercase() }
+                    .take(4),
+                pendingSync = allSessions.hasPendingWrites,
+                starting = local.starting,
+                error = local.error,
+                openSessionId = local.openSessionId,
+            )
+        }
+    }
+        .catch { emit(RivalryUiState(loading = false, error = messageFor(it))) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), RivalryUiState())
+
+    fun startSession(settings: MatchSettings, venue: String?) {
+        val me = authRepository.currentUser?.uid ?: return
+        val r = rivalry ?: return
+        if (local.value.starting) return
+        local.update { it.copy(starting = true, error = null) }
+        viewModelScope.launch {
+            try {
+                val id = rivalryRepository.startSession(r, me, settings, venue)
+                local.update { it.copy(starting = false, openSessionId = id) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                local.update { it.copy(starting = false, error = "Couldn't start the session: ${messageFor(e)}") }
+            }
+        }
+    }
+
+    /** Ends the rivalry. Its sessions stay in history. */
+    fun remove() {
+        viewModelScope.launch {
+            try {
+                rivalryRepository.remove(rivalryId)
+                local.update { it.copy(removed = true) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                local.update { it.copy(error = "Couldn't remove the rival: ${messageFor(e)}") }
+            }
+        }
+    }
+
+    fun onSessionOpened() = local.update { it.copy(openSessionId = null) }
+
+    fun dismissError() = local.update { it.copy(error = null) }
+
+    companion object {
+        val Factory = viewModelFactory {
+            initializer {
+                val container = appContainer()
+                RivalryViewModel(
+                    rivalryId = createSavedStateHandle().toRoute<RivalryRoute>().rivalryId,
+                    authRepository = container.authRepository,
+                    playerRepository = container.playerRepository,
+                    rivalryRepository = container.rivalryRepository,
+                )
+            }
+        }
+    }
+}

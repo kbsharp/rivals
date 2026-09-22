@@ -2,9 +2,21 @@ package com.kevinbevan.rivals.ui.navigation
 
 import kotlinx.serialization.Serializable
 
-@Serializable object SignInRoute
 @Serializable object HomeRoute
-@Serializable data class SessionRoute(val sessionId: String)
-@Serializable object HistoryRoute
-@Serializable data class SessionDetailRoute(val sessionId: String)
-@Serializable object StatsRoute
+@Serializable object SignInRoute
+@Serializable data class RivalryRoute(val rivalryId: String)
+@Serializable object AddRivalRoute
+@Serializable data class InviteRoute(val code: String)
+
+/** [guest]: a quick game kept on the phone rather than a rivals' session in Firestore. */
+@Serializable data class SessionRoute(val sessionId: String, val guest: Boolean = false)
+@Serializable data class HistoryRoute(val rivalryId: String)
+@Serializable data class SessionDetailRoute(val sessionId: String, val guest: Boolean = false)
+@Serializable data class StatsRoute(val rivalryId: String)
+
+/** Share links open [InviteRoute]: `https://rivals-15bd9.web.app/invite/<code>`. */
+object InviteLinks {
+    const val BASE = "https://rivals-15bd9.web.app/invite"
+
+    fun forCode(code: String) = "$BASE/$code"
+}

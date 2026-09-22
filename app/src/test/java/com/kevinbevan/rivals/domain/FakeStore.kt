@@ -16,51 +16,11 @@ import com.kevinbevan.rivals.model.Status
  * so tests can play out a whole night and check the resulting documents.
  */
 class FakeStore {
-    val docs = linkedMapOf<DocPath, MutableMap<String, Any?>>()
+    var docs: Docs = emptyMap()
+        private set
 
     fun apply(plan: WritePlan) {
-        // Validate the whole batch first so a bad write leaves nothing half-applied.
-        plan.filterIsInstance<Write.Update>().forEach {
-            check(it.doc in docs || plan.any { w -> w is Write.Set && w.doc == it.doc }) {
-                "Update of missing doc ${it.doc}"
-            }
-        }
-        for (write in plan) {
-            when (write) {
-                is Write.Set -> {
-                    check(write.fields.keys.none { '.' in it }) { "Dotted key in Set: ${write.fields.keys}" }
-                    docs[write.doc] = write.fields.mapValues { resolve(null, it.value) }.toMutableMap()
-                }
-                is Write.Update -> {
-                    val doc = docs.getValue(write.doc)
-                    write.fields.forEach { (path, value) -> updatePath(doc, path.split('.'), value) }
-                }
-                is Write.Delete -> {
-                    check(write.doc in docs) { "Delete of missing doc ${write.doc}" }
-                    docs.remove(write.doc)
-                }
-            }
-        }
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    private fun updatePath(doc: MutableMap<String, Any?>, path: List<String>, value: Any?) {
-        if (path.size == 1) {
-            if (value == FieldOp.Delete) doc.remove(path[0]) else doc[path[0]] = resolve(doc[path[0]], value)
-            return
-        }
-        val child = (doc[path[0]] as? Map<String, Any?>)?.toMutableMap() ?: mutableMapOf()
-        updatePath(child, path.drop(1), value)
-        doc[path[0]] = child
-    }
-
-    private fun resolve(current: Any?, value: Any?): Any? = when (value) {
-        is FieldOp.Increment -> ((current as? Number)?.toLong() ?: 0L) + value.by
-        FieldOp.ServerTimestamp -> TIMESTAMP
-        FieldOp.Delete -> error("FieldOp.Delete is only valid in an update")
-        is Int -> value.toLong()
-        is Map<*, *> -> value.mapValues { resolve(null, it.value) }
-        else -> value
+        docs = PlanApplier.apply(docs, plan, TIMESTAMP)
     }
 
     // Readers that map docs back to models with the same mappers the repositories use.

@@ -152,8 +152,16 @@ _2026-09-22._
 - [x] Dropped the "who broke" picker; Stats swaps break-and-win for a Specials table of tagged events (credited to the frame winner), and History rings tagged frames and lists them
 - [ ] 🧑 Try it on the phone during a real game
 
-## Phase 10: Guests and rivalries (planned)
+## Phase 10: Guests and rivalries
 Decided 2026-09-22: no forced sign-in. Guests get the scoreboard with typed names, saved on the phone and attachable to a rivalry after signing in. Signed-in players find a rival by **exact email** (no browsing the player base), or share an invite link if the rival isn't on Rivals yet. Everything played inside a rivalry is recorded to it. The email allow-list in the rules gives way to per-rivalry membership rules.
+- [x] Home works signed out: Quick game with typed names, kept on the phone (`LocalSessionStore`, same `SessionRepository` and scoreboard). Finished guest games are listed and can be opened, deleted, or saved to a rivalry once signed in ("which one was you?")
+- [x] Rivalries: invite by exact email (pending until accepted), or a one-off share link / invite code (active straight away). Accept, decline, cancel, remove. The rivalry screen holds what Home used to: head to head, start/resume, History, Stats, all scoped to that rival
+- [x] Sessions carry `rivalryId`; matches and frames carry `playerIds` so stats' collection-group queries pass the rules
+- [x] Membership rules replace the allow-list; `RulesTest` rewritten (11 cases), `SyncTest` plays inside a rivalry and covers saving a guest game and accepting a link
+- [x] Invite link landing page and `assetlinks.json` (debug key) in `hosting/public`
+- [ ] 🧑 Deploy: `firebase deploy --only firestore:rules,hosting`. Until then the live rules are still the allow-list (the app works for you, not for Julian or anyone new), and invite links open a 404 in the browser (typing the code in the app works)
+- [ ] 🧑 Before Play: add the Play App Signing key's SHA-256 to `hosting/public/.well-known/assetlinks.json` so links open the app for Play installs
+- [ ] Old live test sessions have no `rivalryId`, so they no longer show anywhere. Wipe them (see Open questions)
 
 ---
 

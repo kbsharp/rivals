@@ -27,7 +27,7 @@ class SignInViewModel(
     private val playerRepository: PlayerRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SignInUiState(error = authRepository.takeSignOutReason()))
+    private val _uiState = MutableStateFlow(SignInUiState())
     val uiState: StateFlow<SignInUiState> = _uiState.asStateFlow()
 
     fun signIn(activityContext: Context) {
@@ -36,7 +36,7 @@ class SignInViewModel(
         viewModelScope.launch {
             val error = try {
                 val player = authRepository.signInWithGoogle(activityContext)
-                // The first Firestore call doubles as the allow-list check.
+                // The profile and email index are what let a rival find you.
                 playerRepository.upsert(player)
                 null
             } catch (e: CancellationException) {

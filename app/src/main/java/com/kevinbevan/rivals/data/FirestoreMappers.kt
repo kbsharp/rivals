@@ -15,6 +15,9 @@ import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
+import com.kevinbevan.rivals.model.Player
+import com.kevinbevan.rivals.model.Rivalry
+import com.kevinbevan.rivals.model.RivalryStatus
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 import java.time.Instant
@@ -32,6 +35,24 @@ fun sessionFrom(id: String, d: Map<String, Any?>) = Session(
     venue = d[Schema.VENUE] as? String,
     createdBy = d[Schema.CREATED_BY] as? String ?: "",
     matchWins = tally(d[Schema.MATCH_WINS]),
+    rivalryId = d[Schema.RIVALRY_ID] as? String,
+    names = (d[Schema.NAMES] as? Map<*, *>).orEmpty().entries
+        .mapNotNull { (k, v) -> (k as? String)?.let { key -> (v as? String)?.let { key to it } } }
+        .toMap(),
+)
+
+fun rivalryFrom(id: String, d: Map<String, Any?>) = Rivalry(
+    id = id,
+    playerIds = (d[Schema.PLAYER_IDS] as? List<*>)?.filterIsInstance<String>().orEmpty(),
+    status = RivalryStatus.fromWire(d[Schema.STATUS] as? String),
+    invitedBy = d[Schema.INVITED_BY] as? String ?: "",
+)
+
+fun playerFrom(uid: String, d: Map<String, Any?>) = Player(
+    uid = uid,
+    displayName = d[Schema.DISPLAY_NAME] as? String ?: "",
+    email = d[Schema.EMAIL] as? String ?: "",
+    photoUrl = d[Schema.PHOTO_URL] as? String,
 )
 
 fun matchFrom(id: String, d: Map<String, Any?>) = Match(
@@ -60,7 +81,12 @@ fun frameFrom(id: String, d: Map<String, Any?>) = Frame(
 
 private fun int(value: Any?): Int? = (value as? Number)?.toInt()
 
-private fun instant(value: Any?): Instant? = (value as? Timestamp)?.toInstant()
+// Local (guest) documents hold plain Instants.
+private fun instant(value: Any?): Instant? = when (value) {
+    is Timestamp -> value.toInstant()
+    is Instant -> value
+    else -> null
+}
 
 private fun tally(raw: Any?): Map<String, Int> =
     (raw as? Map<*, *>).orEmpty().entries
@@ -97,5 +123,6 @@ private fun toFirestore(value: Any?): Any? = when (value) {
     FieldOp.ServerTimestamp -> FieldValue.serverTimestamp()
     FieldOp.Delete -> FieldValue.delete()
     is Map<*, *> -> value.mapValues { toFirestore(it.value) }
+    is Instant -> Timestamp(value)
     else -> value
 }

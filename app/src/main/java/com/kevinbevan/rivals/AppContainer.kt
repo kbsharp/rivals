@@ -5,9 +5,14 @@ import androidx.credentials.CredentialManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.kevinbevan.rivals.auth.AuthRepository
+import com.kevinbevan.rivals.data.FirestoreSessionStore
+import com.kevinbevan.rivals.data.GuestRepository
+import com.kevinbevan.rivals.data.LocalSessionStore
 import com.kevinbevan.rivals.data.PlayerRepository
+import com.kevinbevan.rivals.data.RivalryRepository
 import com.kevinbevan.rivals.data.SessionRepository
 import com.kevinbevan.rivals.domain.ScoreRules
+import java.io.File
 
 /**
  * Manual dependency injection. Repositories are created here and handed to ViewModels
@@ -15,6 +20,7 @@ import com.kevinbevan.rivals.domain.ScoreRules
  */
 class AppContainer(context: Context) {
     private val firestore = FirebaseFirestore.getInstance()
+    private val rules = ScoreRules(newId = { firestore.collection("_").document().id })
 
     val authRepository = AuthRepository(
         auth = FirebaseAuth.getInstance(),
@@ -24,8 +30,17 @@ class AppContainer(context: Context) {
 
     val playerRepository = PlayerRepository(firestore)
 
-    val sessionRepository = SessionRepository(
-        db = firestore,
-        rules = ScoreRules(newId = { firestore.collection("_").document().id }),
-    )
+    private val cloudStore = FirestoreSessionStore(firestore, playerRepository)
+    private val guestStore = LocalSessionStore(File(context.filesDir, "guest-games.json"))
+
+    val rivalryRepository = RivalryRepository(firestore, cloudStore, rules)
+
+    /** Rivals' sessions, in Firestore. */
+    val sessionRepository = SessionRepository(cloudStore, rules)
+
+    /** Guest games, on the phone. Played through the same [SessionRepository] logic. */
+    val guestSessionRepository = SessionRepository(guestStore, rules)
+    val guestRepository = GuestRepository(guestStore, rules)
+
+    fun sessions(guest: Boolean): SessionRepository = if (guest) guestSessionRepository else sessionRepository
 }

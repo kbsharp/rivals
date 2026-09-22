@@ -34,12 +34,17 @@ data class MatchWithLastFrame(val match: Match, val lastFrame: Frame?)
  */
 class ScoreRules(private val newId: () -> String) {
 
-    /** Creates an active session between two players, with its first match already running. */
+    /**
+     * Creates an active session between two players, with its first match already running.
+     * A rivals' session carries its [rivalryId]; a guest game has none but has typed-in [names].
+     */
     fun startSession(
         playerIds: List<String>,
         createdBy: String,
         settings: MatchSettings,
         venue: String? = null,
+        rivalryId: String? = null,
+        names: Map<String, String> = emptyMap(),
     ): StartOutcome {
         require(playerIds.size == 2 && playerIds.distinct().size == 2) {
             "A session needs exactly two different players, got $playerIds"
@@ -57,6 +62,8 @@ class ScoreRules(private val newId: () -> String) {
                     put(Schema.CREATED_BY, createdBy)
                     put(Schema.MATCH_WINS, zeroTally(playerIds))
                     if (!venue.isNullOrBlank()) put(Schema.VENUE, venue.trim())
+                    if (rivalryId != null) put(Schema.RIVALRY_ID, rivalryId)
+                    if (names.isNotEmpty()) put(Schema.NAMES, names)
                 },
             ),
             newMatch(sessionId, matchId, number = 1, settings, playerIds),
@@ -94,6 +101,7 @@ class ScoreRules(private val newId: () -> String) {
                     if (breakerId != null) put(Schema.BREAKER_ID, breakerId)
                     put(Schema.RECORDED_BY, recordedBy)
                     put(Schema.RECORDED_AT, FieldOp.ServerTimestamp)
+                    put(Schema.PLAYER_IDS, session.playerIds)
                 },
             ),
         )
@@ -295,6 +303,9 @@ class ScoreRules(private val newId: () -> String) {
             Schema.STATUS to Status.ACTIVE.wire,
             Schema.FRAME_WINS to zeroTally(playerIds),
             Schema.STARTED_AT to FieldOp.ServerTimestamp,
+            // Copied from the session so stats can query every match a player is in (the
+            // rules can only allow a collection-group query on the document's own fields).
+            Schema.PLAYER_IDS to playerIds,
         ),
     )
 

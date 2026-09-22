@@ -1,14 +1,169 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // The only accounts allowed to read or write anything.
-    function isMember() {
-      return request.auth != null
-        && request.auth.token.email_verified == true
-        && request.auth.token.email in ['iambevan@gmail.com', 'julianjones56@gmail.com'];
+    // Anyone can sign in with Google. What they can see and change is decided by membership:
+    // a player sees their own profile, their rivalries and the sessions they played in.
+
+    function signedIn() {
+      return request.auth != null;
     }
-    match /{document=**} {
-      allow read, write: if isMember();
+
+    function me() {
+      return request.auth.uid;
+    }
+
+    // A rivalry's id is its two uids in order, joined by '_'.
+    function pairId(a, b) {
+      return a < b ? a + '_' + b : b + '_' + a;
+    }
+
+    function isPair(ids) {
+      return ids is list && ids.size() == 2 && ids[0] != ids[1];
+    }
+
+    function invite(code) {
+      return get(/databases/$(database)/documents/invites/$(code));
+    }
+
+    function rivalry(id) {
+      return get(/databases/$(database)/documents/rivalries/$(id));
+    }
+
+    function session(id) {
+      return get(/databases/$(database)/documents/sessions/$(id));
+    }
+
+    // A deleted session's docs can still be listened to (and read as missing), so a screen
+    // showing it sees it go rather than a permission error.
+    function inSession(id) {
+      return !exists(/databases/$(database)/documents/sessions/$(id))
+        || me() in session(id).data.playerIds;
+    }
+
+    function sessionAfter(id) {
+      return getAfter(/databases/$(database)/documents/sessions/$(id));
+    }
+
+    // Profiles can be fetched one at a time by uid, never listed, so the player base can't be browsed.
+    match /players/{uid} {
+      allow get: if signedIn();
+      allow create, update: if signedIn() && me() == uid
+        && request.resource.data.keys().hasOnly(['displayName', 'email', 'photoUrl', 'createdAt']);
+      allow delete: if signedIn() && me() == uid;
+    }
+
+    // Email -> uid, to find a rival by their exact address. Only you can point your email at you.
+    match /emails/{email} {
+      allow get: if signedIn();
+      allow create, update: if signedIn()
+        && request.auth.token.email_verified == true
+        && email == request.auth.token.email.lower()
+        && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == me();
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+
+    // A share link's invite. Readable without signing in, so the link can say who sent it.
+    match /invites/{code} {
+      allow get: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['from', 'fromName', 'createdAt'])
+        && request.resource.data.from == me()
+        && request.resource.data.fromName is string
+        && request.resource.data.fromName.size() <= 100
+        && request.resource.data.createdAt == request.time;
+      // The sender can withdraw it; whoever accepts it uses it up in the same write.
+      allow delete: if signedIn() && (
+        resource.data.from == me()
+        || getAfter(/databases/$(database)/documents/rivalries/$(pairId(resource.data.from, me()))).data.inviteCode == code
+      );
+    }
+
+    // A rivalry created or accepted with a share link: the invite must be from the other
+    // player, and less than 30 days old.
+    function invitedWith(data) {
+      return 'inviteCode' in data
+        && data.inviteCode is string
+        && exists(/databases/$(database)/documents/invites/$(data.inviteCode))
+        && invite(data.inviteCode).data.from != me()
+        && invite(data.inviteCode).data.from in data.playerIds
+        && invite(data.inviteCode).data.createdAt > request.time - duration.value(30, 'd')
+        && data.invitedBy == invite(data.inviteCode).data.from;
+    }
+
+    match /rivalries/{id} {
+      // Members only; a missing rivalry can be looked up by either of its would-be players.
+      allow get: if signedIn() && (
+        (resource == null && me() in id.split('_'))
+        || (resource != null && me() in resource.data.playerIds)
+      );
+      allow list: if signedIn() && me() in resource.data.playerIds;
+
+      // Either an email invite (pending until the other player accepts), or accepting a share link.
+      allow create: if signedIn()
+        && isPair(request.resource.data.playerIds)
+        && request.resource.data.playerIds[0] < request.resource.data.playerIds[1]
+        && id == request.resource.data.playerIds[0] + '_' + request.resource.data.playerIds[1]
+        && me() in request.resource.data.playerIds
+        && (
+          (request.resource.data.status == 'pending' && request.resource.data.invitedBy == me()
+            && !('inviteCode' in request.resource.data))
+          || (request.resource.data.status == 'active' && invitedWith(request.resource.data))
+        );
+
+      // Accepting: the invited player, or anyone holding a share link from the other player.
+      allow update: if signedIn()
+        && me() in resource.data.playerIds
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'active'
+        && request.resource.data.playerIds == resource.data.playerIds
+        && (
+          (resource.data.invitedBy != me() && request.resource.data.invitedBy == resource.data.invitedBy)
+          || invitedWith(request.resource.data)
+        );
+
+      allow delete: if signedIn() && me() in resource.data.playerIds;
+    }
+
+    // A session belongs to an active rivalry between exactly its two players.
+    match /sessions/{s} {
+      allow get: if signedIn() && (resource == null || me() in resource.data.playerIds);
+      allow list: if signedIn() && me() in resource.data.playerIds;
+      allow create: if signedIn()
+        && isPair(request.resource.data.playerIds)
+        && me() in request.resource.data.playerIds
+        && request.resource.data.rivalryId == pairId(request.resource.data.playerIds[0], request.resource.data.playerIds[1])
+        && rivalry(request.resource.data.rivalryId).data.status == 'active';
+      allow update: if signedIn()
+        && me() in resource.data.playerIds
+        && request.resource.data.playerIds == resource.data.playerIds
+        && request.resource.data.rivalryId == resource.data.rivalryId;
+      allow delete: if signedIn() && me() in resource.data.playerIds;
+
+      // Matches and frames carry the session's playerIds, so stats can query them across sessions.
+      match /matches/{m} {
+        allow read: if signedIn() && inSession(s);
+        allow create, update: if signedIn()
+          && me() in sessionAfter(s).data.playerIds
+          && request.resource.data.playerIds == sessionAfter(s).data.playerIds;
+        allow delete: if signedIn() && me() in session(s).data.playerIds;
+
+        match /frames/{f} {
+          allow read: if signedIn() && inSession(s);
+          allow create, update: if signedIn()
+            && me() in sessionAfter(s).data.playerIds
+            && request.resource.data.playerIds == sessionAfter(s).data.playerIds;
+          allow delete: if signedIn() && me() in session(s).data.playerIds;
+        }
+      }
+    }
+
+    // Stats: every match and frame a player is in, across sessions.
+    match /{path=**}/matches/{m} {
+      allow read: if signedIn() && me() in resource.data.playerIds;
+    }
+    match /{path=**}/frames/{f} {
+      allow read: if signedIn() && me() in resource.data.playerIds;
     }
   }
 }

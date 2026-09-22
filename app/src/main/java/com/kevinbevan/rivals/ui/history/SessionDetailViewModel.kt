@@ -7,16 +7,19 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.toRoute
 import com.kevinbevan.rivals.auth.AuthRepository
-import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.SessionRepository
 import com.kevinbevan.rivals.model.MatchWithFrames
 import com.kevinbevan.rivals.model.Session
-import com.kevinbevan.rivals.model.displayNames
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
 import com.kevinbevan.rivals.ui.messageFor
 import com.kevinbevan.rivals.ui.navigation.SessionDetailRoute
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -40,27 +43,33 @@ data class SessionDetailUiState(
     val deleted: Boolean = false,
 )
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class SessionDetailViewModel(
     private val sessionId: String,
     private val authRepository: AuthRepository,
-    playerRepository: PlayerRepository,
     private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private val deleted = MutableStateFlow(false)
     private val error = MutableStateFlow<String?>(null)
 
+    private val session = sessionRepository.observeSession(sessionId)
+
+    private val names = session
+        .map { it.value }
+        .distinctUntilChanged { a, b -> a?.playerIds == b?.playerIds && a?.names == b?.names }
+        .flatMapLatest { s -> if (s == null) flowOf(emptyMap()) else sessionRepository.observeNames(s) }
+
     val uiState: StateFlow<SessionDetailUiState> = combine(
-        sessionRepository.observeSession(sessionId),
+        session,
         sessionRepository.observeMatchesWithFrames(sessionId),
-        playerRepository.observePlayers(),
+        names,
         deleted,
         error,
-    ) { session, matches, players, deleted, error ->
+    ) { session, matches, names, deleted, error ->
         if (deleted) return@combine SessionDetailUiState(loading = false, deleted = true)
         val s = session.value
             ?: return@combine SessionDetailUiState(loading = false, error = "This session no longer exists.")
-        val names = displayNames(players)
         val myId = authRepository.currentUser?.uid?.takeIf { it in s.playerIds } ?: s.playerIds.firstOrNull().orEmpty()
         val rivalId = s.playerIds.firstOrNull { it != myId }.orEmpty()
         fun player(uid: String) = DetailPlayer(uid, names[uid] ?: "Player", s.matchWins.winsOf(uid))
@@ -73,7 +82,7 @@ class SessionDetailViewModel(
             error = error,
         )
     }
-        .catch { emit(SessionDetailUiState(loading = false, error = authRepository.messageFor(it))) }
+        .catch { emit(SessionDetailUiState(loading = false, error = messageFor(it))) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionDetailUiState())
 
     /** Deletes this session and everything in it. */
@@ -85,7 +94,7 @@ class SessionDetailViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error.value = "Couldn't delete the session: ${authRepository.messageFor(e)}"
+                error.value = "Couldn't delete the session: ${messageFor(e)}"
             }
         }
     }
@@ -94,11 +103,11 @@ class SessionDetailViewModel(
         val Factory = viewModelFactory {
             initializer {
                 val container = appContainer()
+                val route = createSavedStateHandle().toRoute<SessionDetailRoute>()
                 SessionDetailViewModel(
-                    sessionId = createSavedStateHandle().toRoute<SessionDetailRoute>().sessionId,
+                    sessionId = route.sessionId,
                     authRepository = container.authRepository,
-                    playerRepository = container.playerRepository,
-                    sessionRepository = container.sessionRepository,
+                    sessionRepository = container.sessions(route.guest),
                 )
             }
         }
