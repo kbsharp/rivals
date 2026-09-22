@@ -74,7 +74,7 @@ import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
-import com.kevinbevan.rivals.ui.theme.LocalPlayerColors
+import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import java.time.Duration
 import java.time.Instant
@@ -173,11 +173,11 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
 
             match != null -> {
-                val colors = LocalPlayerColors.current
+                val colors = Rivals.colors
                 Row(Modifier.fillMaxSize()) {
                     listOf(
-                        Triple(me, colors.me, colors.onMe),
-                        Triple(rival, colors.rival, colors.onRival),
+                        Triple(me, colors.you, colors.onFg),
+                        Triple(rival, colors.rival, colors.onFg),
                     ).forEach { (side, container, content) ->
                         ScoreHalf(
                             side = side,

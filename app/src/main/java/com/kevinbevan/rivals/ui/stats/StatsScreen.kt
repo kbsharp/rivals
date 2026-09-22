@@ -49,7 +49,7 @@ import com.kevinbevan.rivals.domain.Stats
 import com.kevinbevan.rivals.domain.Streak
 import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
-import com.kevinbevan.rivals.ui.theme.LocalPlayerColors
+import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import kotlin.math.roundToInt
 
@@ -132,9 +132,9 @@ private fun StatsList(stats: Stats, me: String, rival: String, modifier: Modifie
 /** Which colour is whom. Every bar is also labelled with names and numbers. */
 @Composable
 private fun Legend(me: String, rival: String) {
-    val colors = LocalPlayerColors.current
+    val colors = Rivals.colors
     Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        LegendKey(me, colors.me)
+        LegendKey(me, colors.you)
         LegendKey(rival, colors.rival)
     }
 }
@@ -189,7 +189,7 @@ private fun RecordRow(record: Record, me: String, rival: String) {
  */
 @Composable
 private fun SplitBar(mine: Int, theirs: Int, description: String) {
-    val colors = LocalPlayerColors.current
+    val colors = Rivals.colors
     val shape = RoundedCornerShape(4.dp)
     Row(
         Modifier
@@ -203,7 +203,7 @@ private fun SplitBar(mine: Int, theirs: Int, description: String) {
             return@Row
         }
         if (mine > 0) {
-            Box(Modifier.weight(mine.toFloat()).height(12.dp).background(colors.me, shape))
+            Box(Modifier.weight(mine.toFloat()).height(12.dp).background(colors.you, shape))
         }
         if (theirs > 0) {
             Box(Modifier.weight(theirs.toFloat()).height(12.dp).background(colors.rival, shape))

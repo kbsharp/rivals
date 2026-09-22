@@ -57,7 +57,7 @@ import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.session.describe
-import com.kevinbevan.rivals.ui.theme.LocalPlayerColors
+import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import java.time.Instant
 
@@ -156,15 +156,15 @@ internal fun SessionDetailContent(uiState: SessionDetailUiState, onBack: () -> U
 
 @Composable
 private fun Summary(me: DetailPlayer, rival: DetailPlayer) {
-    val colors = LocalPlayerColors.current
+    val colors = Rivals.colors
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            NameTag(me.name, colors.me, colors.onMe)
+            NameTag(me.name, colors.you, colors.onFg)
             Text(
                 "${me.matchWins} – ${rival.matchWins}",
                 style = MaterialTheme.typography.displaySmall,
             )
-            NameTag(rival.name, colors.rival, colors.onRival)
+            NameTag(rival.name, colors.rival, colors.onFg)
         }
         Text(
             "matches won",
@@ -190,7 +190,7 @@ private fun NameTag(name: String, container: Color, content: Color) {
 @Composable
 private fun MatchCard(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlayer) {
     val match = item.match
-    val colors = LocalPlayerColors.current
+    val colors = Rivals.colors
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -230,8 +230,8 @@ private fun MatchCard(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlay
                             number = frame.number,
                             winnerName = if (mine) me.name else rival.name,
                             events = frame.events,
-                            container = if (mine) colors.me else colors.rival,
-                            content = if (mine) colors.onMe else colors.onRival,
+                            container = if (mine) colors.you else colors.rival,
+                            content = if (mine) colors.onFg else colors.onFg,
                         )
                     }
                 }

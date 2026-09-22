@@ -1,0 +1,4 @@
+<resources>
+    <!-- Charcoal #131418 from design/brief.md: not black, so panels stay visible. -->
+    <color name="base">#131418</color>
+</resources>

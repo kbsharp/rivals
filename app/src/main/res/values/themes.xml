@@ -1,3 +1,7 @@
 <resources>
-    <style name="Theme.Rivals" parent="android:Theme.Material.NoActionBar" />
+    <!-- The window behind the first frame, so launching never flashes white. Compose draws
+         everything else; the palette is in design/brief.md. -->
+    <style name="Theme.Rivals" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/base</item>
+    </style>
 </resources>
