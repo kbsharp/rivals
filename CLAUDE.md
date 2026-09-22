@@ -138,6 +138,6 @@ The app only has two users, so use Play's **internal testing** track:
 - [x] 2. **Auth**: Firebase wired up, Credential Manager Google sign-in feeding Firebase Auth, upsert `players/{uid}` on sign-in, and sign-out.
 - [x] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
 - [x] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
-- [ ] 5. **History**: the session list and session detail.
+- [x] 5. **History**: the session list and session detail.
 - [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload.
 - [ ] 7. **Stats**: the stats screen.

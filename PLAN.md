@@ -87,18 +87,44 @@ _Done 2026-09-22. Airplane mode checked by hand on the Pixel; live two-phone syn
 - _Doc-to-model mappers live in `data/FirestoreMappers.kt` as pure functions; `FakeStore` now uses them, so the tests cover them too._
 - _Listener PERMISSION_DENIED signs out and the sign-in screen shows "this account isn't allowed"._
 
-## Phase 6: History (Milestone 5)
+## Phase 6: History (Milestone 5) ✅
 - [x] Ended sessions, newest first
 - [x] Session detail: its matches, and the frames inside each match
 - [x] ~~🧑 Create any composite index~~ Not needed: history filters and sorts the (small) sessions listener on the client, so there's no `where` + `orderBy` query
-- [ ] 🧑 Browse and drill into a past session on the phone
+- [x] 🧑 Browse and drill into a past session on the phone (checked 2026-09-22)
 
 **Exit:** you can browse and drill into every past session.
 _Code done 2026-09-22 (32 unit tests, lint clean). History cards show date, times, venue and the match score. Detail lists each match with its score and winner, and each frame as a numbered dot in the winner's colour (the same colours as the Session screen buttons), since both test accounts are called Kevin and initials can't tell them apart._
 
+## Phase 6½: Pre-release polish
+**Goal:** everything that's cheaper to settle before real nights get recorded, so the first Play build is the one you keep using. Items marked ⭐ are recommended; the rest are optional.
+
+Data you can't backfill later:
+- [ ] ⭐ Record who broke each frame (`breakerId`), so break-and-win stats have data from night one. Proposal: a small "who broke" toggle on the Session screen that defaults to alternating, so it costs no taps in the usual case
+- [ ] ⭐ Venue: optional field when starting a session (already in the data model, with no UI)
+- [ ] 🧑 ⭐ The friend's real Gmail address: swap it for `kbevan.dev@` in `firestore.rules`, the emulator tests and `CLAUDE.md`, then redeploy the rules
+
+Night-out usability:
+- [ ] ⭐ Keep the screen awake on the Session screen
+- [ ] ⭐ Ending a session with no frames played deletes it, rather than leaving a 0–0 night in History
+- [ ] ⭐ Lock to portrait (the Session layout is built for one-handed portrait use)
+- [ ] Tell the two players apart when their Google first names match (as the test accounts do): fall back to full name or email
+- [ ] Delete a past session from History (with a confirm), for the odd night recorded by mistake
+
+Confidence:
+- [ ] ⭐ Compose UI tests for Home, Session, History and detail, run by `scripts/emulator-tests.sh` against the Firebase emulators
+- [ ] ⭐ Check on the oldest supported Android: an API 26 emulator (sign-in through Credential Manager is the risky part)
+- [ ] ⭐ Firebase Crashlytics, so a crash on the friend's phone reaches us with a stack trace
+- [ ] 🧑 GitHub remote (private) plus GitHub Actions running `test`, `lint` and the emulator tests on every push. Needs a yes or no (open question 2)
+
+**Exit:** every ⭐ item done or consciously dropped, and all tests green.
+
 ## Phase 7: Release (Milestone 6)
 - [ ] 🧑 Create the upload keystore and `keystore.properties` (gitignored)
-- [ ] Release `signingConfig` read from `keystore.properties`, R8/minify enabled, ProGuard rules for Firebase models
+- [ ] Release `signingConfig` read from `keystore.properties` (the build still works without it, for CI), R8/minify enabled, ProGuard rules as needed (`proguard-rules.pro` is empty today; the app maps Firestore data by hand, so there are no model classes to keep)
+- [ ] Smoke-test the minified release build on the phone before uploading. R8 breakage only shows up in release builds
+- [ ] 512×512 Play icon and a feature graphic, rendered from the launcher icon
+- [ ] 🧑 Play Console "App content": privacy policy URL, Data safety form (Google account email, name and game scores, stored in Firebase), content rating, target audience. I'll draft the answers and a one-page privacy policy
 - [ ] `./gradlew bundleRelease`
 - [ ] 🧑 Set up the app in Play Console, create the internal testing track, add both testers, upload the AAB
 - [ ] 🧑 Register the upload-key and **Play App Signing** SHA-1s in Firebase (otherwise sign-in fails for Play installs)
@@ -117,4 +143,5 @@ _Code done 2026-09-22 (32 unit tests, lint clean). History cards show date, time
 
 ## Open questions
 1. The friend's Gmail address: swap it for `kbevan.dev@gmail.com` in `firestore.rules`, then redeploy
-2. A GitHub remote: private repo, yes or no?
+2. A GitHub remote: private repo, yes or no? (It also gates CI; see Phase 6½)
+3. Stats before or after the first Play upload? The plan puts it after, since the release can go out without it and `breakerId` gets recorded from Phase 6½ either way
