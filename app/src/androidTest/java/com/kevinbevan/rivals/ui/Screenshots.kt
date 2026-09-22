@@ -1,7 +1,23 @@
 package com.kevinbevan.rivals.ui
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import com.kevinbevan.rivals.model.Invite
+import com.kevinbevan.rivals.ui.history.HistoryContent
+import com.kevinbevan.rivals.ui.history.HistoryItem
+import com.kevinbevan.rivals.ui.history.HistoryUiState
+import com.kevinbevan.rivals.ui.invite.InviteContent
+import com.kevinbevan.rivals.ui.invite.InviteUiState
+import com.kevinbevan.rivals.ui.signin.SignInContent
+import com.kevinbevan.rivals.ui.signin.SignInUiState
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -58,9 +74,25 @@ import org.junit.runner.RunWith
 class Screenshots {
     @get:Rule val compose = createComposeRule()
 
-    private fun shoot(name: String, dark: Boolean, content: @Composable () -> Unit) {
-        compose.setContent { RivalsTheme(darkTheme = dark) { content() } }
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+    private companion object {
+        const val FRAME = "screenshot-frame"
+    }
+
+    private fun shoot(name: String, dark: Boolean, landscape: Boolean = false, content: @Composable () -> Unit) {
+        compose.setContent {
+            RivalsTheme(darkTheme = dark) {
+                if (landscape) {
+                    // The scoreboard locks the phone to landscape; render it at a landscape phone's size.
+                    DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(915.dp, 412.dp))) {
+                        Box(Modifier.testTag(FRAME)) { content() }
+                    }
+                } else {
+                    content()
+                }
+            }
+        }
+        val node = if (landscape) compose.onNodeWithTag(FRAME) else compose.onRoot()
+        val bitmap = node.captureToImage().asAndroidBitmap()
         val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "screenshots")
         dir.mkdirs()
         File(dir, "$name-${if (dark) "dark" else "light"}.png").outputStream().use {
@@ -78,8 +110,18 @@ class Screenshots {
     @Test fun rivalryDark() = shoot("rivalry", dark = true) { Rivalry() }
     @Test fun addRivalLight() = shoot("add-rival", dark = false) { AddRival() }
     @Test fun addRivalDark() = shoot("add-rival", dark = true) { AddRival() }
-    @Test fun sessionLight() = shoot("session", dark = false) { SessionScreen() }
-    @Test fun sessionDark() = shoot("session", dark = true) { SessionScreen() }
+    @Test fun sessionLight() = shoot("session", dark = false, landscape = true) { SessionScreen() }
+    @Test fun sessionDark() = shoot("session", dark = true, landscape = true) { SessionScreen() }
+    @Test fun sessionBetweenMatchesDark() = shoot("session-next", dark = true, landscape = true) { SessionScreen(running = false) }
+    @Test fun historyDark() = shoot("history", dark = true) { History() }
+    @Test fun historyEmptyDark() = shoot("history-empty", dark = true) { HistoryContent(HistoryUiState(loading = false), {}, {}) }
+    @Test fun signInDark() = shoot("sign-in", dark = true) { SignInContent(SignInUiState(), {}, {}, {}) }
+    @Test fun inviteDark() = shoot("invite", dark = true) {
+        InviteContent(InviteUiState(loading = false, invite = Invite("ABCD2345", "a", "Kevin")), {}, {}, {}, {})
+    }
+    @Test fun statsEmptyDark() = shoot("stats-empty", dark = true) {
+        StatsContent(StatsUiState(loading = false, myName = "Kevin", rivalName = "Julian"), onBack = {})
+    }
     @Test fun statsLight() = shoot("stats", dark = false) { StatsScreen() }
     @Test fun statsDark() = shoot("stats", dark = true) { StatsScreen() }
     @Test fun detailLight() = shoot("detail", dark = false) { Detail() }
@@ -109,17 +151,32 @@ class Screenshots {
         {}, {}, {}, {}, {}, {},
     )
 
-    @Composable private fun SessionScreen() = SessionContent(
+    @Composable private fun SessionScreen(running: Boolean = true) = SessionContent(
         SessionUiState(
             loading = false,
             me = PlayerSide("a", "Kevin", frames = 4, matches = 2),
             rival = PlayerSide("b", "Julian", frames = 2, matches = 1),
-            match = Match("m", 4, MatchSettings(GameType.EIGHT_BALL, 5), Status.ACTIVE, mapOf("a" to 4, "b" to 2)),
+            match = Match(
+                "m", 4, MatchSettings(GameType.EIGHT_BALL, 5), Status.ACTIVE, mapOf("a" to 4, "b" to 2),
+                startedAt = Instant.now().minusSeconds(754),
+            ).takeIf { running },
             lastFrameEvents = emptySet(),
             canUndo = true,
             pendingSync = true,
         ),
         SessionActions(),
+    )
+
+    @Composable private fun History() = HistoryContent(
+        HistoryUiState(
+            loading = false, myName = "Kevin", rivalName = "Julian",
+            items = listOf(
+                HistoryItem("s1", start, start.plusSeconds(10_800), "The Crown", 3, 2),
+                HistoryItem("s2", start.minusSeconds(7 * 86_400), start.minusSeconds(7 * 86_400 - 9_000), null, 1, 4),
+                HistoryItem("s3", start.minusSeconds(14 * 86_400), start.minusSeconds(14 * 86_400 - 7_200), "Rileys", 2, 2),
+            ),
+        ),
+        {}, {},
     )
 
     @Composable private fun StatsScreen() = StatsContent(

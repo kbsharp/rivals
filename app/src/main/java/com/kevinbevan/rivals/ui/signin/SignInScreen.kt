@@ -59,7 +59,7 @@ fun SignInScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SignInContent(
+internal fun SignInContent(
     uiState: SignInUiState,
     onSignInClick: () -> Unit,
     onErrorShown: () -> Unit,
