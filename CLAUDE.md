@@ -8,6 +8,10 @@ It's pool-only for now, but golf and other sports may follow. Keep pool-specific
 
 Work through the milestones at the bottom in order, and tick each one off in this file as it lands.
 
+As of 2026-09-22 only milestone 6 (**Release**) is left, and it's on hold: it needs Kevin's
+decisions and console work, not code. Everything in PLAN.md's Phase 12 is built and on the phone;
+what's open there is Kevin's own look at it. Don't start release work without being asked.
+
 ## Stack
 
 - Kotlin, Jetpack Compose, Material 3
@@ -125,6 +129,7 @@ their own renders; add a render whenever a pass introduces a new state.
 - `./gradlew test` and `./gradlew lint`
 - `scripts/emulator-tests.sh` runs the instrumented tests (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect, the allow-list, and Compose UI tests of each screen. Boots the `pool36` emulator headless if none is running; never touches the real project
 - CI: `.github/workflows/ci.yml` runs all of the above on every push to `github.com/kbsharp/rivals` (private). Check with `gh run list` / `gh run view`
+- `SyncTest.statsSeeEveryMatchAndFrameAcrossSessions` is flaky: it fails now and then with "There's no match running", a race between the write and the snapshot it reads back, and passes on a rerun. Rerun before chasing it; fix it properly if it starts failing often
 - `./gradlew installMinified` installs the R8-shrunk release code signed with the debug key, to catch R8 problems before an upload
 - `./gradlew bundleRelease` builds the AAB for Play (signed when `keystore.properties` exists)
 - `scripts/play-graphics.sh` renders `play/*.png` from their SVGs with the app's bundled fonts
@@ -167,10 +172,10 @@ The app only has two users, so use Play's **internal testing** track:
 - [x] 2. **Auth**: Firebase wired up, Credential Manager Google sign-in feeding Firebase Auth, upsert `players/{uid}` on sign-in, and sign-out.
 - [x] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
 - [x] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
-- [x] 5. **History**: the session list and session detail.
+- [x] 5. **History**: the session list and session detail. (Phase 12 made the list a tab on the rivalry screen; the detail is still its own screen.)
 - [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload (or
       direct installs plus Firebase App Distribution; see PLAN.md, Open questions).
-- [x] 7. **Stats**: the stats screen.
+- [x] 7. **Stats**: win % overall and by game type, streaks, tagged specials. (Phase 12 made it a tab on the rivalry screen.)
 - [x] 8. **Guests and rivalries**: no forced sign-in, quick games on the phone, invites by email or
       link, membership security rules.
 - [x] 9. **Design pass**: every screen rebuilt on `design/brief.md` (PLAN.md, Phase 12).
