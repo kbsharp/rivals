@@ -48,7 +48,9 @@ The Phase 11 draft brief proposed a base tinted towards baize green. The referen
 - **Launcher icon** is still the placeholder; do it last, once the palette and typeface are chosen.
 - **Light theme:** keep it, but derive it from the dark design rather than designing both.
 
-## Revised design brief (proposed for `CLAUDE.md`)
+## Revised design brief — superseded
+
+_Agreed and rewritten as `design/brief.md` after the mock-ups: charcoal rather than ink-navy, white scores rather than coloured, teal and apricot as the player colours. The draft below is kept for the reasoning._
 
 - **Mood:** a sports broadcast at night. Calm and dark until something happens, then it's loud.
 - **Dark first:** ink-navy base (around `#0B0F1C`), surfaces a step lighter, no borders. Light theme is derived.

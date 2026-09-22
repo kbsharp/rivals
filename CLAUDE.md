@@ -93,6 +93,23 @@ Show a clear message when Firestore refuses something; don't fail silently.
 4. **History**: past sessions, newest first. Tapping one opens its detail with matches and frames.
 5. **Stats**: win % overall and by game type, streaks, and counts of tagged specials.
 
+## Design
+
+`design/brief.md` is the agreed design brief: palette, type, spacing, shape, layout rules and
+motion. Follow it for every UI change; don't introduce a colour, size or radius that isn't in it.
+`design/audit.md` is the review it came from, and `design/ref/` holds Kevin's reference
+screenshots. The mock-ups of the agreed direction are at
+<https://claude.ai/artifact/Cykp6oXE8meC1tupSfLu1c>.
+
+In short: charcoal `#131418`, white scores, teal `#6FD3C4` for you, apricot `#F0A883` for your
+rival, red `#FF4757` only for live and delete. Montserrat for numbers (tabular figures), Barlow
+for text. No dividers, no grey cards, one primary action per screen.
+
+The loop for any UI work: change → `scripts/emulator-tests.sh` (which renders every screen and
+state into `app/build/screenshots`) → look at the PNGs → critique against the brief and the refs →
+fix. The scoreboard renders at landscape size, and the between-matches panel and the empty states have
+their own renders; add a render whenever a pass introduces a new state.
+
 ## Commands
 
 - `./gradlew assembleDebug` and `./gradlew installDebug`
@@ -141,5 +158,9 @@ The app only has two users, so use Play's **internal testing** track:
 - [x] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
 - [x] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
 - [x] 5. **History**: the session list and session detail.
-- [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload.
+- [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload (or
+      direct installs plus Firebase App Distribution; see PLAN.md, Open questions).
 - [x] 7. **Stats**: the stats screen.
+- [x] 8. **Guests and rivalries**: no forced sign-in, quick games on the phone, invites by email or
+      link, membership security rules.
+- [ ] 9. **Design pass**: every screen rebuilt on `design/brief.md` (PLAN.md, Phase 12).

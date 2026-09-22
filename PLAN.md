@@ -163,54 +163,64 @@ Decided 2026-09-22: no forced sign-in. Guests get the scoreboard with typed name
 - [ ] 🧑 Before Play: add the Play App Signing key's SHA-256 to `hosting/public/.well-known/assetlinks.json` so links open the app for Play installs
 - [ ] Old live test sessions have no `rivalryId`, so they no longer show anywhere. Wipe them (see Open questions)
 
-## Phase 11: Design foundations
-_Planned 2026-09-22. The app works, but it looks like stock Material 3. This phase settles the taste once, so every later screen pass works from the same brief, references and screenshot loop. Critique of the current screens, most important first:_
-1. _The screenshot loop can't see the most important screen. `Screenshots` renders Session in portrait, so the 4 spills into Julian's half and the match clock is missing. Fix the loop before judging anything._
-2. _No type identity. It's default Roboto throughout, the scores aren't tabular (digits change width as they tick), and the giant score is regular weight._
-3. _Colour competes. The app's primary green is the same as Kevin's player green, and the mint buttons in dark mode fight both player colours. There's no single accent._
-4. _Dark mode is an inversion, not a design: generic grey cards on near-black. It's the theme a dim pub needs most._
-5. _The Rivalry screen has a dead top half, three stacked full-width buttons, and names repeated in the title and under the scores._
-6. _Home hierarchy: Quick game is the loudest thing even for a signed-in player whose real action is their rival. Rival cards should be the hero._
-7. _Stats: every section is the same card, with "Kevin 12 … 9 Julian" repeated. Nights and Streaks are sentences, and there's no visual hook such as a form guide (last 10 results as dots)._
-8. _Session detail: heavy name chips, grey cards with low contrast on the light background, and Delete styled as the top bar's primary action._
-9. _Scoreboard feel: a tap gives a haptic and nothing else. There's no number roll, no winner moment when a race is won (just a snackbar), the info pill is small and low-contrast, and the menu button sits on the divide._
-10. _Empty and loading states are bare spinners and one-line copy, and the launcher icon is still a placeholder._
+## Phase 11: Design foundations ✅
+_2026-09-22. The app worked but looked like stock Material 3. This phase settled the taste once, so
+every screen pass works from the same brief, references and screenshot loop._
 
-- [ ] 🧑 2–4 reference screenshots in `design/refs/` (for example Apple Workout, a broadcast sports scoreboard, Things 3), with a line each in `design/refs/README.md` on what you like
-- [ ] 🧑 Approve or edit the draft brief below, then it moves into `CLAUDE.md` as "Design brief"
-- [ ] Screenshot loop: render Session in landscape, render Home, Rivalry, Invite and Add a rival states (empty, loading, error), use fixed clocks and data so renders are stable, and add `scripts/phone-shot.sh` (adb screencap of the real phone)
-- [ ] A project skill (`.claude/skills/ui-pass/`) holding the brief, the refs and the loop: change → render → look → critique against brief and refs → fix
-- [ ] Theme tokens from the brief: dark-first palette, a bundled display face with tabular figures, a 5-step type scale, 4/8dp spacing, shapes. One place in `ui/theme`
-- [ ] Three directions for Home and Rivalry, mocked up as a shareable page first; pick one before any Compose changes
+- [x] 🧑 Reference screenshots in `design/ref/` (humidity dial, golf app, football final score, NFL
+      boxes; the 4th and 5th are the same image, so one can go)
+- [x] Design audit of every screen against the refs: `design/audit.md` (ten ranked issues, six bugs)
+- [x] Screenshot loop: `Screenshots` renders the scoreboard at landscape size with a running clock,
+      plus History, Sign in, Invite, the between-matches panel and the empty states
+- [x] The six bugs the renders found (dark-theme contrast on the session screen, stale Stats copy,
+      the rivalry title, Delete in the top bar). Commit `7fdb18f`
+- [x] Mock-ups: three directions, then the agreed one rebuilt on Kevin's colour choices
+      (<https://claude.ai/artifact/Cykp6oXE8meC1tupSfLu1c>)
+- [x] 🧑 Decisions: white scores with colour on the player's name and pips; teal + apricot;
+      neutral charcoal base; red for live and delete only
+- [x] The brief written up: `design/brief.md`, summarised in `CLAUDE.md`
 
-**Exit:** the brief is in `CLAUDE.md`, the refs are in the repo, and `Screenshots` shows every screen and state the way the phone does.
-
-Draft brief (for you to edit):
-- **Mood:** a night at the pool hall; a broadcast scoreboard, not a settings app. Calm until something happens.
-- **Dark first:** designed for a dim pub, with a near-black base tinted towards baize green. Light mode is derived from it.
-- **Colour:** the two player colours plus one accent (chalk white or amber) for actions. Everything else is neutral. No colour for decoration.
-- **Numbers are the hero:** one display face with tabular figures for every score. Text stays in the system face.
-- **Type scale:** five steps only (display, headline, title, body, label).
-- **Spacing:** 4/8dp grid, 16dp gutters, generous gaps rather than lines.
-- **Hard rules:** no dividers, no grey cards on grey backgrounds, one primary action per screen, no destructive action styled as primary.
-- **Motion:** 150–250ms and purposeful: a number roll on each score change, a winner moment at match end, no bounce.
-- **Feel:** a crisp haptic on every score change; nothing on the scoreboard moves unless the score does.
-- **States:** every screen has a written empty state and a loading skeleton, never a bare spinner.
+**Exit:** met. The brief is agreed, the refs are in the repo, and every screen and state renders.
 
 ## Phase 12: Screen passes
-_Each pass runs the loop until the screen passes the brief. The passes are separate so each change can be judged on its own._
-- [ ] Scoreboard: tabular display numerals, a number roll and tap flash, a winner moment, a legible pill, the menu button moved off the divide
-- [ ] Home and Rivalry in the chosen direction (rivals as hero cards, a form guide, Quick game secondary once you have a rival)
-- [ ] Stats and History: a form guide, less repetition, a hierarchy of cards rather than a stack of equal ones
-- [ ] Empty, loading and error states, with written copy for each
-- [ ] Motion and haptics pass across the app
-- [ ] A real launcher icon and Play graphics to match
-- [ ] Final critique as a senior product designer, light and dark, on the real phone
+_Each pass: change → render → look → critique against `design/brief.md` and `design/ref/` → fix.
+Passes are separate so each can be judged on its own. Install and commit after each green pass._
 
-**Exit:** every screen passes the brief in both themes, checked on the phone in a dim room.
+- [ ] **Tokens first.** Bundle Montserrat and Barlow (both OFL) in `res/font`, and rebuild
+      `ui/theme` around the brief's palette, type scale, spacing and shapes. Keep the light theme
+      compiling (derive it later); replace the M3 colour roles the screens use today
+- [ ] **Scoreboard:** white tabular score, player name and race pips in their colour, one status
+      line along the bottom with the menu in the corner (nothing on the centre line), a score roll,
+      and the match-won panel with Undo
+- [ ] **Home:** head-to-head in white, the last-10 bar, tonight's score, one primary action; invite
+      row, plain rows for Add a rival and Quick game, then games on this phone
+- [ ] **Rivalry:** win-percentage ring, all-time score, primary action, SESSIONS | STATS tabs.
+      This folds History and Stats into the rivalry screen; the old routes can go once it's in
+- [ ] **Stats:** the mirrored table (leader's value white and bold, the other grey) and the ring
+- [ ] **History and session detail:** rows not cards, the scoreboard header, frames as boxed digits
+- [ ] **Sign in, Invite, Add a rival:** Invite shown as a scoreboard (Kevin vs you, 0–0), Add a
+      rival as three rows rather than divided sections
+- [ ] **States:** a written empty, loading and error state for every screen
+- [ ] **Motion and haptics** across the app
+- [ ] **Launcher icon** and Play graphics in the new palette
+- [ ] 🧑 Try each pass on the phone in a dim room; a final critique in both themes
+
+**Exit:** every screen matches the brief in the dark theme, checked on the phone, and the light
+theme is derived and legible.
 
 ---
 
 ## Open questions
-- What happens to the test sessions in the live Firestore when the rivalry model lands: wipe them (Phase 7 already planned to), or migrate them into a rivalry?
-None. Settled 2026-09-22: the friend is `julianjones56@gmail.com`; the repo is private at `github.com/kbsharp/rivals`; Stats goes before the first upload (see Phase 8).
+- **Old live data.** The test sessions in the live Firestore have no `rivalryId`, so they no longer
+  show anywhere, and they were recorded against the stand-in account rather than Julian. Wipe them
+  (Claude's recommendation, and what Phase 7 assumed) or leave them buried? Needs Kevin's yes
+  before anything is deleted.
+- **Distribution.** Play's internal testing track (Phase 7) versus just installing the APK on both
+  phones, with Firebase App Distribution for updates. The second skips the Play Console account,
+  fee, store listing and data-safety forms, and suits two users. If it's chosen, Phase 7 shrinks to:
+  keep using the debug key, back up `~/.android/debug.keystore`, turn Crashlytics on for shared
+  builds, and add a script that builds and uploads to App Distribution.
+
+Settled 2026-09-22: the friend is `julianjones56@gmail.com`; the repo is private at
+`github.com/kbsharp/rivals`; Stats goes before the first upload (see Phase 8); the design brief is
+`design/brief.md`.
