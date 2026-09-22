@@ -116,7 +116,7 @@ Confidence:
 - [ ] ⭐ Check on the oldest supported Android: an API 26 emulator (sign-in through Credential Manager is the risky part)
 - [ ] ⭐ Firebase Crashlytics, so a crash on the friend's phone reaches us with a stack trace
 - [x] 🧑 GitHub remote: private, `github.com/kbsharp/rivals` (2026-09-22)
-- [ ] GitHub Actions running `test`, `lint` and the emulator tests on every push. `google-services.json` goes in as a repository secret
+- [x] GitHub Actions (`.github/workflows/ci.yml`) running `test`, `lint`, `assembleDebug` and the emulator tests on every push and PR. `google-services.json` is the `GOOGLE_SERVICES_JSON` repository secret (base64)
 
 **Exit:** every ⭐ item done or consciously dropped, and all tests green.
 _2026-09-22: the data and usability items are done. The break alternates by itself from the last frame with a breaker recorded (across matches too); tapping a name overrides it until the next frame. Recent venues are offered as chips. `scripts/emulator-tests.sh` now boots a headless emulator when none is running._
