@@ -11,12 +11,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.NavDestination.Companion.hasRoute
 import com.kevinbevan.rivals.RivalsApp
-import com.kevinbevan.rivals.ui.PlaceholderScreen
 import com.kevinbevan.rivals.ui.history.HistoryScreen
 import com.kevinbevan.rivals.ui.history.SessionDetailScreen
 import com.kevinbevan.rivals.ui.home.HomeScreen
 import com.kevinbevan.rivals.ui.session.SessionScreen
 import com.kevinbevan.rivals.ui.signin.SignInScreen
+import com.kevinbevan.rivals.ui.stats.StatsScreen
 
 @Composable
 fun RivalsNavHost() {
@@ -65,7 +65,7 @@ fun RivalsNavHost() {
             SessionDetailScreen(onBack = { navController.popBackStack() })
         }
         composable<StatsRoute> {
-            PlaceholderScreen("Stats") { navController.popBackStack() }
+            StatsScreen(onBack = { navController.popBackStack() })
         }
     }
 }

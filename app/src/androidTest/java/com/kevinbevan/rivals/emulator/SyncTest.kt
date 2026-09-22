@@ -161,4 +161,21 @@ class SyncTest {
         val frame = b.sessions.observeFrames(id, matchId).awaitValue("B gets the frame") { it.value.size == 1 }
         assertEquals(b.uid, frame.value.single().breakerId)
     }
+
+    @Test
+    fun statsSeeEveryMatchAndFrameAcrossSessions(): Unit = runBlocking {
+        // Stats reads through collection-group queries, which the rules must allow.
+        val first = a.sessions.startSession(a.uid, b.uid, race2)
+        repeat(2) { a.sessions.recordFrame(first, winnerId = a.uid, recordedBy = a.uid) }
+        a.sessions.endSession(first)
+        val second = a.sessions.startSession(a.uid, b.uid, race2)
+        a.sessions.recordFrame(second, winnerId = b.uid, recordedBy = a.uid)
+
+        val frames = b.sessions.observeAllFrames().awaitValue("B sees all 3 frames") { it.size == 3 }
+        assertEquals(mapOf(first to 2, second to 1), frames.groupingBy { it.sessionId }.eachCount())
+        val matches = b.sessions.observeAllMatches().awaitValue("B sees both sessions' matches") {
+            it.map { m -> m.sessionId }.toSet() == setOf(first, second)
+        }
+        assertEquals(a.uid, matches.single { it.sessionId == first }.match.winnerId)
+    }
 }

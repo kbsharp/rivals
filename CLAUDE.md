@@ -142,4 +142,4 @@ The app only has two users, so use Play's **internal testing** track:
 - [x] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
 - [x] 5. **History**: the session list and session detail.
 - [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload.
-- [ ] 7. **Stats**: the stats screen.
+- [x] 7. **Stats**: the stats screen.

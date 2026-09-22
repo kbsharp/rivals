@@ -52,6 +52,7 @@ import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.session.describe
+import com.kevinbevan.rivals.ui.theme.LocalPlayerColors
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import java.time.Instant
 
@@ -65,14 +66,6 @@ fun SessionDetailScreen(
         if (uiState.deleted) onBack()
     }
     SessionDetailContent(uiState, onBack, onDelete = viewModel::delete)
-}
-
-/** Colours that tell the two players apart, matching their buttons on the Session screen. */
-private class PlayerColors(val me: Color, val onMe: Color, val rival: Color, val onRival: Color)
-
-@Composable
-private fun playerColors() = MaterialTheme.colorScheme.let {
-    PlayerColors(it.primaryContainer, it.onPrimaryContainer, it.tertiaryContainer, it.onTertiaryContainer)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -146,7 +139,7 @@ internal fun SessionDetailContent(uiState: SessionDetailUiState, onBack: () -> U
 
 @Composable
 private fun Summary(me: DetailPlayer, rival: DetailPlayer) {
-    val colors = playerColors()
+    val colors = LocalPlayerColors.current
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             NameTag(me.name, colors.me, colors.onMe)
@@ -180,7 +173,7 @@ private fun NameTag(name: String, container: Color, content: Color) {
 @Composable
 private fun MatchCard(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlayer) {
     val match = item.match
-    val colors = playerColors()
+    val colors = LocalPlayerColors.current
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

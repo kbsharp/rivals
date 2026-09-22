@@ -128,7 +128,8 @@ _2026-09-22: the data and usability items are done. The break alternates by itse
 - [x] A `minified` build type: release code signed with the debug key, installable over the debug app (`./gradlew installMinified`)
 - [ ] Smoke-test the minified build on the phone before uploading. R8 breakage only shows up in release builds. Installed 2026-09-22 and cold-starts cleanly; 🧑 a tap-through is still to do
 - [x] 512×512 Play icon and 1024×500 feature graphic in `play/` (SVG sources plus PNGs). The launcher icon's 8 is now drawn as two rings rather than two dots
-- [ ] 🧑 Play Console "App content": privacy policy URL, Data safety form (Google account email, name and game scores, stored in Firebase), content rating, target audience. I'll draft the answers and a one-page privacy policy
+- [x] Drafts: `docs/privacy-policy.md` and `docs/play-console.md` (store listing text, Data safety table, content rating, target audience, account deletion)
+- [ ] 🧑 Host the privacy policy at a public URL (it needs your contact email filled in), then fill in Play Console "App content" from `docs/play-console.md`
 - [ ] `./gradlew bundleRelease`
 - [ ] 🧑 Set up the app in Play Console, create the internal testing track, add both testers, upload the AAB
 - [ ] 🧑 Register the upload-key and **Play App Signing** SHA-1s in Firebase (otherwise sign-in fails for Play installs)
@@ -136,13 +137,14 @@ _2026-09-22: the data and usability items are done. The break alternates by itse
 
 **Exit:** both phones install from the opt-in link and signing in works.
 
-## Phase 8: Stats (Milestone 7)
+## Phase 8: Stats (Milestone 7) ✅
 _Decision 2026-09-22: built before the first Play upload. The Play Console steps only you can do (account, app content, testers) take a while, so Stats gets built alongside them rather than holding up the release, and Julian's first install arrives complete._
-- [ ] Compute on the client from sessions, matches and frames: overall win %, win % by game type, current and longest streaks, and break-and-win rate (frames with `breakerId`)
-- [ ] Pure calculators with unit tests, plus the Stats screen
-- [ ] Optional: record `breakerId` on the Session screen (for example, a toggle for who broke)
+- [x] Compute on the client from sessions, matches and frames: overall win %, win % by game type, current and longest streaks, and break-and-win rate (frames with `breakerId`). Matches and frames come from collection-group listeners
+- [x] Pure calculator (`domain/Stats.kt`) with unit tests that play whole nights and check against a hand count, plus the Stats screen
+- [x] Record `breakerId` on the Session screen (done in Phase 6½)
 
 **Exit:** the stats match a hand count on real data.
+_Built 2026-09-22 and tested against hand counts in `StatsCalculatorTest`; 🧑 compare against a real night once there is one. The players' colours (green for you, blue for your rival) were validated for colour blindness and contrast in both themes, and the app now has a full green Material colour scheme rather than falling back to the default purple. `Screenshots` renders every screen, light and dark, into `app/build/screenshots`._
 
 ---
 

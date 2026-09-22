@@ -14,6 +14,8 @@ import com.kevinbevan.rivals.domain.MatchWithLastFrame
 import com.kevinbevan.rivals.domain.RecordOutcome
 import com.kevinbevan.rivals.domain.Schema
 import com.kevinbevan.rivals.domain.ScoreRules
+import com.kevinbevan.rivals.domain.SessionFrame
+import com.kevinbevan.rivals.domain.SessionMatch
 import com.kevinbevan.rivals.domain.WritePlan
 import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.Match
@@ -102,6 +104,21 @@ class SessionRepository(
                     matches.value.zip(frames) { match, f -> MatchWithFrames(match, f.value) },
                     matches.hasPendingWrites || frames.any { it.hasPendingWrites },
                 )
+            }
+        }
+
+    /** Every match in every session, for stats. A collection-group query over `matches`. */
+    fun observeAllMatches(): Flow<List<SessionMatch>> =
+        db.collectionGroup(Schema.MATCHES).snapshots().map { snap ->
+            snap.documents.map { SessionMatch(sessionId = it.reference.parent.parent!!.id, match = it.toMatch()) }
+        }
+
+    /** Every frame in every match, for stats. A collection-group query over `frames`. */
+    fun observeAllFrames(): Flow<List<SessionFrame>> =
+        db.collectionGroup(Schema.FRAMES).snapshots().map { snap ->
+            snap.documents.map {
+                val matchRef = it.reference.parent.parent!!
+                SessionFrame(sessionId = matchRef.parent.parent!!.id, matchId = matchRef.id, frame = it.toFrame())
             }
         }
 

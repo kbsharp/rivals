@@ -62,6 +62,7 @@ import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
+import com.kevinbevan.rivals.ui.theme.LocalPlayerColors
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 
 @Composable
@@ -237,8 +238,8 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                             name = me.name,
                             frames = me.frames,
                             onTheHill = match.settings.raceTo?.let { me.frames == it - 1 } == true,
-                            container = MaterialTheme.colorScheme.primaryContainer,
-                            content = MaterialTheme.colorScheme.onPrimaryContainer,
+                            container = LocalPlayerColors.current.me,
+                            content = LocalPlayerColors.current.onMe,
                             onClick = { actions.onRecordFrame(me.uid) },
                             modifier = Modifier.weight(1f).testTag("score-${me.uid}"),
                         )
@@ -246,8 +247,8 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                             name = rival.name,
                             frames = rival.frames,
                             onTheHill = match.settings.raceTo?.let { rival.frames == it - 1 } == true,
-                            container = MaterialTheme.colorScheme.tertiaryContainer,
-                            content = MaterialTheme.colorScheme.onTertiaryContainer,
+                            container = LocalPlayerColors.current.rival,
+                            content = LocalPlayerColors.current.onRival,
                             onClick = { actions.onRecordFrame(rival.uid) },
                             modifier = Modifier.weight(1f).testTag("score-${rival.uid}"),
                         )

@@ -40,4 +40,13 @@ fi
 trap '[[ -n "$started" ]] && "$adb" -s "$serial" emu kill >/dev/null 2>&1 || true' EXIT
 
 export ANDROID_SERIAL="$serial"
-firebase emulators:exec --only auth,firestore "./gradlew connectedDebugAndroidTest $*"
+status=0
+# Leave the apps installed so the screenshots survive until they are pulled.
+firebase emulators:exec --only auth,firestore \
+    "./gradlew connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true $*" || status=$?
+
+# Screens rendered by the Screenshots test, for looking at.
+rm -rf app/build/screenshots
+"$adb" -s "$serial" pull /sdcard/Android/data/com.kevinbevan.rivals/files/screenshots app/build/screenshots >/dev/null 2>&1 \
+    && echo "Screenshots in app/build/screenshots"
+exit $status
