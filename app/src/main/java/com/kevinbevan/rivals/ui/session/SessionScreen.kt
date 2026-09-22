@@ -12,6 +12,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -237,6 +239,20 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                         modifier = Modifier.weight(1f).testTag("score-${rival.uid}"),
                     )
                 }
+                if (result != null) {
+                    // The dimmed board is the panel's backdrop, not a scoreboard: a tap anywhere
+                    // on it gets on with the next match rather than waiting the panel out.
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = actions.onDismissResult,
+                            )
+                            .testTag("result-backdrop"),
+                    )
+                }
                 AnimatedVisibility(
                     visible = result != null,
                     enter = fadeIn(Motion.tween(Motion.NORMAL)),
@@ -251,6 +267,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                         result = shown,
                         youWon = shown.winnerId == me.uid,
                         canUndo = uiState.canUndo,
+                        onPlayOn = actions.onDismissResult,
                         onUndo = { actions.onDismissResult(); actions.onUndo() },
                     )
                 }
@@ -503,20 +520,23 @@ internal fun formatElapsed(seconds: Long): String {
 }
 
 /**
- * The match is won: the board dims and this says who took it, what happens next, and offers the
- * way back if the wrong half was tapped.
+ * The match is won: the board dims and this says who took it and what happens next. Play on
+ * (or a tap anywhere on the dimmed board) hands the board to the next match; Undo is the way
+ * back if the wrong half was tapped.
  */
 @Composable
 private fun MatchWonPanel(
     result: MatchResult,
     youWon: Boolean,
     canUndo: Boolean,
+    onPlayOn: () -> Unit,
     onUndo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
-            .widthIn(max = 560.dp)
+            // Wide enough that the winner's line stays on one line beside the buttons.
+            .widthIn(max = 680.dp)
             .padding(horizontal = Space.s24)
             .background(Rivals.colors.surface, Shapes.panel)
             .padding(horizontal = 28.dp, vertical = Space.s24)
@@ -536,7 +556,13 @@ private fun MatchWonPanel(
             )
             Text(result.next, style = Rivals.type.body, color = Rivals.colors.fg2)
         }
-        if (canUndo) SecondaryButton("Undo", onUndo)
+        Column(
+            modifier = Modifier.width(150.dp),
+            verticalArrangement = Arrangement.spacedBy(Space.s8),
+        ) {
+            PrimaryButton("Play on", onPlayOn)
+            if (canUndo) SecondaryButton("Undo", onUndo, Modifier.fillMaxWidth())
+        }
     }
 }
 

@@ -91,6 +91,30 @@ class SessionUiTest {
     }
 
     @Test
+    fun aWonMatchIsClosedByPlayOnOrByTappingTheBoard() {
+        var dismissed = 0
+        val won = state(a = 0, b = 0).copy(
+            justWon = MatchResult(
+                matchId = "m1",
+                number = 1,
+                gameLabel = "8-ball",
+                winnerId = "a",
+                winnerName = "Kevin",
+                winnerFrames = 5,
+                loserFrames = 2,
+                next = "Match 2 starts now. Tonight 1 – 0.",
+            ),
+            canUndo = true,
+        )
+        show(won, SessionActions(onDismissResult = { dismissed++ }))
+        compose.onNodeWithText("Play on").performClick()
+        assertEquals(1, dismissed)
+        // The dimmed board behind the panel closes it too, rather than doing nothing.
+        compose.onNodeWithTag("result-backdrop").performClick()
+        assertEquals(2, dismissed)
+    }
+
+    @Test
     fun theMenuTagsTheLastFrame() {
         val toggled = mutableListOf<FrameEvent>()
         show(
