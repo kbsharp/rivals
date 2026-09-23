@@ -258,18 +258,24 @@ class Screenshots {
     )
 
     @Composable private fun Detail() {
-        fun frames(vararg w: String) = w.mapIndexed { i, x -> Frame("f$i", i + 1, x, recordedBy = "a") }
+        val br = FrameEvent.BREAK_AND_RUN
+        val gb = FrameEvent.GOLDEN_BREAK
+        val fouls = FrameEvent.THREE_FOULS
+        fun frames(vararg w: Pair<String, Set<FrameEvent>>) =
+            w.mapIndexed { i, (x, e) -> Frame("f$i", i + 1, x, recordedBy = "a", events = e) }
+        fun p(w: String, vararg e: FrameEvent) = w to e.toSet()
         fun match(n: Int, a: Int, b: Int, winner: String?) =
             Match("m$n", n, MatchSettings(GameType.NINE_BALL, 3), Status.ENDED, mapOf("a" to a, "b" to b), winner)
         SessionDetailContent(
             SessionDetailUiState(
                 loading = false,
-                session = Session("s", listOf("a", "b"), Status.ENDED, start, start.plusSeconds(10_800), "The Crown", "a", mapOf("a" to 1, "b" to 1)),
-                me = DetailPlayer("a", "Kevin", 1),
+                session = Session("s", listOf("a", "b"), Status.ENDED, start, start.plusSeconds(10_800), "The Crown", "a", mapOf("a" to 2, "b" to 1)),
+                me = DetailPlayer("a", "Kevin", 2),
                 rival = DetailPlayer("b", "Julian", 1),
                 matches = listOf(
-                    MatchWithFrames(match(1, 3, 1, "a"), frames("a", "b", "a", "a")),
-                    MatchWithFrames(match(2, 2, 3, "b"), frames("b", "a", "b", "a", "b")),
+                    MatchWithFrames(match(1, 3, 1, "a"), frames(p("a", br), p("a", br), p("b"), p("a"))),
+                    MatchWithFrames(match(2, 2, 3, "b"), frames(p("a"), p("a"), p("b", fouls), p("b"), p("b", gb))),
+                    MatchWithFrames(match(3, 3, 0, "a"), frames(p("a"), p("a", gb), p("a"))),
                 ),
             ),
             onBack = {}, onDelete = {},

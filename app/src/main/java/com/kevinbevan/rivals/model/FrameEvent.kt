@@ -7,6 +7,9 @@ package com.kevinbevan.rivals.model
 enum class FrameEvent(val wire: String, val label: String) {
     BREAK_AND_RUN("break-and-run", "Break & run"),
     GOLDEN_BREAK("golden-break", "Golden break"),
+
+    /** The other player fouled three times in a row and lost the rack. */
+    THREE_FOULS("three-fouls", "Won on three fouls"),
     ;
 
     companion object {

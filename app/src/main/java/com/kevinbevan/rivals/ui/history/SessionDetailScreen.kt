@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -37,6 +38,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
+import com.kevinbevan.rivals.domain.Count
+import com.kevinbevan.rivals.domain.Highlight
+import com.kevinbevan.rivals.domain.eventTotals
+import com.kevinbevan.rivals.domain.highlightsOf
 import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.GameType
@@ -52,6 +57,7 @@ import com.kevinbevan.rivals.ui.components.HeadToHead
 import com.kevinbevan.rivals.ui.components.IconAction
 import com.kevinbevan.rivals.ui.components.Label
 import com.kevinbevan.rivals.ui.components.LoadingState
+import com.kevinbevan.rivals.ui.components.StatRow
 import com.kevinbevan.rivals.ui.components.TopBar
 import com.kevinbevan.rivals.ui.session.ConfirmDialog
 import com.kevinbevan.rivals.ui.session.describe
@@ -126,6 +132,8 @@ internal fun SessionDetailContent(
             )
             else -> {
                 Header(session, me, rival)
+                val totals = remember(uiState.matches, me.uid) { eventTotals(uiState.matches, me.uid) }
+                if (totals.isNotEmpty()) NightTotals(totals)
                 if (uiState.matches.isEmpty()) {
                     EmptyState(
                         title = "No matches",
@@ -243,17 +251,62 @@ private fun MatchRow(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlaye
                     )
                 }
             }
-            val tagged = item.frames.filter { it.events.isNotEmpty() }
-            if (tagged.isNotEmpty()) {
-                Text(
-                    tagged.joinToString(" · ") { f ->
-                        val who = if (f.winnerId == me.uid) me.name else rival.name
-                        f.events.joinToString(", ") { it.label } + ": frame ${f.number}, $who"
-                    },
-                    style = Rivals.type.caption,
-                    color = Rivals.colors.fg3,
-                )
+        }
+        val highlights = remember(item) { highlightsOf(item) }
+        if (highlights.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+                highlights.forEach { HighlightLine(it, me, rival) }
             }
+        }
+    }
+}
+
+/** What happened and when on the left, who did it on the right in their colour. */
+@Composable
+private fun HighlightLine(highlight: Highlight, me: DetailPlayer, rival: DetailPlayer) {
+    val (title, detail) = when (highlight) {
+        is Highlight.Shutout -> "Shutout, ${highlight.frames} – 0" to null
+        is Highlight.Comeback -> "Came back from ${highlight.trailedBy.first} – ${highlight.trailedBy.second}" to null
+        is Highlight.HillHill -> "Won the hill-hill decider" to null
+        is Highlight.Run -> "${highlight.frames} frames in a row" to null
+        is Highlight.Tagged -> highlight.event.label to "Frame ${highlight.frame}"
+        is Highlight.Pack -> "${highlight.size} break & runs in a row" to
+            "Frames ${highlight.firstFrame}–${highlight.lastFrame}"
+    }
+    val mine = highlight.playerId == me.uid
+    val name = if (mine) me.name else rival.name
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.s8),
+    ) {
+        Text(title, style = Rivals.type.body, color = Rivals.colors.fg)
+        if (detail != null) {
+            Text(detail, style = Rivals.type.caption, color = Rivals.colors.fg3)
+        }
+        Spacer(Modifier.weight(1f))
+        Label(name, color = if (mine) Rivals.colors.you else Rivals.colors.rival, maxLines = 1)
+    }
+}
+
+/** The night's tagged moments, mirrored like the Stats tab. Absent when nothing was tagged. */
+@Composable
+private fun NightTotals(totals: Map<FrameEvent, Count>) {
+    Column {
+        Label("Tonight's highlights", modifier = Modifier.padding(bottom = Space.s4))
+        totals.forEach { (event, count) ->
+            StatRow(
+                event.label,
+                "${count.mine}",
+                "${count.theirs}",
+                yourLead = when {
+                    count.mine > count.theirs -> true
+                    count.mine < count.theirs -> false
+                    else -> null
+                },
+            )
         }
     }
 }
