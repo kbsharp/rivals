@@ -11,6 +11,7 @@ import com.kevinbevan.rivals.model.MatchWithFrames
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
 import java.time.Instant
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
@@ -69,10 +70,21 @@ class SessionRepository(
     suspend fun recordFrame(sessionId: String, winnerId: String, recordedBy: String): RecordOutcome =
         mutex.withLock {
             val session = store.loadSession(sessionId)
-            val match = store.loadMatches(sessionId).firstOrNull()?.takeIf { it.status == Status.ACTIVE }
+            val match = loadActiveMatch(sessionId)
                 ?: error("There's no match running")
             rules.recordFrame(session, match, winnerId, recordedBy).also { store.commit(it.plan) }
         }
+
+    private suspend fun loadActiveMatch(sessionId: String): Match? {
+        // Retry a few times to handle the race between committing a new session and the match
+        // appearing in the cache. Each retry includes a tiny delay to let the cache update.
+        repeat(10) {
+            val match = store.loadMatches(sessionId).firstOrNull()?.takeIf { it.status == Status.ACTIVE }
+            if (match != null) return match
+            if (it < 9) delay(10)
+        }
+        return null
+    }
 
     /** Takes back the session's last frame. Returns false if there was nothing to undo. */
     suspend fun undoLastFrame(sessionId: String): Boolean = mutex.withLock {
@@ -123,7 +135,7 @@ class SessionRepository(
 
     /** Changes the running match's settings before its first frame. */
     suspend fun changeSettings(sessionId: String, settings: MatchSettings) = mutex.withLock {
-        val match = store.loadMatches(sessionId).firstOrNull()?.takeIf { it.status == Status.ACTIVE }
+        val match = loadActiveMatch(sessionId)
             ?: error("There's no match running")
         store.commit(rules.changeSettings(store.loadSession(sessionId), match, settings))
     }
