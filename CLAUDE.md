@@ -69,7 +69,7 @@ sessions/{sessionId}/matches/{matchId}        // a race to N frames
 
 sessions/{sessionId}/matches/{matchId}/frames/{frameId}
   number, winnerId, breakerId? (legacy), recordedBy, recordedAt
-  events?: ["break-and-run" | "golden-break"]   // tagged after the fact, credited to the winner
+  events?: ["break-and-run" | "golden-break" | "three-fouls"]   // tagged after the fact, credited to the winner
   playerIds
 ```
 
