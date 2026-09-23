@@ -156,7 +156,7 @@ Ask me to do these; don't try to work around them.
 - Increment `versionCode` on every upload.
 - Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
 - Anything that syncs between phones or depends on the rules gets an emulator test in `app/src/androidTest`, rather than relying on two real devices.
-- When a chunk of work builds and passes `test`, `lint` and (if it touches data or rules) `scripts/emulator-tests.sh`, always do both without asking: install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r` when the emulator is attached too), and commit.
+- When a chunk of work builds and passes `test`, `lint` and (if it touches data or rules) `scripts/emulator-tests.sh`, always finish with all three without asking: commit, push, and install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` when the emulator is attached too). `adb` isn't on the PATH; it's under `platform-tools` in the `sdk.dir` from `local.properties`. This holds until the app is published on Play, when it gets revisited.
 
 ## Distribution
 
