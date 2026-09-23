@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.DeviceConfigurationOverride
@@ -13,6 +15,7 @@ import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import com.kevinbevan.rivals.data.MatchDefaults
 import com.kevinbevan.rivals.model.Invite
 import com.kevinbevan.rivals.ui.invite.InviteContent
 import com.kevinbevan.rivals.ui.invite.InviteUiState
@@ -20,8 +23,11 @@ import com.kevinbevan.rivals.ui.signin.SignInContent
 import com.kevinbevan.rivals.ui.signin.SignInUiState
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.kevinbevan.rivals.domain.Count
@@ -81,7 +87,7 @@ class Screenshots {
 
     private fun shoot(name: String, dark: Boolean, landscape: Boolean = false, content: @Composable () -> Unit) {
         compose.setContent {
-            RivalsTheme(darkTheme = dark) {
+            Themed(dark) {
                 if (landscape) {
                     // The scoreboard locks the phone to landscape; render it at a landscape phone's size.
                     // It also hides the system bars, so consume the emulator's insets: otherwise the
@@ -99,7 +105,33 @@ class Screenshots {
             }
         }
         val node = if (landscape) compose.onNodeWithTag(FRAME) else compose.onRoot()
-        val bitmap = node.captureToImage().asAndroidBitmap()
+        save(name, dark, node.captureToImage().asAndroidBitmap())
+    }
+
+    /** A dialog lives in its own window, so it is captured by opening it and shooting that window. */
+    private fun shootDialog(
+        name: String,
+        dark: Boolean,
+        open: String,
+        vararg then: String,
+        content: @Composable () -> Unit,
+    ) {
+        compose.setContent { Themed(dark) { content() } }
+        compose.onNodeWithText(open).performClick()
+        then.forEach { compose.onNodeWithText(it).performClick() }
+        save(name, dark, compose.onNode(isDialog()).captureToImage().asAndroidBitmap())
+    }
+
+    /** The theme, with match settings of its own so a render never picks up another test's. */
+    @Composable
+    private fun Themed(dark: Boolean, content: @Composable () -> Unit) {
+        val defaults = remember { MatchDefaults() }
+        CompositionLocalProvider(LocalMatchDefaults provides defaults) {
+            RivalsTheme(darkTheme = dark) { content() }
+        }
+    }
+
+    private fun save(name: String, dark: Boolean, bitmap: Bitmap) {
         val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "screenshots")
         dir.mkdirs()
         File(dir, "$name-${if (dark) "dark" else "light"}.png").outputStream().use {
@@ -134,6 +166,9 @@ class Screenshots {
     }
     @Test fun statsLight() = shoot("rivalry-stats", dark = false) { Rivalry(stats = true) }
     @Test fun statsDark() = shoot("rivalry-stats", dark = true) { Rivalry(stats = true) }
+    @Test fun quickGameDark() = shootDialog("quick-game", dark = true, open = "Quick game") { SignedOutHome() }
+    @Test fun quickGameLight() = shootDialog("quick-game", dark = false, open = "Quick game") { SignedOutHome() }
+    @Test fun quickGameChosenDark() = shootDialog("quick-game-chosen", dark = true, open = "Quick game", "10-BALL") { SignedOutHome() }
     @Test fun detailLight() = shoot("detail", dark = false) { Detail() }
     @Test fun detailDark() = shoot("detail", dark = true) { Detail() }
 
@@ -178,8 +213,8 @@ class Screenshots {
     private val sampleStats = Stats(
         "a", "b", Record(12, 9), Record(61, 55), NightsRecord(4, 2, 1),
         mapOf(
-            GameType.EIGHT_BALL to GameTypeStats(Record(9, 5), Record(44, 35)),
-            GameType.NINE_BALL to GameTypeStats(Record(3, 4), Record(17, 20)),
+            GameType.NINE_BALL to GameTypeStats(Record(9, 5), Record(44, 35)),
+            GameType.TEN_BALL to GameTypeStats(Record(3, 4), Record(17, 20)),
         ),
         Streak("b", 2),
         mapOf("a" to 5, "b" to 3),
@@ -197,7 +232,7 @@ class Screenshots {
             me = PlayerSide("a", "Kevin", frames = 4, matches = 2),
             rival = PlayerSide("b", "Julian", frames = 2, matches = 1),
             match = Match(
-                "m", 4, MatchSettings(GameType.EIGHT_BALL, 5), Status.ACTIVE, mapOf("a" to 4, "b" to 2),
+                "m", 4, MatchSettings(GameType.NINE_BALL, 5), Status.ACTIVE, mapOf("a" to 4, "b" to 2),
                 startedAt = Instant.now().minusSeconds(754),
             ).takeIf { running },
             lastFrameEvents = emptySet(),
@@ -213,10 +248,10 @@ class Screenshots {
             me = PlayerSide("a", "Kevin", frames = 0, matches = 3),
             rival = PlayerSide("b", "Julian", frames = 0, matches = 1),
             match = Match(
-                "m5", 5, MatchSettings(GameType.EIGHT_BALL, 5), Status.ACTIVE, emptyMap(),
+                "m5", 5, MatchSettings(GameType.NINE_BALL, 5), Status.ACTIVE, emptyMap(),
                 startedAt = Instant.now(),
             ),
-            justWon = MatchResult("m4", 4, "8-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Tonight 3 – 1."),
+            justWon = MatchResult("m4", 4, "9-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Tonight 3 – 1."),
             canUndo = true,
         ),
         SessionActions(),
@@ -225,7 +260,7 @@ class Screenshots {
     @Composable private fun Detail() {
         fun frames(vararg w: String) = w.mapIndexed { i, x -> Frame("f$i", i + 1, x, recordedBy = "a") }
         fun match(n: Int, a: Int, b: Int, winner: String?) =
-            Match("m$n", n, MatchSettings(GameType.EIGHT_BALL, 3), Status.ENDED, mapOf("a" to a, "b" to b), winner)
+            Match("m$n", n, MatchSettings(GameType.NINE_BALL, 3), Status.ENDED, mapOf("a" to a, "b" to b), winner)
         SessionDetailContent(
             SessionDetailUiState(
                 loading = false,

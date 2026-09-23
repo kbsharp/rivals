@@ -42,7 +42,7 @@ class RivalryUiTest {
         matches = Record(12, 9),
         frames = Record(61, 55),
         nights = NightsRecord(4, 2, 1),
-        byGameType = mapOf(GameType.EIGHT_BALL to GameTypeStats(Record(9, 5), Record(44, 35))),
+        byGameType = mapOf(GameType.NINE_BALL to GameTypeStats(Record(9, 5), Record(44, 35))),
         currentStreak = Streak("b", 2),
         longestStreaks = mapOf("a" to 5, "b" to 3),
         specials = mapOf(
@@ -57,7 +57,7 @@ class RivalryUiTest {
         onResume: (String) -> Unit = {},
         onOpenSessionDetail: (String) -> Unit = {},
     ) = compose.setContent {
-        RivalsTheme { RivalryContent(state, onStart, onResume, onOpenSessionDetail, {}, {}, {}) }
+        Fixture { RivalryContent(state, onStart, onResume, onOpenSessionDetail, {}, {}, {}) }
     }
 
     @Test
@@ -136,7 +136,7 @@ class RivalryUiTest {
         compose.onNodeWithText("LONGEST RUN").assertIsDisplayed()
         compose.onNodeWithText("BREAK & RUN").assertIsDisplayed()
         compose.onNodeWithText("1 drawn").assertIsDisplayed()
-        compose.onNodeWithText("8-BALL").assertIsDisplayed()
+        compose.onNodeWithText("9-BALL").assertIsDisplayed()
     }
 
     @Test

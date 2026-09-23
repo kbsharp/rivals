@@ -30,7 +30,7 @@ import org.junit.runner.RunWith
 class SessionUiTest {
     @get:Rule val compose = createComposeRule()
 
-    private val race5 = MatchSettings(GameType.EIGHT_BALL, raceTo = 5)
+    private val race5 = MatchSettings(GameType.NINE_BALL, raceTo = 5)
 
     private fun match(a: Int, b: Int) = Match("m", 2, race5, Status.ACTIVE, mapOf("a" to a, "b" to b))
 
@@ -44,7 +44,7 @@ class SessionUiTest {
     )
 
     private fun show(state: SessionUiState, actions: SessionActions = SessionActions()) =
-        compose.setContent { RivalsTheme { SessionContent(state, actions) } }
+        compose.setContent { Fixture { SessionContent(state, actions) } }
 
     @Test
     fun tappingAPlayerRecordsTheFrameForThem() {
@@ -59,7 +59,7 @@ class SessionUiTest {
     fun theScoreRaceAndHillAreShown() {
         show(state(a = 4, b = 2))
         // The status line is one label along the foot of the board, and labels are uppercase.
-        compose.onNodeWithText("MATCH 2 · 8-BALL · RACE TO 5 · TONIGHT 1 – 0").assertIsDisplayed()
+        compose.onNodeWithText("MATCH 2 · 9-BALL · RACE TO 5 · TONIGHT 1 – 0").assertIsDisplayed()
         compose.onNodeWithText("ON THE HILL").assertIsDisplayed()
     }
 
@@ -71,7 +71,7 @@ class SessionUiTest {
                 justWon = MatchResult(
                     matchId = "m1",
                     number = 1,
-                    gameLabel = "8-ball",
+                    gameLabel = "9-ball",
                     winnerId = "a",
                     winnerName = "Kevin",
                     winnerFrames = 5,
@@ -97,7 +97,7 @@ class SessionUiTest {
             justWon = MatchResult(
                 matchId = "m1",
                 number = 1,
-                gameLabel = "8-ball",
+                gameLabel = "9-ball",
                 winnerId = "a",
                 winnerName = "Kevin",
                 winnerFrames = 5,

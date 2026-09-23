@@ -50,12 +50,14 @@ fun Label(
     modifier: Modifier = Modifier,
     color: Color = Rivals.colors.fg3,
     textAlign: TextAlign? = null,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     Text(
         text = text.uppercase(),
         style = Rivals.type.label,
         color = color,
         textAlign = textAlign,
+        maxLines = maxLines,
         modifier = modifier,
     )
 }
@@ -263,8 +265,8 @@ fun Panel(
 }
 
 /**
- * A label above a row of chips, one of which is chosen. The chosen one is white with charcoal
- * text; the rest are `raised`.
+ * A label above a row of chips, one of which is chosen. The chosen one wears the accent —
+ * `you` on its tint — and the rest are `raised`.
  */
 @Composable
 fun <T> ChoiceRow(
@@ -285,14 +287,18 @@ fun <T> ChoiceRow(
                 Box(
                     modifier = Modifier
                         .background(
-                            if (chosen) Rivals.colors.fg else Rivals.colors.raised,
+                            if (chosen) Rivals.colors.youTint else Rivals.colors.raised,
                             Shapes.pill,
                         )
                         .clickable(role = Role.RadioButton) { onSelect(value) }
                         .padding(horizontal = Space.s16, vertical = Space.s12),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Label(text, color = if (chosen) Rivals.colors.onFg else Rivals.colors.fg2)
+                    Label(
+                        text,
+                        color = if (chosen) Rivals.colors.you else Rivals.colors.fg2,
+                        maxLines = 1,
+                    )
                 }
             }
         }
@@ -312,13 +318,14 @@ fun RivalsTextField(
     placeholder: String? = null,
     supporting: String? = null,
     isError: Boolean = false,
+    labelColor: Color = Rivals.colors.fg3,
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
-        Label(label, color = if (isError) Rivals.colors.live else Rivals.colors.fg3)
+        Label(label, color = if (isError) Rivals.colors.live else labelColor)
         Row(
             modifier = Modifier
                 .fillMaxWidth()

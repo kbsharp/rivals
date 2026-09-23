@@ -38,7 +38,7 @@ class HomeUiTest {
     private val finished = GuestGame("g1", active = false, startedAt = null, GuestSide("guest-a", "Tom", 2), GuestSide("guest-b", "Kevin", 1))
 
     private fun show(state: HomeUiState, actions: HomeActions = HomeActions()) =
-        compose.setContent { RivalsTheme { HomeContent(state, actions) } }
+        compose.setContent { Fixture { HomeContent(state, actions) } }
 
     @Test
     fun aQuickGameNeedsNoAccount() {

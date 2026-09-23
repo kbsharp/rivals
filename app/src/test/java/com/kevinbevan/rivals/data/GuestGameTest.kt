@@ -31,7 +31,7 @@ class GuestGameTest {
     private var nextId = 0
     private val rules = ScoreRules(newId = { "id${nextId++}" })
     private val clock = Instant.parse("2026-09-22T19:30:00Z")
-    private val race2 = MatchSettings(GameType.EIGHT_BALL, raceTo = 2)
+    private val race2 = MatchSettings(GameType.NINE_BALL, raceTo = 2)
     private val a = GuestRepository.PLAYER_A
     private val b = GuestRepository.PLAYER_B
 

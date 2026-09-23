@@ -13,7 +13,7 @@ Drafts for the forms Play Console asks for before the first internal-testing rel
   > Rivals keeps score when two friends play pool. Tap the winner of each frame, and matches, nights and your all-time head-to-head update on both phones straight away, even with no signal in the pool hall.
   >
   > • One big button per player, usable one-handed with a cue in the other hand
-  > • Races to any length, or open-ended matches; 8-ball, 9-ball or anything else
+  > • Races to any length, or open-ended matches; 9-ball, 10-ball or just a score
   > • Undo, including back into the previous match
   > • History of every night, down to each frame
   > • Stats: win rates, streaks, results by game, and how often the breaker wins

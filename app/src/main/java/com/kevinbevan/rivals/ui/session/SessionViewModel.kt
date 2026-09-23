@@ -41,7 +41,8 @@ data class PlayerSide(val uid: String, val name: String, val frames: Int, val ma
 data class MatchResult(
     val matchId: String,
     val number: Int,
-    val gameLabel: String,
+    /** The game played, when the match named one. */
+    val gameLabel: String?,
     val winnerId: String,
     val winnerName: String,
     val winnerFrames: Int,
@@ -147,7 +148,7 @@ class SessionViewModel(
                 MatchResult(
                     matchId = ended.id,
                     number = ended.number,
-                    gameLabel = ended.settings.gameType.label,
+                    gameLabel = ended.settings.gameType?.label,
                     winnerId = winnerId,
                     winnerName = if (winnerId == myId) me.name else rivalSide.name,
                     winnerFrames = ended.frameWins.winsOf(winnerId),

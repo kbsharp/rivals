@@ -26,7 +26,7 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class RulesTest {
-    private val race2 = MatchSettings(GameType.EIGHT_BALL, raceTo = 2)
+    private val race2 = MatchSettings(GameType.NINE_BALL, raceTo = 2)
 
     private lateinit var a: TestClient
     private lateinit var b: TestClient

@@ -4,7 +4,8 @@ import java.time.Instant
 
 /** How a match is played; carried over when the next match starts automatically. */
 data class MatchSettings(
-    val gameType: GameType,
+    /** The game being played, or `null` when the match just tracks a score. */
+    val gameType: GameType? = null,
     /** First to this many frames wins. `null` means open-ended (ended by hand). */
     val raceTo: Int?,
 ) {

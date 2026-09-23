@@ -48,7 +48,7 @@ import com.kevinbevan.rivals.ui.components.Tabs
 import com.kevinbevan.rivals.ui.components.TopBar
 import com.kevinbevan.rivals.ui.components.WinRing
 import com.kevinbevan.rivals.ui.session.ConfirmDialog
-import com.kevinbevan.rivals.ui.session.DefaultMatchSettings
+import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
 import com.kevinbevan.rivals.ui.session.RivalsDialog
 import com.kevinbevan.rivals.ui.theme.Rivals
@@ -293,12 +293,16 @@ private fun NewSessionDialog(
     onStart: (MatchSettings, String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var settings by remember { mutableStateOf(DefaultMatchSettings) }
+    val defaults = rememberMatchDefaults()
+    var settings by remember { mutableStateOf(defaults.last) }
     var venue by rememberSaveable { mutableStateOf("") }
     RivalsDialog(
         title = "New session",
         confirmLabel = "Start",
-        onConfirm = { onStart(settings, venue.trim().ifEmpty { null }) },
+        onConfirm = {
+            defaults.last = settings
+            onStart(settings, venue.trim().ifEmpty { null })
+        },
         onDismiss = onDismiss,
     ) {
         Column(

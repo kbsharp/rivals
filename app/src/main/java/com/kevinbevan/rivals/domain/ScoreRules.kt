@@ -210,7 +210,7 @@ class ScoreRules(private val newId: () -> String) {
         return listOf(
             Write.Update(
                 MatchDoc(session.id, match.id),
-                mapOf(Schema.GAME_TYPE to settings.gameType.wire, Schema.RACE_TO to settings.raceTo),
+                mapOf(Schema.GAME_TYPE to settings.gameType?.wire, Schema.RACE_TO to settings.raceTo),
             ),
         )
     }
@@ -298,7 +298,7 @@ class ScoreRules(private val newId: () -> String) {
         MatchDoc(sessionId, matchId),
         mapOf(
             Schema.NUMBER to number,
-            Schema.GAME_TYPE to settings.gameType.wire,
+            Schema.GAME_TYPE to settings.gameType?.wire,
             Schema.RACE_TO to settings.raceTo,
             Schema.STATUS to Status.ACTIVE.wire,
             Schema.FRAME_WINS to zeroTally(playerIds),

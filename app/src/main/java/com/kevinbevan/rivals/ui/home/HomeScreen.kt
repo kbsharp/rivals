@@ -29,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -57,7 +58,7 @@ import com.kevinbevan.rivals.ui.components.TextAction
 import com.kevinbevan.rivals.ui.components.TopBar
 import com.kevinbevan.rivals.ui.history.formatDay
 import com.kevinbevan.rivals.ui.navigation.SessionRoute
-import com.kevinbevan.rivals.ui.session.DefaultMatchSettings
+import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
 import com.kevinbevan.rivals.ui.session.RivalsDialog
 import com.kevinbevan.rivals.ui.theme.Rivals
@@ -447,32 +448,42 @@ private fun QuickGameDialog(
     onStart: (Pair<String, String>, MatchSettings) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val defaults = rememberMatchDefaults()
     var left by rememberSaveable { mutableStateOf(myName) }
     var right by rememberSaveable { mutableStateOf("") }
-    var settings by remember { mutableStateOf(DefaultMatchSettings) }
+    var settings by remember { mutableStateOf(defaults.last) }
     RivalsDialog(
         title = "Quick game",
         confirmLabel = "Start",
-        onConfirm = { onStart(left to right, settings) },
+        onConfirm = {
+            defaults.last = settings
+            onStart(left to right, settings)
+        },
         onDismiss = onDismiss,
     ) {
         Column(
             Modifier.verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Space.s16),
         ) {
-            NameField(left, { left = it }, "Player 1")
-            NameField(right, { right = it }, "Player 2")
+            NameField(left, { left = it }, "Player 1", Rivals.colors.you)
+            NameField(right, { right = it }, "Player 2", Rivals.colors.rival)
             MatchSettingsPicker(settings, { settings = it })
         }
     }
 }
 
 @Composable
-private fun NameField(value: String, onValueChange: (String) -> Unit, label: String) {
+private fun NameField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    labelColor: Color = Rivals.colors.fg3,
+) {
     RivalsTextField(
         value = value,
         onValueChange = { onValueChange(it.take(30)) },
         label = label,
+        labelColor = labelColor,
         placeholder = label,
         keyboardOptions = KeyboardOptions(
             capitalization = KeyboardCapitalization.Words,

@@ -16,7 +16,7 @@ import org.junit.Test
 class StatsCalculatorTest {
     private val a = "uidA"
     private val b = "uidB"
-    private val eight2 = MatchSettings(GameType.EIGHT_BALL, raceTo = 2)
+    private val ten2 = MatchSettings(GameType.TEN_BALL, raceTo = 2)
     private val nine1 = MatchSettings(GameType.NINE_BALL, raceTo = 1)
 
     private lateinit var store: FakeStore
@@ -75,16 +75,16 @@ class StatsCalculatorTest {
 
     @Test
     fun aRealisticFortnight() {
-        // Night 1 (8-ball, race to 2): A wins 2–1, then B wins 2–0, then A wins 2–0. A takes the night 2–1.
-        night("2026-09-01T19:00:00Z", eight2) {
+        // Night 1 (10-ball, race to 2): A wins 2–1, then B wins 2–0, then A wins 2–0. A takes the night 2–1.
+        night("2026-09-01T19:00:00Z", ten2) {
             frame(a, FrameEvent.BREAK_AND_RUN); frame(b); frame(a, FrameEvent.BREAK_AND_RUN)
             frame(b, FrameEvent.GOLDEN_BREAK); frame(b)
             frame(a); frame(a, FrameEvent.BREAK_AND_RUN, FrameEvent.GOLDEN_BREAK)
         }
-        // Night 2 (9-ball, race to 1): B, B, B. Then a frame of an unfinished race-to-2 8-ball match.
+        // Night 2 (9-ball, race to 1): B, B, B. Then a frame of an unfinished race-to-2 10-ball match.
         night("2026-09-08T19:00:00Z", nine1) {
             frame(b); frame(b); frame(b)
-            newGame(eight2)
+            newGame(ten2)
             frame(a)
         }
 
@@ -95,10 +95,10 @@ class StatsCalculatorTest {
         assertEquals(Record(won = 5, lost = 6), s.frames)
         assertEquals(NightsRecord(won = 1, lost = 1, drawn = 0), s.nights)
 
-        assertEquals(Record(2, 1), s.byGameType.getValue(GameType.EIGHT_BALL).matches)
-        assertEquals(Record(5, 3), s.byGameType.getValue(GameType.EIGHT_BALL).frames)
+        assertEquals(Record(2, 1), s.byGameType.getValue(GameType.TEN_BALL).matches)
+        assertEquals(Record(5, 3), s.byGameType.getValue(GameType.TEN_BALL).frames)
         assertEquals(Record(0, 3), s.byGameType.getValue(GameType.NINE_BALL).matches)
-        assertEquals(setOf(GameType.EIGHT_BALL, GameType.NINE_BALL), s.byGameType.keys)
+        assertEquals(setOf(GameType.NINE_BALL, GameType.TEN_BALL), s.byGameType.keys)
 
         // Match winners in order: A, B, A, B, B, B.
         assertEquals(Streak(b, 3), s.currentStreak)
@@ -111,7 +111,7 @@ class StatsCalculatorTest {
 
     @Test
     fun theRivalsViewIsTheMirrorImage() {
-        night("2026-09-01T19:00:00Z", eight2) { frame(a); frame(a); frame(b); frame(b); frame(a) }
+        night("2026-09-01T19:00:00Z", ten2) { frame(a); frame(a); frame(b); frame(b); frame(a) }
         val mine = stats()
         val theirs = stats(me = b, rival = a)
         assertEquals(Record(mine.matches.lost, mine.matches.won), theirs.matches)

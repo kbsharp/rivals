@@ -89,6 +89,7 @@ import com.kevinbevan.rivals.ui.components.Pips
 import com.kevinbevan.rivals.ui.components.PrimaryButton
 import com.kevinbevan.rivals.ui.components.SecondaryButton
 import com.kevinbevan.rivals.ui.components.TextAction
+import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import com.kevinbevan.rivals.ui.theme.Motion
@@ -546,7 +547,7 @@ private fun MatchWonPanel(
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Label(
-                "Match ${result.number} · ${result.gameLabel}",
+                "Match ${result.number}" + (result.gameLabel?.let { " · $it" } ?: ""),
                 color = if (youWon) Rivals.colors.you else Rivals.colors.rival,
             )
             Text(
@@ -661,6 +662,7 @@ private fun NextMatchPanel(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val defaults = rememberMatchDefaults()
     var settings by remember(uiState.lastSettings) { mutableStateOf(uiState.lastSettings) }
     val me = uiState.me
     val rival = uiState.rival
@@ -705,7 +707,10 @@ private fun NextMatchPanel(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s12)) {
             Label("Next match")
             MatchSettingsPicker(settings, { settings = it })
-            PrimaryButton("Start match", { onStart(settings) })
+            PrimaryButton("Start match", {
+                defaults.last = settings
+                onStart(settings)
+            })
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(Space.s8),
@@ -724,7 +729,7 @@ private fun NextMatchPanel(
 private val previewMatch = Match(
     id = "m",
     number = 3,
-    settings = MatchSettings(GameType.EIGHT_BALL, raceTo = 5),
+    settings = MatchSettings(GameType.NINE_BALL, raceTo = 5),
     status = Status.ACTIVE,
     frameWins = mapOf("a" to 4, "b" to 2),
 )

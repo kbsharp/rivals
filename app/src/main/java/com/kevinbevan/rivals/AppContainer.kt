@@ -8,6 +8,7 @@ import com.kevinbevan.rivals.auth.AuthRepository
 import com.kevinbevan.rivals.data.FirestoreSessionStore
 import com.kevinbevan.rivals.data.GuestRepository
 import com.kevinbevan.rivals.data.LocalSessionStore
+import com.kevinbevan.rivals.data.MatchDefaults
 import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.RivalryRepository
 import com.kevinbevan.rivals.data.SessionRepository
@@ -29,6 +30,9 @@ class AppContainer(context: Context) {
     )
 
     val playerRepository = PlayerRepository(firestore)
+
+    /** How the last match was set up, so the next one opens the same way. */
+    val matchDefaults = MatchDefaults(context)
 
     private val cloudStore = FirestoreSessionStore(firestore, playerRepository)
     private val guestStore = LocalSessionStore(File(context.filesDir, "guest-games.json"))

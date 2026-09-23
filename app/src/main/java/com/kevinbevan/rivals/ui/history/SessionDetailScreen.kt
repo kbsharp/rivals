@@ -297,7 +297,7 @@ private fun SessionDetailPreview() {
     val start = Instant.parse("2026-09-21T19:30:00Z")
     fun frames(vararg winners: String) = winners.mapIndexed { i, w -> Frame("f$i", i + 1, w, recordedBy = "a") }
     fun match(n: Int, a: Int, b: Int, winner: String?, raceTo: Int? = 3) = Match(
-        "m$n", n, MatchSettings(GameType.EIGHT_BALL, raceTo), Status.ENDED, mapOf("a" to a, "b" to b), winner,
+        "m$n", n, MatchSettings(GameType.NINE_BALL, raceTo), Status.ENDED, mapOf("a" to a, "b" to b), winner,
     )
     RivalsTheme {
         SessionDetailContent(

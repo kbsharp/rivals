@@ -34,6 +34,8 @@ Rules that come with it:
 - **Scores are white**, always. A player's colour appears on their name label, their race pips,
   their bar in a stat, and the "you won" caption — not on the number.
 - **The primary button is white** with `base` text. Colour is never used for a plain action.
+- **A chosen chip is `you` on `you-tint`.** Being chosen is a state, so it takes the accent
+  rather than a white fill, which read as a toggle switch and left the pickers black and white.
 - Two colours only, plus red. No gradients, no tints of other hues, no colour for decoration.
 - Teal and apricot were chosen for colour-blind separation (warm against cool) and for being soft
   rather than loud. Keep any replacement warm-vs-cool and similar in lightness.

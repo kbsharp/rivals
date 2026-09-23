@@ -21,7 +21,7 @@ import org.junit.Test
 class ScoreRulesTest {
     private val a = "uidA"
     private val b = "uidB"
-    private val race3 = MatchSettings(GameType.EIGHT_BALL, raceTo = 3)
+    private val race3 = MatchSettings(GameType.NINE_BALL, raceTo = 3)
     private val open = MatchSettings(GameType.NINE_BALL, raceTo = null)
 
     private lateinit var store: FakeStore
@@ -115,7 +115,7 @@ class ScoreRulesTest {
 
     @Test
     fun raceToMustBePositive() {
-        assertThrows(IllegalArgumentException::class.java) { MatchSettings(GameType.OTHER, 0) }
+        assertThrows(IllegalArgumentException::class.java) { MatchSettings(GameType.TEN_BALL, 0) }
     }
 
     // recordFrame
@@ -176,7 +176,7 @@ class ScoreRulesTest {
 
     @Test
     fun raceToOneEndsOnEveryFrame() {
-        val id = start(MatchSettings(GameType.OTHER, raceTo = 1))
+        val id = start(MatchSettings(GameType.TEN_BALL, raceTo = 1))
         assertTrue(win(id, a).matchEnded)
         assertTrue(win(id, a).matchEnded)
         assertTrue(win(id, b).matchEnded)
@@ -248,7 +248,7 @@ class ScoreRulesTest {
 
     @Test
     fun repeatedUndoWalksBackThroughSeveralMatches() {
-        val id = start(MatchSettings(GameType.EIGHT_BALL, raceTo = 2))
+        val id = start(MatchSettings(GameType.NINE_BALL, raceTo = 2))
         val snapshots = mutableListOf(deepCopy(store.docs))
         for (w in listOf(a, b, b, a, a, b, a)) {
             win(id, w)
@@ -266,7 +266,7 @@ class ScoreRulesTest {
 
     @Test
     fun undoAfterUndoingIntoAPreviousMatchKeepsGoing() {
-        val id = start(MatchSettings(GameType.EIGHT_BALL, raceTo = 1))
+        val id = start(MatchSettings(GameType.NINE_BALL, raceTo = 1))
         win(id, a) // match 1 -> a, match 2 starts
         win(id, b) // match 2 -> b, match 3 starts
         assertTrue(undo(id)) // back into match 2
@@ -339,7 +339,7 @@ class ScoreRulesTest {
     @Test
     fun manualWinnerRules() {
         fun m(raceTo: Int?, wa: Int, wb: Int) =
-            Match("m", 1, MatchSettings(GameType.OTHER, raceTo), Status.ACTIVE, mapOf(a to wa, b to wb))
+            Match("m", 1, MatchSettings(GameType.TEN_BALL, raceTo), Status.ACTIVE, mapOf(a to wa, b to wb))
         assertEquals(a, ScoreRules.manualWinner(m(null, 3, 1)))
         assertEquals(b, ScoreRules.manualWinner(m(null, 0, 1)))
         assertNull(ScoreRules.manualWinner(m(null, 2, 2)))
@@ -373,7 +373,7 @@ class ScoreRulesTest {
 
     @Test
     fun endingASessionDropsTheEmptyFollowOnMatch() {
-        val id = start(MatchSettings(GameType.EIGHT_BALL, raceTo = 1))
+        val id = start(MatchSettings(GameType.NINE_BALL, raceTo = 1))
         win(id, a)
         store.apply(rules.endSession(store.session(id), store.matches(id)))
 
@@ -485,7 +485,7 @@ class ScoreRulesTest {
 
     @Test
     fun deletingASessionRemovesEveryDocInIt() {
-        val id = start(MatchSettings(GameType.EIGHT_BALL, raceTo = 2))
+        val id = start(MatchSettings(GameType.NINE_BALL, raceTo = 2))
         win(id, a); win(id, b); win(id, a) // match 1 to A, match 2 started
         win(id, b)
         store.apply(rules.endSession(store.session(id), store.matches(id)))
@@ -519,7 +519,7 @@ class ScoreRulesTest {
 
     @Test
     fun plansOnlyUseDottedKeysInUpdates() {
-        val id = start(MatchSettings(GameType.EIGHT_BALL, raceTo = 1))
+        val id = start(MatchSettings(GameType.NINE_BALL, raceTo = 1))
         val outcome = win(id, a)
         val frameWrite = outcome.plan.first() as Write.Set
         assertTrue(frameWrite.doc is FrameDoc)
