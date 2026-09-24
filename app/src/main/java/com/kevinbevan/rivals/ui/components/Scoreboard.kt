@@ -54,7 +54,7 @@ import kotlin.math.roundToInt
 
 /**
  * The head-to-head: two white numbers with a `hairline` dash between them, the players named
- * underneath in their own colours.
+ * underneath in their own colours. [spread] pushes each number out over its player's name.
  */
 @Composable
 fun HeadToHead(
@@ -65,6 +65,7 @@ fun HeadToHead(
     modifier: Modifier = Modifier,
     numberStyle: TextStyle? = null,
     names: Boolean = true,
+    spread: Boolean = false,
 ) {
     val score = numberStyle ?: Rivals.type.display
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
@@ -72,8 +73,8 @@ fun HeadToHead(
             // Centred, not on the baseline: with the score's line box trimmed to its digits, a
             // baseline-aligned dash hangs below them.
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            modifier = Modifier.semantics {
+            horizontalArrangement = if (spread) Arrangement.SpaceBetween else Arrangement.spacedBy(14.dp),
+            modifier = (if (spread) Modifier.fillMaxWidth() else Modifier).semantics {
                 contentDescription = "$yourName $yourScore, $rivalName $rivalScore"
             },
         ) {
@@ -169,6 +170,19 @@ fun FormBar(
                         RoundedCornerShape(4.dp),
                     ),
             )
+        }
+    }
+}
+
+/** The form bar before any night has been played: [slots] empty `raised` segments. */
+@Composable
+fun EmptyFormBar(modifier: Modifier = Modifier, slots: Int = 10) {
+    Row(
+        modifier = modifier.fillMaxWidth().height(8.dp).clearAndSetSemantics {},
+        horizontalArrangement = Arrangement.spacedBy(Space.s4),
+    ) {
+        repeat(slots) {
+            Box(Modifier.weight(1f).fillMaxSize().background(Rivals.colors.raised, RoundedCornerShape(4.dp)))
         }
     }
 }
@@ -356,6 +370,7 @@ fun TopBar(
     title: String,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
+    leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     Row(
@@ -365,17 +380,60 @@ fun TopBar(
         if (onBack != null) {
             IconAction(R.drawable.ic_arrow_back, "Back", onBack)
         }
+        if (leading != null) {
+            Box(Modifier.padding(start = Space.s4)) { leading() }
+        }
         Text(
             title,
             style = Rivals.type.headline.copy(fontSize = 22.sp),
             color = Rivals.colors.fg,
             modifier = Modifier
                 .weight(1f)
-                .padding(start = if (onBack == null) Space.s4 else Space.s8),
+                .padding(start = if (onBack == null && leading == null) Space.s4 else Space.s8),
         )
         trailing?.invoke()
     }
 }
+
+/**
+ * The logo, small: the 9-ball diamond rack, you at the top, your rival at the bottom and the 9
+ * between them, drawn in the theme's colours so it sits in a top bar.
+ */
+@Composable
+fun RackMark(modifier: Modifier = Modifier, height: Dp = 22.dp) {
+    val colors = Rivals.colors
+    Canvas(modifier.size(width = height * (RACK_WIDTH / RACK_HEIGHT), height = height).clearAndSetSemantics {}) {
+        val unit = size.height / RACK_HEIGHT
+        RACK.forEachIndexed { row, xs ->
+            xs.forEach { x ->
+                val colour = when {
+                    row == 0 -> colors.you
+                    row == RACK.lastIndex -> colors.rival
+                    x == 0f -> colors.fg
+                    else -> colors.hairline
+                }
+                drawCircle(
+                    colour,
+                    radius = BALL * unit,
+                    center = Offset(size.width / 2 + x * unit, (BALL + row * ROW_GAP) * unit),
+                )
+            }
+        }
+    }
+}
+
+/** The rack's geometry, in the launcher icon's units: ball radius, row pitch, each row's x. */
+private const val BALL = 6f
+private const val ROW_GAP = 11.2f
+private const val RACK_WIDTH = 37.6f
+private const val RACK_HEIGHT = 56.8f
+private val RACK = listOf(
+    listOf(0f),
+    listOf(-6.4f, 6.4f),
+    listOf(-12.8f, 0f, 12.8f),
+    listOf(-6.4f, 6.4f),
+    listOf(0f),
+)
 
 /** A screen: the charcoal ground and the 16dp gutter. */
 @Composable

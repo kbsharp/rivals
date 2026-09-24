@@ -110,6 +110,23 @@ class HomeUiTest {
     }
 
     @Test
+    fun onlyTheLatestGuestGamesShowUntilSeeAll() {
+        val games = (1..4).map { finished.copy(id = "g$it", left = GuestSide("guest-a", "Tom $it", 2)) }
+        show(signedIn.copy(guestGames = games))
+        compose.onNodeWithText("Tom 3 2 – 1 Kevin").assertIsDisplayed()
+        compose.onNodeWithText("Tom 4 2 – 1 Kevin").assertDoesNotExist()
+        compose.onNodeWithText("See all 4").performClick()
+        compose.onNodeWithText("Tom 4 2 – 1 Kevin").assertExists()
+    }
+
+    @Test
+    fun anotherRivalSaysWhoLeads() {
+        show(signedIn.copy(rivals = signedIn.rivals + RivalCard("r2", "Sam", myWins = 7, rivalWins = 9)))
+        compose.onNodeWithText("Sam leads by 2").assertIsDisplayed()
+        compose.onNodeWithText("7 – 9").assertIsDisplayed()
+    }
+
+    @Test
     fun namesCanBeChangedBeforeStarting() {
         var started: Pair<String, String>? = null
         show(signedIn, HomeActions(onStartQuickGame = { names, _ -> started = names }))

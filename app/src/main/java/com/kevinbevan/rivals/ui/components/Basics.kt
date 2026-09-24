@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.kevinbevan.rivals.R
@@ -184,7 +185,12 @@ fun LiveChip(modifier: Modifier = Modifier) {
 
 /** The round initial that stands in for a player's photo. */
 @Composable
-fun Avatar(name: String, modifier: Modifier = Modifier, background: Color = Rivals.colors.raised) {
+fun Avatar(
+    name: String,
+    modifier: Modifier = Modifier,
+    background: Color = Rivals.colors.raised,
+    color: Color = Rivals.colors.fg,
+) {
     Box(
         modifier = modifier.size(40.dp).background(background, CircleShape),
         contentAlignment = Alignment.Center,
@@ -192,7 +198,7 @@ fun Avatar(name: String, modifier: Modifier = Modifier, background: Color = Riva
         Text(
             name.trim().take(1).uppercase().ifEmpty { "?" },
             style = Rivals.type.rowTitle.copy(fontFamily = Rivals.type.number.fontFamily),
-            color = Rivals.colors.fg,
+            color = color,
         )
     }
 }
@@ -206,6 +212,27 @@ fun ListRow(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    subtitleColor: Color = Rivals.colors.fg3,
+    onClick: (() -> Unit)? = null,
+    leading: @Composable (() -> Unit)? = null,
+    trailing: @Composable (RowScope.() -> Unit)? = null,
+) = ListRow(
+    title = AnnotatedString(title),
+    modifier = modifier,
+    subtitle = subtitle?.let { AnnotatedString(it) },
+    subtitleColor = subtitleColor,
+    onClick = onClick,
+    leading = leading,
+    trailing = trailing,
+)
+
+/** A [ListRow] whose lines carry their own colours: a player's name in theirs, say. */
+@Composable
+fun ListRow(
+    title: AnnotatedString,
+    modifier: Modifier = Modifier,
+    subtitle: AnnotatedString? = null,
+    subtitleColor: Color = Rivals.colors.fg3,
     onClick: (() -> Unit)? = null,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (RowScope.() -> Unit)? = null,
@@ -223,7 +250,7 @@ fun ListRow(
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = Rivals.type.rowTitle, color = Rivals.colors.fg)
             if (subtitle != null) {
-                Text(subtitle, style = Rivals.type.caption, color = Rivals.colors.fg3)
+                Text(subtitle, style = Rivals.type.caption, color = subtitleColor)
             }
         }
         trailing?.invoke(this)

@@ -90,9 +90,11 @@ Two families, both open licence, bundled in the app (not downloaded):
   centre line.
 - **Scoreboard, match won:** the halves dim to 30%, a `surface` panel gives the match, "Kevin
   takes it 5 – 2", what happens next, and an Undo button.
-- **Home:** all-time score in big white numbers with cyan and pink labels beneath, the last ten
-  matches as a colour bar, tonight's score, then the primary action. Below: any invite, then plain
-  rows for Add a rival and Quick game, then games kept on this phone.
+- **Home:** all-time score in big white numbers, each over its player's name in their colour, the
+  last ten nights as a colour bar with who leads them, tonight's score, then the primary action.
+  Below, three labelled blocks: **Rivals** (invites, the other rivals, Add a rival), **Play**
+  (Quick game) and **On this phone** (the last three quick games in one `surface` panel, See all
+  for the rest). Round two is at <https://claude.ai/artifact/DPKQkov4iMYFAUHTsAAYzD>.
 - **Rivalry:** a win-percentage ring in both colours beside the all-time score, the primary action,
   then SESSIONS and STATS tabs. Stats is a mirrored table: your value, the label, theirs, with the
   leader's value white and bold and the other grey. Sessions is one row per night, with only the
@@ -122,6 +124,18 @@ icon (`ic_launcher_foreground`, with a one-colour `ic_launcher_monochrome` for t
 Play icon and feature graphic, and the launch splash. On Android 12+ the splash animates it
 (`splash_icon_animated`): the rack fades in, then you, your rival and the 9 grow into place, 750ms
 in all.
+
+## What Home round two settled (2026-09-24)
+
+- **Home's blocks are 32dp apart**, not the 24dp `section` step: with labels over them, 24 read as
+  one list.
+- **No rivals yet is a scoreboard at 0 – 0** ("You" against "Your rival", an empty `raised` form
+  bar) with one line under it, not a paragraph.
+- **Quick games are coloured like a match:** Player 1 in `you`, Player 2 in `rival` (as the Quick
+  game dialog labels them), the score white, and "Tom won" in the winner's colour.
+- **Another rival's row says who leads** ("Sam leads by 2") in the leader's colour, with the
+  rival's initial in `rival` on `rival-tint`.
+- **The top bar carries the rack**, drawn small (`RackMark`) beside "Rivals".
 
 ## Open design questions
 

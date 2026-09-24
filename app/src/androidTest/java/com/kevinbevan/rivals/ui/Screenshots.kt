@@ -144,7 +144,31 @@ class Screenshots {
     @Test fun homeLight() = shoot("home", dark = false) { Home() }
     @Test fun homeDark() = shoot("home", dark = true) { Home() }
     @Test fun homeNoRivalsDark() = shoot("home-no-rivals", dark = true) {
-        HomeContent(HomeUiState(loading = false, signedIn = true, myName = "Kevin"), HomeActions())
+        HomeContent(
+            HomeUiState(
+                loading = false, signedIn = true, myName = "Kevin",
+                guestGames = (0 until 4).map { i ->
+                    GuestGame("g$i", active = false, startedAt = start.minusSeconds(86_400L * i), GuestSide("a", "Kevin", i % 2), GuestSide("b", "Julian", 1))
+                },
+            ),
+            HomeActions(),
+        )
+    }
+    @Test fun homeTwoRivalsDark() = shoot("home-two-rivals", dark = true) {
+        HomeContent(
+            HomeUiState(
+                loading = false, signedIn = true, myName = "Kevin",
+                rivals = listOf(
+                    RivalCard(
+                        "r1", "Julian", myWins = 12, rivalWins = 9,
+                        activeSessionId = "s1", tonight = 2 to 1,
+                        nights = listOf(true, true, false, true, true, false, false, true, true, false),
+                    ),
+                    RivalCard("r2", "Sam", myWins = 7, rivalWins = 9),
+                ),
+            ),
+            HomeActions(),
+        )
     }
     @Test fun guestHomeLight() = shoot("home-guest", dark = false) { SignedOutHome() }
     @Test fun guestHomeDark() = shoot("home-guest", dark = true) { SignedOutHome() }
