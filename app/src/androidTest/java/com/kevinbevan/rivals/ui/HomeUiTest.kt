@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -92,8 +93,9 @@ class HomeUiTest {
             signedIn.copy(guestGames = listOf(finished)),
             HomeActions(onSaveGuestGame = { game, rivalry, me -> saved = Triple(game, rivalry, me) }),
         )
-        compose.onNodeWithText("ON THIS PHONE").assertIsDisplayed()
-        compose.onNodeWithText("Save").performClick()
+        // CI's emulator screen is shorter than a phone's, so the lower blocks need scrolling to.
+        compose.onNodeWithText("ON THIS PHONE").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Save").performScrollTo().performClick()
         // The only rival is preselected; which side was you is picked here.
         compose.onNodeWithText("WHICH ONE WAS YOU?").assertIsDisplayed()
         compose.onNodeWithText("TOM").performClick()
@@ -104,8 +106,8 @@ class HomeUiTest {
     @Test
     fun signedOutGuestGamesCantBeSavedYet() {
         show(signedOut.copy(guestGames = listOf(finished)))
-        compose.onNodeWithText("Tom 2 – 1 Kevin").assertIsDisplayed()
-        compose.onNodeWithText("Sign in and add a rival", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Tom 2 – 1 Kevin").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Sign in and add a rival", substring = true).performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Save").assertDoesNotExist()
     }
 
@@ -113,9 +115,9 @@ class HomeUiTest {
     fun onlyTheLatestGuestGamesShowUntilSeeAll() {
         val games = (1..4).map { finished.copy(id = "g$it", left = GuestSide("guest-a", "Tom $it", 2)) }
         show(signedIn.copy(guestGames = games))
-        compose.onNodeWithText("Tom 3 2 – 1 Kevin").assertIsDisplayed()
+        compose.onNodeWithText("Tom 3 2 – 1 Kevin").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Tom 4 2 – 1 Kevin").assertDoesNotExist()
-        compose.onNodeWithText("See all 4").performClick()
+        compose.onNodeWithText("See all 4").performScrollTo().performClick()
         compose.onNodeWithText("Tom 4 2 – 1 Kevin").assertExists()
     }
 
