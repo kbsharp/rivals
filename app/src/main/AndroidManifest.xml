@@ -7,7 +7,7 @@
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Rivals">
+        android:theme="@style/Theme.Rivals.Starting">
         <meta-data
             android:name="firebase_crashlytics_collection_enabled"
             android:value="${crashlyticsEnabled}" />

@@ -170,7 +170,7 @@ fun Chip(
     }
 }
 
-/** The live dot: the one place in the app, besides delete, that is red. */
+/** The live dot: the one place in the app, besides delete and errors, that is amber. */
 @Composable
 fun LiveChip(modifier: Modifier = Modifier) {
     Chip(

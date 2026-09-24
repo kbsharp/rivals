@@ -1,8 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="500" viewBox="0 0 1024 500">
-  <!-- Play Store feature graphic, 1024x500: the mark, the name, the line.
+  <!-- Play Store feature graphic, 1024x500: the rack, the name, the line.
        The text is drawn by scripts/play-graphics.sh with the app's bundled fonts. -->
-  <rect width="1024" height="500" fill="#131418"/>
-  <circle cx="170" cy="250" r="52" fill="#6FD3C4"/>
-  <circle cx="350" cy="250" r="52" fill="#F0A883"/>
-  <rect x="242" y="242" width="36" height="16" rx="8" fill="#F4F5F7"/>
+  <rect width="1024" height="500" fill="#0D0B14"/>
+  <circle cx="250" cy="104.4" r="39" fill="#3FE3EC"/>
+  <circle cx="208.4" cy="177.2" r="39" fill="#332D40"/>
+  <circle cx="291.6" cy="177.2" r="39" fill="#332D40"/>
+  <circle cx="166.8" cy="250" r="39" fill="#332D40"/>
+  <circle cx="250" cy="250" r="39" fill="#F4F5F7"/>
+  <circle cx="333.2" cy="250" r="39" fill="#332D40"/>
+  <circle cx="208.4" cy="322.8" r="39" fill="#332D40"/>
+  <circle cx="291.6" cy="322.8" r="39" fill="#332D40"/>
+  <circle cx="250" cy="395.6" r="39" fill="#FF5FA8"/>
 </svg>

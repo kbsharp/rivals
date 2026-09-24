@@ -1,6 +1,6 @@
 <resources>
     <!-- The brief's tokens, for the few places that can't reach the Compose theme: the window
          behind the first frame, and the launcher icon. -->
-    <color name="base">#F7F8FA</color>
-    <color name="ic_launcher_background">#131418</color>
+    <color name="base">#F8F7FA</color>
+    <color name="ic_launcher_background">#0D0B14</color>
 </resources>

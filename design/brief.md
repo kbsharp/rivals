@@ -16,18 +16,18 @@ Dark is the design; light is derived from it later.
 
 | Token | Hex | Used for |
 |---|---|---|
-| `base` | `#131418` | App and scoreboard background. Not black: panels must stay visible. |
-| `surface` | `#1B1D23` | Panels, the match-won banner, row avatars. |
-| `raised` | `#262A33` | Chips, secondary buttons, ring track. |
-| `hairline` | `#363B47` | Empty race pips, the dash between scores. Never a divider line. |
+| `base` | `#0D0B14` | App and scoreboard background. Not black: panels must stay visible. |
+| `surface` | `#18151F` | Panels, the match-won banner, row avatars. |
+| `raised` | `#231F2C` | Chips, secondary buttons, ring track. |
+| `hairline` | `#332D40` | Empty race pips, the dash between scores. Never a divider line. |
 | `fg` | `#F4F5F7` | Scores, headings, the primary button's fill. |
-| `fg-2` | `#A8AEBC` | Secondary text. |
-| `fg-3` | `#808898` | Small uppercase labels (5.0:1 on base). |
-| `you` | `#6FD3C4` | Your name, pips, bars, "you won". |
+| `fg-2` | `#ABA6BA` | Secondary text. |
+| `fg-3` | `#857F96` | Small uppercase labels (5.1:1 on base). |
+| `you` | `#3FE3EC` | Your name, pips, bars, "you won". |
 | `you-tint` | `you` at 16% | Chips on your side ("On the hill"). |
-| `rival` | `#F0A883` | Your rival's name, pips, bars, "they won". |
+| `rival` | `#FF5FA8` | Your rival's name, pips, bars, "they won". |
 | `rival-tint` | `rival` at 16% | Chips on their side. |
-| `live` | `#FF4757` | The live dot, and delete. Nothing else in the app is red. |
+| `live` | `#FFB020` | The live dot, delete and errors. Amber, because red sits too close to the rival's pink. |
 
 Rules that come with it:
 
@@ -36,9 +36,10 @@ Rules that come with it:
 - **The primary button is white** with `base` text. Colour is never used for a plain action.
 - **A chosen chip is `you` on `you-tint`.** Being chosen is a state, so it takes the accent
   rather than a white fill, which read as a toggle switch and left the pickers black and white.
-- Two colours only, plus red. No gradients, no tints of other hues, no colour for decoration.
-- Teal and apricot were chosen for colour-blind separation (warm against cool) and for being soft
-  rather than loud. Keep any replacement warm-vs-cool and similar in lightness.
+- Two colours only, plus amber. No gradients, no tints of other hues, no colour for decoration.
+- Cyan and hot pink ("neon hall", chosen 2026-09-24 over teal and apricot) are cool against warm,
+  and differ in lightness too, so they separate for colour-blind eyes. Keep any replacement
+  warm-vs-cool.
 
 ## Type
 
@@ -89,7 +90,7 @@ Two families, both open licence, bundled in the app (not downloaded):
   centre line.
 - **Scoreboard, match won:** the halves dim to 30%, a `surface` panel gives the match, "Kevin
   takes it 5 – 2", what happens next, and an Undo button.
-- **Home:** all-time score in big white numbers with teal and apricot labels beneath, the last ten
+- **Home:** all-time score in big white numbers with cyan and pink labels beneath, the last ten
   matches as a colour bar, tonight's score, then the primary action. Below: any invite, then plain
   rows for Add a rival and Quick game, then games kept on this phone.
 - **Rivalry:** a win-percentage ring in both colours beside the all-time score, the primary action,
@@ -109,13 +110,21 @@ The screens are built. Three things the brief didn't pin down, decided in the bu
   The mock-up says "last 10 matches"; the rivalry screen's Stats tab has the per-match record.
 - **The light theme is derived, not designed.** The neutrals invert (`base` #F7F8FA, `surface`
   white, `fg` #15171C) and the two player colours darken until they carry 4.5:1 on the light
-  ground: `you` #13756A, `rival` #9A4F1E, `live` #C81E2C. Warm against cool, and close in
-  lightness, as the palette rules ask. It is legible rather than drawn.
+  ground: `you` #00788A, `rival` #C2186A, `live` #9A5B00 (neutrals `base` #F8F7FA, `fg` #15131C).
+  It is legible rather than drawn.
+
+## The logo
+
+The diamond rack from `https://claude.ai/artifact/LdCkwaSaxS7kTzNNqFLZ5L` ("6a · Tips"): nine balls
+racked for 9-ball, the top one `you`, the bottom one `rival`, the 9 in the middle `fg`, the rest
+`hairline`, always on `base` (dark, in either theme, because the 9 is white). It is the launcher
+icon (`ic_launcher_foreground`, with a one-colour `ic_launcher_monochrome` for themed icons), the
+Play icon and feature graphic, and the launch splash. On Android 12+ the splash animates it
+(`splash_icon_animated`): the rack fades in, then you, your rival and the 9 grow into place, 750ms
+in all.
 
 ## Open design questions
 
 - The scoreboard has no colour fill, so in a bright room the halves are told apart only by the
   small coloured names. If that reads weakly on the phone, add a tint of about 8% to each half
   rather than colouring the numbers.
-- Teal and apricot are close in lightness, so the form bar on Home reads as texture until you look
-  at it. Check it on the phone before trusting it as a glanceable stat.

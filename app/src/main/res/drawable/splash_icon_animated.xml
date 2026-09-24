@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The splash on Android 12+: the rack fades in, then you, your rival and the 9 grow into place. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="108dp"
+            android:height="108dp"
+            android:viewportWidth="108"
+            android:viewportHeight="108">
+        <group
+            android:name="you"
+            android:pivotX="54"
+            android:pivotY="31.6"
+            android:scaleX="0"
+            android:scaleY="0">
+            <path
+                android:fillColor="#3FE3EC"
+                android:pathData="M48,31.6a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        </group>
+        <path
+            android:name="g1"
+            android:fillAlpha="0"
+            android:fillColor="#332D40"
+            android:pathData="M41.6,42.8a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        <path
+            android:name="g2"
+            android:fillAlpha="0"
+            android:fillColor="#332D40"
+            android:pathData="M54.4,42.8a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        <path
+            android:name="g3"
+            android:fillAlpha="0"
+            android:fillColor="#332D40"
+            android:pathData="M35.2,54a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        <group
+            android:name="nine"
+            android:pivotX="54"
+            android:pivotY="54"
+            android:scaleX="0"
+            android:scaleY="0">
+            <path
+                android:fillColor="#F4F5F7"
+                android:pathData="M48,54a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        </group>
+        <path
+            android:name="g4"
+            android:fillAlpha="0"
+            android:fillColor="#332D40"
+            android:pathData="M60.8,54a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        <path
+            android:name="g5"
+            android:fillAlpha="0"
+            android:fillColor="#332D40"
+            android:pathData="M41.6,65.2a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        <path
+            android:name="g6"
+            android:fillAlpha="0"
+            android:fillColor="#332D40"
+            android:pathData="M54.4,65.2a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        <group
+            android:name="rival"
+            android:pivotX="54"
+            android:pivotY="76.4"
+            android:scaleX="0"
+            android:scaleY="0">
+            <path
+                android:fillColor="#FF5FA8"
+                android:pathData="M48,76.4a6,6 0 1,0 12,0a6,6 0 1,0 -12,0z" />
+        </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="you">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:duration="250"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleX"
+                    android:startOffset="200"
+                    android:valueFrom="0"
+                    android:valueTo="1" />
+                <objectAnimator
+                    android:duration="250"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleY"
+                    android:startOffset="200"
+                    android:valueFrom="0"
+                    android:valueTo="1" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="g1">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="250"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0"
+                android:valueTo="1" />
+        </aapt:attr>
+    </target>
+    <target android:name="g2">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="250"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0"
+                android:valueTo="1" />
+        </aapt:attr>
+    </target>
+    <target android:name="g3">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="250"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0"
+                android:valueTo="1" />
+        </aapt:attr>
+    </target>
+    <target android:name="nine">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:duration="250"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleX"
+                    android:startOffset="500"
+                    android:valueFrom="0"
+                    android:valueTo="1" />
+                <objectAnimator
+                    android:duration="250"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleY"
+                    android:startOffset="500"
+                    android:valueFrom="0"
+                    android:valueTo="1" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="g4">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="250"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0"
+                android:valueTo="1" />
+        </aapt:attr>
+    </target>
+    <target android:name="g5">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="250"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0"
+                android:valueTo="1" />
+        </aapt:attr>
+    </target>
+    <target android:name="g6">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="250"
+                android:interpolator="@android:interpolator/fast_out_slow_in"
+                android:propertyName="fillAlpha"
+                android:valueFrom="0"
+                android:valueTo="1" />
+        </aapt:attr>
+    </target>
+    <target android:name="rival">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:duration="250"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleX"
+                    android:startOffset="350"
+                    android:valueFrom="0"
+                    android:valueTo="1" />
+                <objectAnimator
+                    android:duration="250"
+                    android:interpolator="@android:interpolator/fast_out_slow_in"
+                    android:propertyName="scaleY"
+                    android:startOffset="350"
+                    android:valueFrom="0"
+                    android:valueTo="1" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

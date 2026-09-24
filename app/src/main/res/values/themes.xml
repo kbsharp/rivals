@@ -4,4 +4,12 @@
     <style name="Theme.Rivals" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/base</item>
     </style>
+
+    <!-- The launch splash: the rack on the dark ground in either theme, since the 9 is white.
+         Still before Android 12; values-v31 animates it. -->
+    <style name="Theme.Rivals.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Rivals</item>
+    </style>
 </resources>

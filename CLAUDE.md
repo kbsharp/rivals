@@ -93,7 +93,7 @@ Show a clear message when Firestore refuses something; don't fail silently.
 4. **Session** (the main screen):
    - landscape and full screen: each player's half of the screen is the tap target for a frame win
    - one quiet status line along the bottom: the match clock, the match, the game and race, tonight's score, and the menu in the corner. Nothing sits on the centre line
-   - everything else sits behind that menu: tag the last frame (break & run, golden break), undo, change game or end match, end session
+   - everything else sits behind that menu: tag the last frame (break & run, golden break, won on three fouls), undo, change game or end match, end session
    - when a match is won the board dims and a panel names the winner, with Undo in it
    - keep it as clean as possible; don't add on-screen controls without a strong reason
 5. **Session detail**: one night, match by match, with its frames as boxed digits.
@@ -106,8 +106,8 @@ motion. Follow it for every UI change; don't introduce a colour, size or radius 
 screenshots. The mock-ups of the agreed direction are at
 <https://claude.ai/artifact/Cykp6oXE8meC1tupSfLu1c>.
 
-In short: charcoal `#131418`, white scores, teal `#6FD3C4` for you, apricot `#F0A883` for your
-rival, red `#FF4757` only for live and delete. Montserrat for numbers (tabular figures), Barlow
+In short: near-black `#0D0B14`, white scores, cyan `#3FE3EC` for you, hot pink `#FF5FA8` for your
+rival, amber `#FFB020` only for live, delete and errors. The logo is the diamond rack (brief, The logo). Montserrat for numbers (tabular figures), Barlow
 for text. No dividers, no grey cards, one primary action per screen.
 
 The tokens live in `ui/theme`: reach them through `Rivals.colors`, `Rivals.type`, `Space`,

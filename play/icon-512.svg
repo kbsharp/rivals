@@ -1,7 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <!-- Play Store icon: the rivalry mark on charcoal, full bleed (Play applies the mask). -->
-  <rect width="512" height="512" fill="#131418"/>
-  <circle cx="161" cy="256" r="58" fill="#6FD3C4"/>
-  <circle cx="351" cy="256" r="58" fill="#F0A883"/>
-  <rect x="235" y="247.5" width="42" height="17" rx="8.5" fill="#F4F5F7"/>
+  <!-- Play Store icon: the rack on the dark ground, full bleed (Play applies the mask). -->
+  <rect width="512" height="512" fill="#0D0B14"/>
+  <circle cx="256" cy="127.2" r="34.5" fill="#3FE3EC"/>
+  <circle cx="219.2" cy="191.6" r="34.5" fill="#332D40"/>
+  <circle cx="292.8" cy="191.6" r="34.5" fill="#332D40"/>
+  <circle cx="182.4" cy="256" r="34.5" fill="#332D40"/>
+  <circle cx="256" cy="256" r="34.5" fill="#F4F5F7"/>
+  <circle cx="329.6" cy="256" r="34.5" fill="#332D40"/>
+  <circle cx="219.2" cy="320.4" r="34.5" fill="#332D40"/>
+  <circle cx="292.8" cy="320.4" r="34.5" fill="#332D40"/>
+  <circle cx="256" cy="384.8" r="34.5" fill="#FF5FA8"/>
 </svg>
