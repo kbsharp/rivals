@@ -108,37 +108,16 @@ jobs:
       # phone for the runner's CPUs and takes twice as long. The test task below is then up to date.
       - name: Build the app and test APKs
         run: ./gradlew assembleDebug assembleDebugAndroidTest
-      # A booted AVD snapshot (and the system image it needs), so each run resumes the emulator
-      # in seconds instead of downloading the image and cold-booting. Bump the key to rebuild it.
-      - uses: actions/cache@v6
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-            /usr/local/lib/android/sdk/system-images/android-36
-          key: avd-36-google_apis-x86_64-6G-v1
-      - name: Create the AVD snapshot
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
+      - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 36
           arch: x86_64
           target: google_apis
           # Smaller than the 7.4 GB default partition, so a full-ish runner still boots.
           disk-size: 6G
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
-          script: echo "AVD snapshot created"
-      - uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 36
-          arch: x86_64
-          target: google_apis
-          disk-size: 6G
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot-save -noaudio -no-boot-anim -camera-back none
+          # Cold boot on purpose. A cached AVD snapshot (tried 2026-09-24) resumed in 45s but took
+          # 1.5 min to restore, and the tests then ran twice as slowly: a net loss of ~2 min.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: firebase emulators:exec --only auth,firestore "./gradlew connectedDebugAndroidTest"
       - if: failure()
