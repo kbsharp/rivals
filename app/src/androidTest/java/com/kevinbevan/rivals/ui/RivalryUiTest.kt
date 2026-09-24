@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.kevinbevan.rivals.domain.Count
 import com.kevinbevan.rivals.domain.GameTypeStats
@@ -133,10 +134,11 @@ class RivalryUiTest {
         // MATCHES and FRAMES appear again under each game type, so take the first of each.
         compose.onAllNodesWithText("MATCHES").onFirst().assertIsDisplayed()
         compose.onAllNodesWithText("FRAMES").onFirst().assertIsDisplayed()
-        compose.onNodeWithText("LONGEST RUN").assertIsDisplayed()
-        compose.onNodeWithText("BREAK & RUN").assertIsDisplayed()
-        compose.onNodeWithText("1 drawn").assertIsDisplayed()
-        compose.onNodeWithText("9-BALL").assertIsDisplayed()
+        // CI's emulator screen is shorter than a phone's, so the lower rows need scrolling to.
+        compose.onNodeWithText("LONGEST RUN").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("BREAK & RUN").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("1 drawn").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("9-BALL").performScrollTo().assertIsDisplayed()
     }
 
     @Test
