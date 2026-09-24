@@ -115,8 +115,8 @@ jobs:
           target: google_apis
           # Smaller than the 7.4 GB default partition, so a full-ish runner still boots.
           disk-size: 6G
-          # Cold boot on purpose. A cached AVD snapshot (tried 2026-09-24) resumed in 45s but took
-          # 1.5 min to restore, and the tests then ran twice as slowly: a net loss of ~2 min.
+          # Cold boot on purpose. A cached AVD snapshot (tried 2026-09-24) resumed in 45s, but
+          # restoring its 4 GiB took 1.5 min and the tests ran no faster: the job was a minute slower.
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: firebase emulators:exec --only auth,firestore "./gradlew connectedDebugAndroidTest"
