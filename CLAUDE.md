@@ -81,7 +81,7 @@ Guest (quick) games use the same documents, kept on the phone in `guest-games.js
 
 ## Security rules
 
-`firestore.rules` (kept in the repo with `firebase.json`, deployed with the Firebase CLI) is membership-based: anyone can sign in with Google, and a player can read and write only their own profile and email index entry, their rivalries, and the sessions (with matches and frames) they play in. A session can only be created in an active rivalry between exactly its two players. Profiles and the email index can be fetched by id but never listed, so the player base can't be browsed. `RulesTest` covers all of this against the emulator.
+`firestore.rules` (kept in the repo with `firebase.json`, deployed with the Firebase CLI) is membership-based: anyone can sign in with Google, and a player can read and write only their own profile and email index entry, their rivalries, and the sessions (with matches and frames) they play in. A session can only be created in an active rivalry between exactly its two players. Profiles and the email index can be fetched by id but never listed, so the player base can't be browsed. `rules-test/rules.test.js` covers all of this against the Firestore emulator, in Node (`npm test` in `rules-test/`, a few seconds). Its documents mirror what the repositories write, so when a repository's writes change, change them there too; `SyncTest` proves the app's real writes get through.
 
 Show a clear message when Firestore refuses something; don't fail silently.
 
@@ -127,8 +127,12 @@ their own renders; add a render whenever a pass introduces a new state.
 
 - `./gradlew assembleDebug` and `./gradlew installDebug`
 - `./gradlew test` and `./gradlew lint`
-- `scripts/emulator-tests.sh` runs the instrumented tests (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect, the allow-list, and Compose UI tests of each screen. Boots the `pool36` emulator headless if none is running; never touches the real project
-- CI: `.github/workflows/ci.yml` runs all of the above on every push to `github.com/kbsharp/rivals` (private). Check with `gh run list` / `gh run view`
+- `cd rules-test && npm test` runs the Firestore rules tests (Node, against the Firestore emulator; `npm ci` there first on a fresh checkout). Seconds, so run it for any change to `firestore.rules`
+- `scripts/emulator-tests.sh` runs the instrumented tests (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect, and Compose UI tests of each screen. Boots the `pool36` emulator headless if none is running; never touches the real project. The full run takes minutes, so:
+  - while iterating, run just the class you're working on: `scripts/emulator-tests.sh -Pandroid.testInstrumentationRunnerArguments.class=com.kevinbevan.rivals.ui.HomeUiTest` (comma-separate several classes; `Class#method` for one test)
+  - leave the Android emulator running between runs (the script reuses one that's up rather than booting its own)
+  - run the whole suite once, before committing
+- CI: `.github/workflows/ci.yml` runs all of the above (three jobs in parallel: unit tests/lint/build, rules, Android emulator) on every push to `github.com/kbsharp/rivals` (private). Check with `gh run list` / `gh run view`
 - `SyncTest.statsSeeEveryMatchAndFrameAcrossSessions` is flaky: it fails now and then with "There's no match running", a race between the write and the snapshot it reads back, and passes on a rerun. Rerun before chasing it; fix it properly if it starts failing often
 - `./gradlew installMinified` installs the R8-shrunk release code signed with the debug key, to catch R8 problems before an upload
 - `./gradlew bundleRelease` builds the AAB for Play (signed when `keystore.properties` exists)
@@ -155,8 +159,8 @@ Ask me to do these; don't try to work around them.
 - The `applicationId` and Kotlin package are `com.kevinbevan.rivals` (confirmed). It becomes permanent once uploaded to Play.
 - Increment `versionCode` on every upload.
 - Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
-- Anything that syncs between phones or depends on the rules gets an emulator test in `app/src/androidTest`, rather than relying on two real devices.
-- When a chunk of work builds and passes `test`, `lint` and (if it touches data or rules) `scripts/emulator-tests.sh`, always finish with all three without asking: commit, push, and install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` when the emulator is attached too). `adb` isn't on the PATH; it's under `platform-tools` in the `sdk.dir` from `local.properties`. This holds until the app is published on Play, when it gets revisited.
+- Anything that syncs between phones gets an emulator test in `app/src/androidTest`, rather than relying on two real devices. What the rules allow or refuse gets a case in `rules-test/`.
+- When a chunk of work builds and passes `test`, `lint` and (if it touches data or rules) `rules-test` and the full `scripts/emulator-tests.sh`, always finish with all three without asking: commit, push, and install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` when the emulator is attached too). `adb` isn't on the PATH; it's under `platform-tools` in the `sdk.dir` from `local.properties`. This holds until the app is published on Play, when it gets revisited.
 
 ## Distribution
 

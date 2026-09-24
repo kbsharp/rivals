@@ -11,6 +11,7 @@ import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Rivalry
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.model.winsOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import org.junit.After
@@ -216,6 +217,19 @@ class SyncTest {
             assertEquals(null, sam.rivalries.loadInvite(code)) // used up
             // And they can play straight away.
             sam.start(r, race2)
+        }
+    }
+
+    @Test
+    fun aDeclinedInviteIsGoneForBoth(): Unit = runBlocking {
+        TestClient("sam@example.com").use { sam ->
+            sam.signUp()
+            a.rivalries.invite(a.uid, sam.uid)
+            val id = Rivalry.idFor(a.uid, sam.uid)
+            sam.rivalries.observeRivalry(id).awaitValue("Sam sees the invite") { it?.status == RivalryStatus.PENDING }
+            sam.rivalries.remove(id)
+            // (Mapped to a Boolean: awaitValue can't wait for a null.)
+            a.rivalries.observeRivalry(id).map { it == null }.awaitValue("A sees it declined") { it }
         }
     }
 }
