@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -30,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,19 +36,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kevinbevan.rivals.R
 import com.kevinbevan.rivals.model.MatchSettings
-import com.kevinbevan.rivals.ui.components.ChoiceRow
 import com.kevinbevan.rivals.ui.components.IconAction
 import com.kevinbevan.rivals.ui.components.Label
 import com.kevinbevan.rivals.ui.components.LoadingState
 import com.kevinbevan.rivals.ui.components.PrimaryButton
-import com.kevinbevan.rivals.ui.components.RivalsTextField
 import com.kevinbevan.rivals.ui.components.Tabs
 import com.kevinbevan.rivals.ui.components.TopBar
 import com.kevinbevan.rivals.ui.components.WinRing
 import com.kevinbevan.rivals.ui.session.ConfirmDialog
-import com.kevinbevan.rivals.ui.rememberMatchDefaults
-import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
-import com.kevinbevan.rivals.ui.session.RivalsDialog
+import com.kevinbevan.rivals.ui.session.NewSessionDialog
 import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import com.kevinbevan.rivals.ui.theme.Shapes
@@ -281,49 +275,6 @@ private fun PrimaryAction(
                         color = Rivals.colors.fg2,
                     )
                 }
-            }
-        }
-    }
-}
-
-/** Match settings for the first match, plus an optional venue. */
-@Composable
-private fun NewSessionDialog(
-    recentVenues: List<String>,
-    onStart: (MatchSettings, String?) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val defaults = rememberMatchDefaults()
-    var settings by remember { mutableStateOf(defaults.last) }
-    var venue by rememberSaveable { mutableStateOf("") }
-    RivalsDialog(
-        title = "New session",
-        confirmLabel = "Start",
-        onConfirm = {
-            defaults.last = settings
-            onStart(settings, venue.trim().ifEmpty { null })
-        },
-        onDismiss = onDismiss,
-    ) {
-        Column(
-            Modifier.verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(Space.s16),
-        ) {
-            MatchSettingsPicker(settings, { settings = it })
-            RivalsTextField(
-                value = venue,
-                onValueChange = { venue = it.take(40) },
-                label = "Venue",
-                placeholder = "Optional",
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
-            )
-            if (recentVenues.isNotEmpty()) {
-                ChoiceRow(
-                    label = "Recent",
-                    options = recentVenues.map { it to it },
-                    selected = recentVenues.firstOrNull { venue.trim().equals(it, ignoreCase = true) },
-                    onSelect = { venue = it },
-                )
             }
         }
     }

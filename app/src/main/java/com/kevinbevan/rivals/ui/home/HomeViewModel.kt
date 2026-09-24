@@ -52,6 +52,8 @@ data class RivalCard(
      * collection-group query per rivalry.
      */
     val nights: List<Boolean?> = emptyList(),
+    /** Venues from past nights, most recent first, to offer when starting one. */
+    val recentVenues: List<String> = emptyList(),
 ) {
     val live: Boolean get() = activeSessionId != null
 }
@@ -139,6 +141,7 @@ class HomeViewModel(
                                     it.matchWins.winsOf(me) to it.matchWins.winsOf(rivalId)
                                 },
                                 nights = nights(mine, me, rivalId),
+                                recentVenues = SessionRepository.recentVenues(mine),
                             )
                             // A live rivalry leads, then the rest alphabetically: Home's hero is
                             // whoever you're playing right now.
@@ -180,6 +183,14 @@ class HomeViewModel(
     fun startQuickGame(names: Pair<String, String>, settings: MatchSettings) {
         val id = guestRepository.startGame(names, settings)
         local.update { it.copy(openSession = SessionRoute(id, guest = true)) }
+    }
+
+    /** Starts a night against [rivalryId]'s rival and opens it, or opens the one already running. */
+    fun startSession(rivalryId: String, settings: MatchSettings, venue: String?) = act("Couldn't start the session") {
+        val me = authRepository.currentUser?.uid ?: return@act
+        val rivalry = activeRivalries.firstOrNull { it.id == rivalryId } ?: error("That rivalry isn't active")
+        val id = rivalryRepository.startSession(rivalry, me, settings, venue)
+        local.update { it.copy(openSession = SessionRoute(id, guest = false)) }
     }
 
     fun acceptInvite(rivalryId: String) = act("Couldn't accept") {

@@ -83,6 +83,8 @@ Guest (quick) games use the same documents, kept on the phone in `guest-games.js
 
 `firestore.rules` (kept in the repo with `firebase.json`, deployed with the Firebase CLI) is membership-based: anyone can sign in with Google, and a player can read and write only their own profile and email index entry, their rivalries, and the sessions (with matches and frames) they play in. A session can only be created in an active rivalry between exactly its two players. Profiles and the email index can be fetched by id but never listed, so the player base can't be browsed. `rules-test/rules.test.js` covers all of this against the Firestore emulator, in Node (`npm test` in `rules-test/`, a few seconds). Its documents mirror what the repositories write, so when a repository's writes change, change them there too; `SyncTest` proves the app's real writes get through.
 
+The emulator doesn't enforce indexes, so a query that works in tests can still be refused in production. `firestore.indexes.json` holds the ones the app needs (the Stats tab's collection-group queries over `matches` and `frames` by `playerIds`); a new collection-group or compound query gets an entry there, deployed with `firebase deploy --only firestore:indexes`.
+
 Show a clear message when Firestore refuses something; don't fail silently.
 
 ## Screens

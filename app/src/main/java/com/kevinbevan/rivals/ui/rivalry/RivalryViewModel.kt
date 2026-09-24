@@ -139,11 +139,7 @@ class RivalryViewModel(
                 },
                 // The calculator drops any match or frame from a session outside this rivalry.
                 stats = StatsCalculator.compute(me, rivalId, sessions, matches, frames),
-                recentVenues = sessions
-                    .sortedByDescending { it.startedAt }
-                    .mapNotNull { it.venue?.trim()?.takeIf(String::isNotEmpty) }
-                    .distinctBy { it.lowercase() }
-                    .take(4),
+                recentVenues = SessionRepository.recentVenues(sessions),
                 pendingSync = allSessions.hasPendingWrites,
                 starting = local.starting,
                 error = local.error,

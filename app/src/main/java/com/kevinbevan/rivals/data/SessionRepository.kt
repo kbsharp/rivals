@@ -178,5 +178,12 @@ class SessionRepository(
         fun oldestActive(sessions: List<Session>): Session? =
             sessions.filter { it.status == Status.ACTIVE }
                 .minWithOrNull(compareBy<Session, Instant?>(nullsLast()) { it.startedAt }.thenBy { it.id })
+
+        /** Venues from [sessions], most recent first, to offer when starting a new one. */
+        fun recentVenues(sessions: List<Session>): List<String> =
+            sessions.sortedByDescending { it.startedAt }
+                .mapNotNull { it.venue?.trim()?.takeIf(String::isNotEmpty) }
+                .distinctBy { it.lowercase() }
+                .take(4)
     }
 }

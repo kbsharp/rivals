@@ -80,10 +80,20 @@ class HomeUiTest {
         compose.onNodeWithText("Alex").assertIsDisplayed()
         compose.onNodeWithText("Waiting for them to accept").assertIsDisplayed()
         compose.onNodeWithText("Accept").performClick()
-        // The one rival is Home's scoreboard, so the primary action opens their rivalry.
-        compose.onNodeWithText("Play Julian").performClick()
+        // The one rival is Home's scoreboard; its head to head is a link above the score.
+        compose.onNodeWithText("Head to head").performClick()
         assertEquals("r2", accepted)
         assertEquals("r1", opened)
+    }
+
+    @Test
+    fun playStartsANightAgainstTheRival() {
+        var started: String? = null
+        show(signedIn, HomeActions(onStartSession = { rivalry, _, _ -> started = rivalry }))
+        compose.onNodeWithText("Play Julian").performClick()
+        compose.onNodeWithText("New session").assertIsDisplayed()
+        compose.onNodeWithText("Start").performClick()
+        assertEquals("r1", started)
     }
 
     @Test

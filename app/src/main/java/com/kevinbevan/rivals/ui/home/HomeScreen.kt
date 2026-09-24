@@ -69,6 +69,7 @@ import com.kevinbevan.rivals.ui.history.formatDay
 import com.kevinbevan.rivals.ui.navigation.SessionRoute
 import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
+import com.kevinbevan.rivals.ui.session.NewSessionDialog
 import com.kevinbevan.rivals.ui.session.RivalsDialog
 import com.kevinbevan.rivals.ui.theme.Montserrat
 import com.kevinbevan.rivals.ui.theme.Rivals
@@ -104,6 +105,7 @@ fun HomeScreen(
             onOpenGuestGame = onOpenGuestGame,
             onSaveGuestGame = viewModel::saveGuestGame,
             onOpenRivalry = onOpenRivalry,
+            onStartSession = viewModel::startSession,
             onResumeSession = { onOpenSession(SessionRoute(it, guest = false)) },
             onAddRival = onAddRival,
             onAcceptInvite = viewModel::acceptInvite,
@@ -123,6 +125,8 @@ data class HomeActions(
     /** (game id, rivalry id, the guest id that was you) */
     val onSaveGuestGame: (String, String, String) -> Unit = { _, _, _ -> },
     val onOpenRivalry: (String) -> Unit = {},
+    /** (rivalry id, first match's settings, venue) */
+    val onStartSession: (String, MatchSettings, String?) -> Unit = { _, _, _ -> },
     /** Opens the session already running against a rival. */
     val onResumeSession: (String) -> Unit = {},
     val onAddRival: () -> Unit = {},
@@ -140,6 +144,7 @@ data class HomeActions(
 internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
     var settingUpGame by rememberSaveable { mutableStateOf(false) }
     var savingGameId by rememberSaveable { mutableStateOf<String?>(null) }
+    var startingRivalryId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
@@ -168,7 +173,7 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
 
             val hero = uiState.rivals.firstOrNull()
             if (hero != null) {
-                Hero(hero, actions)
+                Hero(hero, actions, onPlay = { startingRivalryId = hero.rivalryId })
             } else if (uiState.signedIn) {
                 NoRivalsYet(actions)
             } else {
@@ -214,6 +219,17 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
                 actions.onStartQuickGame(names, settings)
             },
             onDismiss = { settingUpGame = false },
+        )
+    }
+    val starting = uiState.rivals.firstOrNull { it.rivalryId == startingRivalryId }
+    if (starting != null) {
+        NewSessionDialog(
+            recentVenues = starting.recentVenues,
+            onStart = { settings, venue ->
+                startingRivalryId = null
+                actions.onStartSession(starting.rivalryId, settings, venue)
+            },
+            onDismiss = { startingRivalryId = null },
         )
     }
     val saving = uiState.finishedGuestGames.firstOrNull { it.id == savingGameId }
@@ -268,11 +284,12 @@ private fun HomeTopBar(uiState: HomeUiState, actions: HomeActions) {
 
 /** The rival you're playing, or the first of them: the screen's scoreboard. */
 @Composable
-private fun Hero(rival: RivalCard, actions: HomeActions) {
+private fun Hero(rival: RivalCard, actions: HomeActions, onPlay: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Label("All time", modifier = Modifier.weight(1f))
-            if (rival.live) LiveChip()
+            if (rival.live) LiveChip(Modifier.padding(end = Space.s12))
+            TextAction("Head to head", { actions.onOpenRivalry(rival.rivalryId) })
         }
         HeadToHead(
             yourScore = rival.myWins,
@@ -305,7 +322,7 @@ private fun Hero(rival: RivalCard, actions: HomeActions) {
         if (rival.activeSessionId != null) {
             PrimaryButton("Resume session", { actions.onResumeSession(rival.activeSessionId) })
         } else {
-            PrimaryButton("Play ${rival.name}", { actions.onOpenRivalry(rival.rivalryId) })
+            PrimaryButton("Play ${rival.name}", onPlay)
         }
     }
 }
