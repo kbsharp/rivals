@@ -72,7 +72,10 @@ fun RivalsNavHost() {
             )
         }
         composable<SessionRoute> {
-            SessionScreen(onExit = { navController.popBackStack() })
+            SessionScreen(
+                onExit = { navController.popBackStack() },
+                onHome = { navController.popBackStack(HomeRoute, inclusive = false) },
+            )
         }
         composable<SessionDetailRoute> {
             SessionDetailScreen(onBack = { navController.popBackStack() })

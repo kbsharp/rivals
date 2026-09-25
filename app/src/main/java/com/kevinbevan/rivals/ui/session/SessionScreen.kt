@@ -28,6 +28,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.systemGestures
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -63,6 +65,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -102,6 +105,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun SessionScreen(
     onExit: () -> Unit,
+    onHome: () -> Unit = onExit,
     viewModel: SessionViewModel = viewModel(factory = SessionViewModel.Factory),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -115,7 +119,7 @@ fun SessionScreen(
     SessionContent(
         uiState = uiState,
         actions = SessionActions(
-            onBack = onExit,
+            onBack = onHome,
             onRecordFrame = viewModel::recordFrame,
             onToggleEvent = viewModel::toggleEvent,
             onUndo = viewModel::undo,
@@ -130,8 +134,10 @@ fun SessionScreen(
 }
 
 /**
- * While a game is on screen: landscape (either way up), system bars hidden until swiped in,
- * and the screen kept awake since the phone sits on the table between shots.
+ * While a game is on screen: landscape (either way up), the status bar hidden, and the screen
+ * kept awake since the phone sits on the table between shots. The navigation bar stays, so one
+ * swipe up still leaves the app and a swipe in from the side still goes back; hidden, the first
+ * swipe only brought the bar in and the phone had to be fought to get out.
  * `MainActivity` handles orientation changes itself, so this doesn't recreate the activity.
  */
 @Composable
@@ -143,11 +149,11 @@ private fun ScoreboardWindow() {
         activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         val bars = WindowCompat.getInsetsController(activity.window, view)
         bars.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        bars.hide(WindowInsetsCompat.Type.systemBars())
+        bars.hide(WindowInsetsCompat.Type.statusBars())
         view.keepScreenOn = true
         onDispose {
             view.keepScreenOn = false
-            bars.show(WindowInsetsCompat.Type.systemBars())
+            bars.show(WindowInsetsCompat.Type.statusBars())
             activity.requestedOrientation = orientation
         }
     }
@@ -375,18 +381,23 @@ private fun ScoreHalf(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxHeight()
+            // Padded before the tap target, not inside it: a finger on the status line or
+            // swiping up out of the app from the bottom edge mustn't record a frame.
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.union(WindowInsets.systemGestures)
+                    .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+            )
+            .padding(bottom = StatusLineHeight)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
                 onClickLabel = "Record a frame for ${side.name}",
                 onClick = onClick,
-            )
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
-            .padding(bottom = StatusLineHeight),
+            ),
         contentAlignment = Alignment.Center,
     ) {
         // Sized from the space, not the font scale: it's a scoreboard, not body text.
-        val numberHeight = maxHeight * 0.45f
+        val numberHeight = maxHeight * ScoreShare
         val numberSize = with(LocalDensity.current) { numberHeight.toSp() }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -394,7 +405,7 @@ private fun ScoreHalf(
         ) {
             Text(
                 side.name.uppercase(),
-                style = Rivals.type.label.copy(fontSize = 13.sp),
+                style = Rivals.type.label.copy(fontSize = 20.sp),
                 color = color,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -412,6 +423,10 @@ private fun ScoreHalf(
     }
 }
 
+/** The score's share of the half's height, and its weight: big, but not a slab. */
+private const val ScoreShare = 0.52f
+private val ScoreWeight = FontWeight.Bold
+
 /**
  * How much of its font size a row of Montserrat digits actually fills: the cap height from the
  * font's own metrics (0.70), with a little slack. Everything above and below that in the line
@@ -427,7 +442,7 @@ private const val DigitHeight = 0.72f
  */
 @Composable
 private fun RollingScore(frames: Int, fontSize: TextUnit, emSize: Dp) {
-    val style = Rivals.type.score.copy(fontSize = fontSize, lineHeight = fontSize)
+    val style = Rivals.type.score.copy(fontSize = fontSize, lineHeight = fontSize, fontWeight = ScoreWeight)
     Box(
         modifier = Modifier.height(emSize * DigitHeight).clipToBounds(),
         contentAlignment = Alignment.Center,
@@ -469,10 +484,11 @@ private fun StatusLine(
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .height(StatusLineHeight)
-            .padding(start = 20.dp, end = Space.s4),
+            .padding(horizontal = Space.s4),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Space.s16),
+        horizontalArrangement = Arrangement.spacedBy(Space.s12),
     ) {
+        IconAction(R.drawable.ic_arrow_back, "Back to home", actions.onBack)
         MatchClock(match.startedAt)
         if (uiState.pendingSync) {
             Icon(
@@ -620,7 +636,6 @@ private fun GameMenu(
                 MenuItem("End match") { open = false; onDialog(SessionDialog.END_MATCH) }
             }
             MenuItem("End session") { open = false; onDialog(SessionDialog.END_SESSION) }
-            MenuItem("Back to home", R.drawable.ic_arrow_back) { open = false; actions.onBack() }
         }
     }
 }

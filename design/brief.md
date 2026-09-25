@@ -52,7 +52,7 @@ Two families, both open licence, bundled in the app (not downloaded):
 
 | Step | Spec | Used for |
 |---|---|---|
-| score | Montserrat 800, sized to ~45% of the half's height | The scoreboard numbers |
+| score | Montserrat 700, sized to ~52% of the half's height | The scoreboard numbers (Home's hero stays 800) |
 | display | Montserrat 800 · 56 / 60 | Head-to-head on a session, an invite, Sign in |
 | headline | Montserrat 700 · 24 / 30 | Screen titles, the match-won line |
 | title | Barlow 600 · 20 / 26 | Row titles, card headings |
@@ -84,9 +84,11 @@ Two families, both open licence, bundled in the app (not downloaded):
 
 ## The screens, as drawn in the mock-ups
 
-- **Scoreboard:** charcoal field, both halves tappable. Player name above in their colour, the
-  white score, then five race pips. One quiet line along the bottom holds the clock, the match,
-  the game, the race and tonight's score, with the menu button in the corner. Nothing sits on the
+- **Scoreboard:** charcoal field, both halves tappable. Player name above in their colour (20sp,
+  read from across the table), the white score, then five race pips. One quiet line along the
+  bottom holds a back-to-Home arrow, the clock, the match, the game, the race and tonight's score,
+  with the menu button in the corner. The status line and the system gesture strip below it are
+  not part of either half's tap target, and the navigation bar stays so one swipe leaves the app. Nothing sits on the
   centre line.
 - **Scoreboard, match won:** the halves dim to 30%, a `surface` panel gives the match, "Kevin
   takes it 5 – 2", what happens next, and an Undo button.
