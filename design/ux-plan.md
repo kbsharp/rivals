@@ -104,17 +104,27 @@ are. The chosen areas go in Decisions once Kevin has picked.
 ## UX phase 3: Proposals
 _Real alternatives, so the choice isn't just "polish the first idea"._
 
-- [ ] One artifact, linked here: for each problem area from phase 2, **two or three different
+- [x] One artifact, linked here: for each problem area from phase 2, **two or three different
       designs** as mock-ups side by side, built on `design/brief.md` (its palette, type and
       components only, landscape for the session screen). Each with its trade-off, the jobs it
       helps and hurts, and Claude's recommendation
-- [ ] The whole night as a storyboard in the recommended option: the sequence of screens from
+- [x] The whole night as a storyboard in the recommended option: the sequence of screens from
       opening the app to ending the session
 - [ ] 🧑 Kevin comments on the artifact; revise until each area has a decision
 - [ ] Decisions written below, and any new rule of thumb (e.g. "where actions live") added to
       `design/brief.md` and the Session section of `CLAUDE.md`
 
 **Exit:** every problem area has a chosen design, recorded here and in the brief.
+
+**Proposed 2026-09-26; waiting on Kevin's comments.** No pick of problem areas was recorded
+from phase 2, so all six are in (any can be dropped). Recommended: **1A** the last frame on the
+status line with one-tap Undo, named on both phones, amber for a double frame · **2A** tag by
+tapping that receipt, and in the match-won panel for the winning frame · **3B** ≡ opens a match
+sheet (game and race editable mid-match, End match, End session) · **4A** the match-won panel sets
+the next match; scoreboard messages live in the status line · **5A** back always goes Home, and
+the night ends with a full-time panel on both phones · **6A** a louder status line, with 6C (tinted
+halves) tried on the phone in phase 5. A 14-step storyboard runs a night through them. Source:
+`design/ux-proposals.html`.
 
 ## UX phase 4: Build
 _One problem area per pass, in the order below._
@@ -144,3 +154,4 @@ _Filled in by phases 2–3._
 _Links added as they are published._
 
 - UX phase 2 audit: <https://claude.ai/artifact/16muSoaiVPkBa4JsyCfEck> (source `design/ux-audit.md`)
+- UX phase 3 proposals: <https://claude.ai/artifact/PjVTJpHqistZrN2vwS7qXR> (source `design/ux-proposals.html`)
