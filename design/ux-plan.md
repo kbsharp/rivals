@@ -74,7 +74,7 @@ _Give the audit eyes. Everything a player can see or reach, as screenshots and a
 ## UX phase 2: Audit
 _A UX expert's review of the flow, before any solutions._
 
-- [ ] `design/ux-audit.md`, then published as an artifact (linked here). For each screen and each
+- [x] `design/ux-audit.md`, then published as an artifact (linked here). For each screen and each
       step of a night, check against the context above:
   - prominence against frequency (is the most common job the easiest?)
   - grouping (do the things in a menu belong together?)
@@ -83,15 +83,23 @@ _A UX expert's review of the flow, before any solutions._
   - reach and glanceability (one hand, landscape, dim light, phone on the rail)
   - the way in and the way out of each screen; dead ends; back behaviour
   - consistency (the same kind of action in the same place everywhere)
-- [ ] **In-game menu inventory:** a table of every item with how often it's used, when in a night,
+- [x] **In-game menu inventory:** a table of every item with how often it's used, when in a night,
       and what it's grouped with today. Proposes where each belongs: on screen, in a contextual
       place (e.g. the match-won panel, a long-press on the last frame), in the menu, elsewhere, or gone
-- [ ] Findings ranked by severity (blocks a task / slows it / friction / polish), each with its
+- [x] Findings ranked by severity (blocks a task / slows it / friction / polish), each with its
       screenshot and the job it hurts
-- [ ] **What works:** a short list of things the next phases must not break
+- [x] **What works:** a short list of things the next phases must not break
 - [ ] 🧑 Kevin reads it (comments on the artifact are fine) and picks which findings go forward
 
 **Exit:** the audit is agreed and the list of problem areas to solve is written below.
+
+**Written 2026-09-26; waiting on Kevin's read.** 16 findings (none blocks a task; 3 slow one,
+all about fixing a mistake: undo is silent on both phones, two taps deep beside End session, and
+nothing helps catch a double frame). The menu inventory moves tags and undo out of the menu to
+contextual and on-screen places, leaving it *Match settings*, *End match*, *End session*. Six
+problem areas are proposed for phase 3 (Fixing a mistake, Tagging, The game menu, Between
+matches, Leaving and ending, Glancing from the rail), plus two small fixes for phase 4 as they
+are. The chosen areas go in Decisions once Kevin has picked.
 
 ## UX phase 3: Proposals
 _Real alternatives, so the choice isn't just "polish the first idea"._
@@ -134,3 +142,5 @@ _Filled in by phases 2–3._
 ## Artifacts
 
 _Links added as they are published._
+
+- UX phase 2 audit: <https://claude.ai/artifact/16muSoaiVPkBa4JsyCfEck> (source `design/ux-audit.md`)
