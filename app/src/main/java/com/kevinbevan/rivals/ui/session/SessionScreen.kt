@@ -57,6 +57,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -613,7 +615,8 @@ private fun TopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Space.s16, Alignment.End),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Between matches the panel leads with tonight's score, so it isn't repeated here.
+            if (match != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Label("Tonight", maxLines = 1)
                 Text(
                     "${me.matches} – ${rival.matches}",
@@ -663,7 +666,8 @@ private fun FootLine(
 ) {
     val me = uiState.me ?: return
     val notice = uiState.notice
-    val receipt = uiState.lastFrame?.takeIf { uiState.canUndo }
+    // A frame's receipt belongs to a match on the board; between matches there's none to tag.
+    val receipt = uiState.lastFrame?.takeIf { uiState.canUndo && uiState.match != null }
     val cloud by animateFloatAsState(if (uiState.pendingSync) 1f else 0f, Motion.tween(Motion.NORMAL), label = "cloud")
     Row(
         modifier = modifier
@@ -836,7 +840,7 @@ private fun MatchSheet(
                     maxLines = 1,
                 )
             }
-            MatchSettingsRows(
+            MatchSettingsPicker(
                 settings = settings,
                 onChange = { settings = it; onChange(it) },
                 minRace = minRace,
@@ -934,7 +938,7 @@ private fun MatchWonPanel(
             Text(result.next, style = Rivals.type.body, color = Rivals.colors.fg2)
             Spacer(Modifier.height(Space.s8))
             if (changing) {
-                MatchSettingsRows(
+                MatchSettingsPicker(
                     settings = settings,
                     onChange = { settings = it; onTouched(); onChangeNext(it) },
                     gameLabel = "Next game",
@@ -1031,8 +1035,9 @@ internal fun formatLength(length: Duration): String {
 }
 
 /**
- * Between matches (after one was ended by hand): tonight's score, and the next match to start.
- * Home, notices and End session stay where they are on the board, on the top and foot lines.
+ * Between matches (after one was ended by hand): tonight's score as a row per player, with a
+ * pip for each match won and the leader's row in their colour, the matches played so far, and
+ * the next match to start. Home, notices and End session stay on the top and foot lines.
  */
 @Composable
 private fun NextMatchPanel(
@@ -1043,59 +1048,130 @@ private fun NextMatchPanel(
 ) {
     val defaults = rememberMatchDefaults()
     var settings by remember(uiState.lastSettings) { mutableStateOf(uiState.lastSettings) }
-    val me = uiState.me
-    val rival = uiState.rival
-    // Centred when it fits, scrolling from the top when landscape leaves too little height.
-    Column(
+    val me = uiState.me ?: return
+    val rival = uiState.rival ?: return
+    val number = uiState.nextMatchNumber
+    Row(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(vertical = StatusLineHeight)
-            .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .padding(top = StatusLineHeight, bottom = Space.s24)
+            .padding(horizontal = Space.s48)
+            .testTag("next-match"),
+        horizontalArrangement = Arrangement.spacedBy(40.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .widthIn(max = 720.dp)
-                .fillMaxWidth()
-                .padding(horizontal = Space.s24),
-            horizontalArrangement = Arrangement.spacedBy(Space.s32),
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s16)) {
-                Label("Tonight")
-                if (me != null && rival != null) {
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(Space.s12),
-                    ) {
-                        Text("${me.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
-                        Text(
-                            "–",
-                            style = Rivals.type.display.copy(fontSize = 24.sp),
-                            color = Rivals.colors.hairline,
-                            modifier = Modifier.padding(bottom = Space.s8),
-                        )
-                        Text("${rival.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Label(me.name, color = Rivals.colors.you)
-                        Label(rival.name, color = Rivals.colors.rival)
-                    }
-                }
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s12)) {
-                Label("Next match")
-                MatchSettingsPicker(settings, { settings = it })
-                PrimaryButton("Start match", {
-                    defaults.last = settings
-                    onStart(settings)
-                })
-                if (uiState.canUndo) {
-                    TextAction("Undo last frame", onUndo, Modifier.align(Alignment.CenterHorizontally))
+            Label("Tonight")
+            TallyRow(me, Rivals.colors.you, Rivals.colors.youTint, leads = me.matches > rival.matches)
+            TallyRow(rival, Rivals.colors.rival, Rivals.colors.rivalTint, leads = rival.matches > me.matches)
+            if (uiState.playedMatches.isNotEmpty()) {
+                Label("Matches", Modifier.padding(top = Space.s12))
+                Column {
+                    uiState.playedMatches.forEach { PlayedMatchRow(it, me.uid) }
                 }
             }
         }
+        Column(
+            modifier = Modifier.width(360.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(Space.s16),
+        ) {
+            MatchSettingsPicker(settings, { settings = it }, gameLabel = "Match $number · game")
+            PrimaryButton("Start match $number", {
+                defaults.last = settings
+                onStart(settings)
+            })
+            if (uiState.canUndo) {
+                TextAction("Undo last frame", onUndo, Modifier.align(Alignment.CenterHorizontally))
+            }
+        }
+    }
+}
+
+/** One player's line of tonight's score: name, a pip per match won, the count. */
+@Composable
+private fun TallyRow(side: PlayerSide, color: Color, tint: Color, leads: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .background(if (leads) tint else Rivals.colors.surface, Shapes.panel)
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text(
+            side.name,
+            style = Rivals.type.title,
+            color = color,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(side.matches.coerceAtMost(MaxPips)) {
+                Box(Modifier.size(10.dp).background(color, CircleShape))
+            }
+        }
+        Text(
+            "${side.matches}",
+            style = Rivals.type.number.copy(fontSize = 36.sp, lineHeight = 40.sp),
+            color = Rivals.colors.fg,
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(min = 48.dp).testTag("tonight-${side.uid}"),
+        )
+    }
+}
+
+/** Past this many the pips would crowd the name; the number carries the rest. */
+private const val MaxPips = 9
+
+/** "1   10-ball · race to 5 · ended early   Lara 3 – 2". */
+@Composable
+private fun PlayedMatchRow(played: PlayedMatch, youId: String) {
+    val detail = listOfNotNull(
+        played.settings.gameType?.label,
+        played.settings.raceTo?.let { "race to $it" },
+        "ended early".takeIf { played.endedEarly && played.settings.raceTo != null },
+    ).joinToString(" · ").replaceFirstChar { it.uppercase() }
+    val hairline = Rivals.colors.hairline
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .drawBehind {
+                drawLine(hairline, Offset(0f, size.height), Offset(size.width, size.height), 1.dp.toPx())
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text(
+            "${played.number}",
+            style = Rivals.type.number.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
+            color = Rivals.colors.fg3,
+            modifier = Modifier.widthIn(min = 18.dp),
+        )
+        Text(
+            detail,
+            style = Rivals.type.body.copy(fontSize = 15.sp),
+            color = Rivals.colors.fg2,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            played.winnerName ?: "Level",
+            style = Rivals.type.rowTitle.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
+            color = if (played.winnerId == null) Rivals.colors.fg2 else Rivals.colors.forPlayer(played.winnerId, youId),
+            maxLines = 1,
+        )
+        Text(
+            "${played.score.first} – ${played.score.second}",
+            style = Rivals.type.number.copy(fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold),
+            color = Rivals.colors.fg,
+        )
     }
 }
 
@@ -1136,6 +1212,12 @@ private fun BetweenMatchesPreview() {
                 me = PlayerSide("a", "Kevin", frames = 0, matches = 2),
                 rival = PlayerSide("b", "Julian", frames = 0, matches = 1),
                 canUndo = true,
+                nextMatchNumber = 4,
+                playedMatches = listOf(
+                    PlayedMatch(3, MatchSettings(GameType.TEN_BALL, raceTo = 5), "a", "Kevin", 3 to 2, endedEarly = true),
+                    PlayedMatch(2, MatchSettings(GameType.NINE_BALL, raceTo = 5), "b", "Julian", 5 to 4, endedEarly = false),
+                    PlayedMatch(1, MatchSettings(GameType.NINE_BALL, raceTo = 5), "a", "Kevin", 5 to 1, endedEarly = false),
+                ),
             ),
             SessionActions(),
         )

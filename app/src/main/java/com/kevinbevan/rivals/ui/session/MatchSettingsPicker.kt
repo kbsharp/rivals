@@ -5,14 +5,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,16 +23,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.ui.components.Label
 import com.kevinbevan.rivals.ui.components.SecondaryButton
 import com.kevinbevan.rivals.ui.components.TextAction
 import com.kevinbevan.rivals.ui.components.ToggleChip
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.testTag
 import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.theme.Motion
@@ -51,17 +44,21 @@ val DefaultMatchSettings = MatchSettings(gameType = null, raceTo = 5)
 private const val MAX_RACE = 21
 
 /**
- * Game and race-to, in the brief's chips rather than Material's segmented buttons.
+ * Game and race-to as a two-by-two grid: the two games side by side, and under them the race
+ * stepper beside "No limit", every cell the same width. The one picker everywhere a match is
+ * set up or changed: starting a night, between matches, the match sheet and the match-won panel.
  *
  * A game is optional: nothing is picked until you pick one, and tapping the chosen game again
  * clears it, leaving a match that only tracks a score. The race remembers its last length while
- * "open-ended" is on.
+ * "No limit" is on, and shows it dimmed. It can't go below [minRace], the leader's score plus one.
  */
 @Composable
 fun MatchSettingsPicker(
     settings: MatchSettings,
     onChange: (MatchSettings) -> Unit,
     modifier: Modifier = Modifier,
+    minRace: Int = 1,
+    gameLabel: String = "Game",
 ) {
     var lastRace by remember { mutableIntStateOf(settings.raceTo ?: DefaultMatchSettings.raceTo!!) }
     val race = settings.raceTo
@@ -70,17 +67,15 @@ fun MatchSettingsPicker(
         Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
             // The label carries "optional" rather than a line under the chips, which would
             // appear and disappear as a game is picked and push the race row about.
-            Label(if (settings.gameType == null) "Game · optional" else "Game")
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(Space.s8),
-                verticalArrangement = Arrangement.spacedBy(Space.s8),
-            ) {
+            Label(if (settings.gameType == null) "$gameLabel · optional" else gameLabel)
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
                 GameType.entries.forEach { type ->
                     val chosen = settings.gameType == type
                     ChoiceChip(
                         text = type.label,
                         selected = chosen,
                         onClick = { onChange(settings.copy(gameType = if (chosen) null else type)) },
+                        modifier = Modifier.weight(1f),
                     )
                 }
             }
@@ -88,23 +83,24 @@ fun MatchSettingsPicker(
 
         Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
             Label("Race to")
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(Space.s12),
-                verticalArrangement = Arrangement.spacedBy(Space.s8),
-                itemVerticalAlignment = Alignment.CenterVertically,
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
                 Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(Space.touch)
+                        .alpha(if (race == null) 0.45f else 1f)
+                        .background(Rivals.colors.raised, Shapes.pill),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Space.s12),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Stepper("−", "One fewer frame", enabled = race != null && race > 1) {
+                    Stepper("−", "One fewer frame", enabled = race != null && race > minRace) {
                         onChange(settings.copy(raceTo = race!! - 1))
                     }
                     Text(
-                        text = race?.toString() ?: "–",
-                        modifier = Modifier.widthIn(min = 44.dp),
-                        style = Rivals.type.headline.copy(fontSize = 28.sp),
-                        color = if (race == null) Rivals.colors.fg3 else Rivals.colors.fg,
+                        text = (race ?: lastRace).toString(),
+                        modifier = Modifier.testTag("race-to"),
+                        style = Rivals.type.number,
+                        color = Rivals.colors.fg,
                         textAlign = TextAlign.Center,
                     )
                     Stepper("+", "One more frame", enabled = race != null && race < MAX_RACE) {
@@ -112,17 +108,18 @@ fun MatchSettingsPicker(
                     }
                 }
                 ChoiceChip(
-                    text = "Open-ended",
+                    text = "No limit",
                     selected = race == null,
                     onClick = {
                         val open = race != null
                         if (open) lastRace = race
-                        onChange(settings.copy(raceTo = if (open) null else lastRace))
+                        onChange(settings.copy(raceTo = if (open) null else lastRace.coerceAtLeast(minRace)))
                     },
+                    modifier = Modifier.weight(1f),
                 )
             }
             if (race == null) {
-                Hint("No race; end the match by hand.")
+                Hint("You'll end this one from the menu.")
             }
         }
     }
@@ -135,66 +132,16 @@ private fun Hint(text: String) {
 }
 
 @Composable
-private fun ChoiceChip(text: String, selected: Boolean, onClick: () -> Unit) =
-    ToggleChip(text, selected, onClick, role = Role.RadioButton)
+private fun ChoiceChip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) =
+    ToggleChip(text, selected, onClick, modifier, role = Role.RadioButton)
 
-/**
- * Game and race on two rows, each led by its label: the match sheet's and the match-won
- * panel's version of [MatchSettingsPicker]. Every tap is a change, applied at once. The race
- * can't go below [minRace], the leader's score plus one.
- */
-@Composable
-fun MatchSettingsRows(
-    settings: MatchSettings,
-    onChange: (MatchSettings) -> Unit,
-    modifier: Modifier = Modifier,
-    minRace: Int = 1,
-    gameLabel: String = "Game",
-) {
-    var lastRace by remember { mutableIntStateOf(settings.raceTo ?: DefaultMatchSettings.raceTo!!) }
-    val race = settings.raceTo
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
-            Label(gameLabel, Modifier.width(RowLabelWidth))
-            GameType.entries.forEach { type ->
-                val chosen = settings.gameType == type
-                ChoiceChip(type.label, chosen) { onChange(settings.copy(gameType = if (chosen) null else type)) }
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
-            Label("Race to", Modifier.width(RowLabelWidth))
-            Stepper("−", "One fewer frame", enabled = race != null && race > minRace) {
-                onChange(settings.copy(raceTo = race!! - 1))
-            }
-            Text(
-                text = race?.toString() ?: "–",
-                modifier = Modifier.widthIn(min = 40.dp).testTag("race-to"),
-                style = Rivals.type.headline,
-                color = if (race == null) Rivals.colors.fg3 else Rivals.colors.fg,
-                textAlign = TextAlign.Center,
-            )
-            Stepper("+", "One more frame", enabled = race != null && race < MAX_RACE) {
-                onChange(settings.copy(raceTo = race!! + 1))
-            }
-            Spacer(Modifier.width(Space.s4))
-            ChoiceChip("Open-ended", race == null) {
-                val open = race != null
-                if (open) lastRace = race
-                onChange(settings.copy(raceTo = if (open) null else lastRace.coerceAtLeast(minRace)))
-            }
-        }
-    }
-}
-
-private val RowLabelWidth = 80.dp
-
+/** A − or + inside the race cell: a full touch target, drawn as just its glyph. */
 @Composable
 private fun Stepper(glyph: String, label: String, enabled: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .size(Space.touch)
             .alpha(if (enabled) 1f else 0.4f)
-            .background(Rivals.colors.raised, CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClickLabel = label, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -279,7 +226,7 @@ fun RivalsDialog(
 }
 
 fun MatchSettings.describe(): String {
-    val race = raceTo?.let { "race to $it" } ?: "open-ended"
+    val race = raceTo?.let { "race to $it" } ?: "no limit"
     return gameType?.let { "${it.label} · $race" } ?: race
 }
 

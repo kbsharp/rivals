@@ -22,6 +22,7 @@ import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.ui.session.DoubleFrame
 import com.kevinbevan.rivals.ui.session.FrameReceipt
 import com.kevinbevan.rivals.ui.session.FullTime
+import com.kevinbevan.rivals.ui.session.PlayedMatch
 import com.kevinbevan.rivals.ui.session.MatchResult
 import com.kevinbevan.rivals.ui.session.Notice
 import androidx.compose.ui.semantics.SemanticsActions
@@ -275,9 +276,22 @@ class SessionUiTest {
     @Test
     fun betweenMatchesTheNextOneCanBeStarted() {
         var started: MatchSettings? = null
-        show(state().copy(match = null, lastSettings = race5), SessionActions(onStartMatch = { started = it }))
+        show(
+            state().copy(
+                match = null,
+                lastSettings = race5,
+                nextMatchNumber = 2,
+                playedMatches = listOf(PlayedMatch(1, race5, "a", "Kevin", 3 to 2, endedEarly = true)),
+            ),
+            SessionActions(onStartMatch = { started = it }),
+        )
         compose.onNodeWithTag("score-a").assertDoesNotExist()
-        compose.onNodeWithText("Start match").performClick()
+        // Tonight's score is on the panel, not repeated on the top line; no frame receipt to tag.
+        compose.onNodeWithTag("tonight-a").assertTextEquals("1")
+        compose.onNodeWithTag("tonight").assertDoesNotExist()
+        compose.onNodeWithTag("receipt").assertDoesNotExist()
+        compose.onNodeWithText("race to 5 · ended early", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Start match 2").performClick()
         assertEquals(race5, started)
         // Home and End session are on the status line, as on the board.
         compose.onNodeWithContentDescription("Back to home").assertIsDisplayed()

@@ -49,6 +49,18 @@ import kotlinx.coroutines.launch
 /** One player's side of the scoreboard. */
 data class PlayerSide(val uid: String, val name: String, val frames: Int, val matches: Int)
 
+/** A finished match, for the list between matches. [winnerId] is `null` when it ended level. */
+data class PlayedMatch(
+    val number: Int,
+    val settings: MatchSettings,
+    val winnerId: String?,
+    val winnerName: String?,
+    /** The winner's frames first; when level, either. */
+    val score: Pair<Int, Int>,
+    /** Ended by hand before anyone reached the race. */
+    val endedEarly: Boolean,
+)
+
 /**
  * A match that has just been won, for the panel that dims the board. Both phones work it out
  * from the same snapshot, so the result shows on the rival's phone too.
@@ -104,6 +116,10 @@ data class SessionUiState(
     val match: Match? = null,
     /** Settings for the next match: the latest match's. */
     val lastSettings: MatchSettings = DefaultMatchSettings,
+    /** The number the next match will get. */
+    val nextMatchNumber: Int = 1,
+    /** Tonight's finished matches that had frames, latest first. */
+    val playedMatches: List<PlayedMatch> = emptyList(),
     /** The session's last frame; `null` when no frame has been played. */
     val lastFrame: FrameReceipt? = null,
     /** The match just won, while the panel is still up; `null` once it's been seen. */
@@ -291,6 +307,22 @@ class SessionViewModel(
                 )
             },
             lastSettings = latest?.settings ?: DefaultMatchSettings,
+            nextMatchNumber = (latest?.number ?: 0) + 1,
+            playedMatches = latestFirst
+                .filter { it.status == Status.ENDED && it.framesPlayed > 0 }
+                .map { m ->
+                    val winnerId = m.winnerId
+                    val mine = m.frameWins.winsOf(myId)
+                    val theirs = m.frameWins.winsOf(rivalId)
+                    PlayedMatch(
+                        number = m.number,
+                        settings = m.settings,
+                        winnerId = winnerId,
+                        winnerName = winnerId?.let { if (it == myId) me.name else rivalSide.name },
+                        score = if (winnerId == rivalId) theirs to mine else mine to theirs,
+                        endedEarly = m.settings.raceTo.let { it == null || maxOf(mine, theirs) < it },
+                    )
+                },
             lastFrame = played.frame?.let { frame ->
                 FrameReceipt(
                     number = frame.number,
