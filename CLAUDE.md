@@ -94,12 +94,12 @@ Show a clear message when Firestore refuses something; don't fail silently.
 3. **Rivalry**: the win ring and all-time score, the primary action, then **SESSIONS | STATS** tabs. Sessions is the nights you've played; Stats is the mirrored table. Neither is a screen of its own any more.
 4. **Session** (the main screen):
    - landscape and full screen: each player's half of the screen is the tap target for a frame win
-   - one status line along the bottom: the back arrow, the match clock, the last frame's receipt with a one-tap Undo, the match, the game and race, tonight's score, and ≡ in the corner. Nothing sits on the centre line
+   - a line along the top: the back arrow and the match, game and race on the left, the clock centred with a one-tap Undo beside it, tonight's score and ≡ on the right. Along the foot, only the last frame's receipt, centred, with the unsynced cloud in a fixed slot beside it. Nothing sits on the centre line
    - where actions live (UX phase 3; `design/brief.md`, "Where actions live"; built in UX phase 4):
-     - the last frame (undo, and tagging it: break & run, golden break, won on three fouls) is on its receipt
+     - the last frame: Undo beside the clock, and tagging it (break & run, golden break, won on three fouls) on its receipt; choosing a tag closes them
      - the match (game, race, End match) and End session are in the match sheet behind ≡
      - the next match's settings, and the winning frame's tags, are in the match-won panel
-   - anything done to the score is named on both phones; scoreboard messages go in the status line, never over a button
+   - anything done to the score is named on both phones; scoreboard messages go in the receipt's place, never over a button
    - back (arrow or gesture) goes Home and never ends the night; ending it shows a full-time panel on both phones, then Home
    - when a match is won the board dims and a panel names the winner, with Undo in it
    - keep it as clean as possible; don't add on-screen controls without a strong reason

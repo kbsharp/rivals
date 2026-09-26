@@ -160,6 +160,11 @@ Progress (2026-09-26):
 ## UX phase 5: A real night
 - [ ] 🧑 Kevin and Julian play a night on the new build; Kevin notes anything that jars
 - [ ] Fix those, or add them to the next round of this plan
+  - [x] 2026-09-26, from Kevin's first look on the phone: the foot was too crowded, the cloud
+        shifted it, back and Undo read alike, and ≡ felt odd at the bottom. Rebuilt as option B
+        of <https://claude.ai/artifact/5pFaFnwYzqyi3DcLJkGqaj>: back, the match, the clock with
+        Undo, tonight's score and ≡ along the top; only the receipt at the foot, its tags centred
+        above it and closing once one is chosen; the cloud in a fixed slot beside the receipt.
 - [ ] Tick Phase 13 in PLAN.md; Release (Phase 7) is next
 
 **Exit:** a full night played without reaching for the wrong thing.

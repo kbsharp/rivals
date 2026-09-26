@@ -174,7 +174,11 @@ class SessionUiTest {
         compose.onNodeWithText("GOLDEN BREAK").assertIsSelected()
         compose.onNodeWithText("BREAK & RUN").performClick()
         assertEquals(listOf(FrameEvent.BREAK_AND_RUN), toggled)
-        // A tap off the tags closes them, rather than recording a frame.
+        // Choosing a tag closes the row.
+        compose.onNodeWithTag("tags").assertDoesNotExist()
+        // A tap off the tags closes them too, rather than recording a frame.
+        compose.onNodeWithTag("receipt").performClick()
+        compose.onNodeWithTag("tags").assertIsDisplayed()
         compose.onNodeWithTag("tags-backdrop").performClick()
         compose.onNodeWithTag("tags").assertDoesNotExist()
     }

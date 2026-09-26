@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -49,7 +48,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -62,8 +60,6 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
@@ -78,7 +74,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -111,7 +106,6 @@ import com.kevinbevan.rivals.ui.theme.Shapes
 import com.kevinbevan.rivals.ui.theme.Space
 import java.time.Duration
 import java.time.Instant
-import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 /**
@@ -197,13 +191,13 @@ class SessionActions(
 
 private enum class SessionDialog { END_MATCH, END_SESSION }
 
-/** The status line along the foot of the board. Nothing sits on the centre line. */
+/** The height of the lines along the top and foot of the board. Nothing sits on the centre line. */
 private val StatusLineHeight = 52.dp
 
 /** How long the match-won panel holds the board before the next match gets on with it. */
 private const val ResultPanelMillis = 9_000L
 
-/** How long a notice has the status line: what an undo took back, or what went wrong. */
+/** How long a notice has the foot of the board: what an undo took back, or what went wrong. */
 private const val NoticeMillis = 4_000L
 private const val WarningMillis = 6_000L
 
@@ -212,16 +206,15 @@ private const val WarningMillis = 6_000L
  * frame for them. Their name and race pips carry their colour; the score is always white.
  *
  * Every other action lives on the thing it acts on (brief, "Where actions live"): the last
- * frame's receipt on the status line holds Undo and its tags, the match sheet behind ≡ holds
- * the match and the night, and the match-won panel sets the next match. Messages take the
- * receipt's place on the status line, never a snackbar over the board.
+ * frame's Undo sits by the clock and its tags on its receipt at the foot of the board, the
+ * match sheet behind ≡ holds the match and the night, and the match-won panel sets the next
+ * match. Messages take the receipt's place, never a snackbar over the board.
  */
 @Composable
 internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
     var dialog by rememberSaveable { mutableStateOf<SessionDialog?>(null) }
     var sheetOpen by rememberSaveable { mutableStateOf(false) }
     var tagsOpen by rememberSaveable { mutableStateOf(false) }
-    var receiptX by remember { mutableIntStateOf(0) }
     val notice = uiState.notice
     LaunchedEffect(notice?.key) {
         if (notice != null) {
@@ -320,7 +313,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     modifier = Modifier
                         .align(Alignment.Center)
                         .windowInsetsPadding(WindowInsets.safeDrawing)
-                        .padding(bottom = StatusLineHeight),
+                        .padding(vertical = StatusLineHeight),
                 ) {
                     // Kept after the result clears so the panel can fade rather than vanish.
                     val shown = result ?: lastResult ?: return@AnimatedVisibility
@@ -344,14 +337,17 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     onUndo = actions.onUndo,
                 )
             }
-            StatusLine(
+            TopBar(
                 uiState = uiState,
-                tagsOpen = tagsOpen,
                 onBack = actions.onBack,
                 onUndo = actions.onUndo,
-                onReceipt = { tagsOpen = !tagsOpen },
-                onReceiptPlaced = { receiptX = it },
                 onMenu = { if (match != null) sheetOpen = true else dialog = SessionDialog.END_SESSION },
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+            FootLine(
+                uiState = uiState,
+                tagsOpen = tagsOpen,
+                onReceipt = { tagsOpen = !tagsOpen },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
             if (tagsOpen && receipt != null) {
@@ -359,10 +355,10 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                 TagRow(
                     receipt = receipt,
                     youId = me.uid,
-                    onToggle = actions.onToggleEvent,
+                    // One tag is the usual job, so choosing it closes the row.
+                    onToggle = { actions.onToggleEvent(it); tagsOpen = false },
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .offset { IntOffset(receiptX, 0) }
+                        .align(Alignment.BottomCenter)
                         .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                         .padding(bottom = StatusLineHeight + Space.s4),
                 )
@@ -377,9 +373,9 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     onEndMatch = { sheetOpen = false; dialog = SessionDialog.END_MATCH },
                     onEndSession = { sheetOpen = false; dialog = SessionDialog.END_SESSION },
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
-                        .padding(start = Space.s48, end = Space.s48, bottom = StatusLineHeight + Space.s4),
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+                        .padding(start = Space.s48, end = Space.s48, top = StatusLineHeight + Space.s4),
                 )
             }
         }
@@ -470,13 +466,14 @@ private fun ScoreHalf(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxHeight()
-            // Padded before the tap target, not inside it: a finger on the status line or
+            // Padded before the tap target, not inside it: a finger on the top or foot line or
             // swiping up out of the app from the bottom edge mustn't record a frame.
             .windowInsetsPadding(
                 WindowInsets.safeDrawing.union(WindowInsets.systemGestures)
                     .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
             )
-            .padding(bottom = StatusLineHeight)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+            .padding(vertical = StatusLineHeight)
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
@@ -555,45 +552,130 @@ private fun RollingScore(frames: Int, fontSize: TextUnit, emSize: Dp) {
 }
 
 /**
- * The line along the bottom, read from the rail: back, the match clock, the last frame's
- * receipt with Undo (or a notice in its place), then the match and tonight's score, with ≡ in
- * the corner. Between matches it keeps the same place for back, notices and ≡.
+ * The line along the top, read from the rail: back and what's being played on the left,
+ * tonight's score and ≡ on the right, and the match clock in the middle with Undo beside it.
+ * The clock stays centred whether or not Undo is there, and Undo is kept away from back.
  */
 @Composable
-private fun StatusLine(
+private fun TopBar(
     uiState: SessionUiState,
-    tagsOpen: Boolean,
     onBack: () -> Unit,
     onUndo: () -> Unit,
-    onReceipt: () -> Unit,
-    onReceiptPlaced: (Int) -> Unit,
     onMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val me = uiState.me ?: return
     val rival = uiState.rival ?: return
     val match = uiState.match
+    // The match-won and between-matches panels have their own Undo.
+    val undo = uiState.lastFrame?.takeIf { uiState.canUndo && match != null && uiState.justWon == null }
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+            .height(StatusLineHeight)
+            .padding(horizontal = Space.s4),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The two sides share the width equally, so the clock sits on the centre of the screen.
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.s12),
+        ) {
+            IconAction(R.drawable.ic_arrow_back, "Back to home", onBack)
+            if (match != null) {
+                Text(
+                    "Match ${match.number} · ${match.settings.describe()}".uppercase(),
+                    style = Rivals.type.status,
+                    color = Rivals.colors.fg2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.padding(horizontal = Space.s16),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.s8),
+        ) {
+            // An empty slot on the left the width of Undo keeps the clock centred.
+            Spacer(Modifier.size(Space.touch))
+            if (match != null) MatchClock(match.startedAt)
+            if (undo != null) {
+                UndoButton(undo.number, onUndo)
+            } else {
+                Spacer(Modifier.size(Space.touch))
+            }
+        }
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Space.s16, Alignment.End),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Label("Tonight", maxLines = 1)
+                Text(
+                    "${me.matches} – ${rival.matches}",
+                    style = Rivals.type.number.copy(fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold),
+                    color = Rivals.colors.fg,
+                    maxLines = 1,
+                    modifier = Modifier.testTag("tonight"),
+                )
+            }
+            IconAction(R.drawable.ic_menu, "Game menu", onMenu)
+        }
+    }
+}
+
+/** Takes the last frame back: one tap, unconfirmed, on both phones. */
+@Composable
+private fun UndoButton(frame: Int, onUndo: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(Space.touch)
+            .clickable(role = Role.Button, onClickLabel = "Undo frame $frame", onClick = onUndo)
+            .testTag("undo"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(40.dp).background(Rivals.colors.raised, CircleShape), contentAlignment = Alignment.Center) {
+            Icon(
+                painterResource(R.drawable.ic_undo),
+                contentDescription = "Undo frame $frame",
+                tint = Rivals.colors.fg,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+/**
+ * The foot of the board holds one thing, centred: the last frame's receipt, or a notice in its
+ * place. The unsynced cloud has a slot of its own beside it, kept whether it shows or not, so
+ * nothing moves when it comes and goes.
+ */
+@Composable
+private fun FootLine(
+    uiState: SessionUiState,
+    tagsOpen: Boolean,
+    onReceipt: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val me = uiState.me ?: return
     val notice = uiState.notice
     val receipt = uiState.lastFrame?.takeIf { uiState.canUndo }
+    val cloud by animateFloatAsState(if (uiState.pendingSync) 1f else 0f, Motion.tween(Motion.NORMAL), label = "cloud")
     Row(
         modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .height(StatusLineHeight)
-            .padding(horizontal = Space.s4),
+            .padding(horizontal = Space.s48),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(Space.s12),
+        horizontalArrangement = Arrangement.spacedBy(Space.s8, Alignment.CenterHorizontally),
     ) {
-        IconAction(R.drawable.ic_arrow_back, "Back to home", onBack)
-        if (match != null) MatchClock(match.startedAt)
-        if (uiState.pendingSync) {
-            Icon(
-                painterResource(R.drawable.ic_cloud_upload),
-                contentDescription = "Saved on this phone, waiting to sync",
-                tint = Rivals.colors.fg3,
-                modifier = Modifier.size(16.dp),
-            )
-        }
+        // Matches the cloud's slot, so the receipt is centred on the screen.
+        Spacer(Modifier.size(CloudSlot))
         when {
             notice != null -> NoticePill(notice, Modifier.weight(1f, fill = false))
             receipt != null -> Receipt(
@@ -601,58 +683,28 @@ private fun StatusLine(
                 youId = me.uid,
                 open = tagsOpen,
                 onClick = onReceipt,
-                onUndo = onUndo,
-                modifier = Modifier
-                    .weight(1f, fill = false)
-                    .onGloballyPositioned { onReceiptPlaced(it.positionInRoot().x.roundToInt()) },
-            )
-        }
-        MatchInfo(
-            match = match,
-            tonight = me.matches to rival.matches,
-            // Beside a receipt it moves right to make room; alone it sits in the middle.
-            alignEnd = notice != null || receipt != null,
-            modifier = Modifier.weight(1f),
-        )
-        IconAction(R.drawable.ic_menu, "Game menu", onMenu)
-    }
-}
-
-/** What's being played, one step louder than a label, and tonight's score as a score. */
-@Composable
-private fun MatchInfo(match: Match?, tonight: Pair<Int, Int>, alignEnd: Boolean, modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(Space.s16, if (alignEnd) Alignment.End else Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (match != null) {
-            Text(
-                "Match ${match.number} · ${match.settings.describe()}".uppercase(),
-                style = Rivals.type.status,
-                color = Rivals.colors.fg2,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Label("Tonight", maxLines = 1)
-            Text(
-                "${tonight.first} – ${tonight.second}",
-                style = Rivals.type.number.copy(fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold),
-                color = Rivals.colors.fg,
-                maxLines = 1,
-                modifier = Modifier.testTag("tonight"),
-            )
+        Box(Modifier.size(CloudSlot).alpha(cloud), contentAlignment = Alignment.Center) {
+            if (uiState.pendingSync) {
+                Icon(
+                    painterResource(R.drawable.ic_cloud_upload),
+                    contentDescription = "Saved on this phone, waiting to sync",
+                    tint = Rivals.colors.fg3,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }
+
+private val CloudSlot = 20.dp
 
 /**
  * The last frame: "FRAME 6 · KEVIN", the name in its winner's colour, "· THEIR PHONE" when the
  * other phone recorded it, and its tags. Amber when it looks like one frame recorded on both
- * phones. Tapping it opens the tags; the round button beside it takes it back.
+ * phones. Tapping it opens the tags above it; Undo is up by the clock.
  */
 @Composable
 private fun Receipt(
@@ -660,7 +712,6 @@ private fun Receipt(
     youId: String,
     open: Boolean,
     onClick: () -> Unit,
-    onUndo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val double = receipt.double
@@ -678,43 +729,24 @@ private fun Receipt(
             FrameEvent.entries.filter { it in receipt.events }.forEach { add(" · ${it.label}") }
         }
     }
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s4)) {
-        Box(
+    Box(
+        modifier = modifier
+            .heightIn(min = Space.touch)
+            .clickable(role = Role.Button, onClickLabel = "Tag frame ${receipt.number}", onClick = onClick)
+            .testTag("receipt"),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = Rivals.type.label.copy(letterSpacing = 0.08.em),
+            color = if (double != null) Rivals.colors.live else Rivals.colors.fg2,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .weight(1f, fill = false)
-                .heightIn(min = Space.touch)
-                .clickable(role = Role.Button, onClickLabel = "Tag frame ${receipt.number}", onClick = onClick)
-                .testTag("receipt"),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text,
-                style = Rivals.type.label.copy(letterSpacing = 0.08.em),
-                color = if (double != null) Rivals.colors.live else Rivals.colors.fg2,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .background(if (double != null) Rivals.colors.liveTint else Rivals.colors.raised, Shapes.pill)
-                    .let { if (open) it.border(2.dp, Rivals.colors.fg3, Shapes.pill) else it }
-                    .padding(horizontal = 14.dp, vertical = 9.dp),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .size(Space.touch)
-                .clickable(role = Role.Button, onClickLabel = "Undo frame ${receipt.number}", onClick = onUndo)
-                .testTag("undo"),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(Modifier.size(40.dp).background(Rivals.colors.raised, CircleShape), contentAlignment = Alignment.Center) {
-                Icon(
-                    painterResource(R.drawable.ic_undo),
-                    contentDescription = "Undo frame ${receipt.number}",
-                    tint = Rivals.colors.fg,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
+                .background(if (double != null) Rivals.colors.liveTint else Rivals.colors.raised, Shapes.pill)
+                .let { if (open) it.border(2.dp, Rivals.colors.fg3, Shapes.pill) else it }
+                .padding(horizontal = 14.dp, vertical = 9.dp),
+        )
     }
 }
 
@@ -1000,7 +1032,7 @@ internal fun formatLength(length: Duration): String {
 
 /**
  * Between matches (after one was ended by hand): tonight's score, and the next match to start.
- * Home, notices and End session stay where they are on the board, on the status line.
+ * Home, notices and End session stay where they are on the board, on the top and foot lines.
  */
 @Composable
 private fun NextMatchPanel(
@@ -1018,7 +1050,7 @@ private fun NextMatchPanel(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .padding(bottom = StatusLineHeight)
+            .padding(vertical = StatusLineHeight)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -1027,7 +1059,7 @@ private fun NextMatchPanel(
             modifier = Modifier
                 .widthIn(max = 720.dp)
                 .fillMaxWidth()
-                .padding(horizontal = Space.s24, vertical = Space.s16),
+                .padding(horizontal = Space.s24),
             horizontalArrangement = Arrangement.spacedBy(Space.s32),
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s16)) {

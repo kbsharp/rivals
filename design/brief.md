@@ -85,10 +85,11 @@ Two families, both open licence, bundled in the app (not downloaded):
 ## The screens, as drawn in the mock-ups
 
 - **Scoreboard:** charcoal field, both halves tappable. Player name above in their colour (20sp,
-  read from across the table), the white score, then five race pips. One quiet line along the
-  bottom holds a back-to-Home arrow, the clock, the match, the game, the race and tonight's score,
-  with the menu button in the corner. The status line and the system gesture strip below it are
-  not part of either half's tap target, and the navigation bar stays so one swipe leaves the app. Nothing sits on the
+  read from across the table), the white score, then five race pips. A quiet line along the
+  top holds the back-to-Home arrow and the match, game and race on the left, the clock centred
+  with Undo beside it, and tonight's score and ≡ on the right. The foot of the board holds only
+  the last frame's receipt, centred. Neither line, nor the system gesture strip, is
+  part of either half's tap target, and the navigation bar stays so one swipe leaves the app. Nothing sits on the
   centre line.
 - **Scoreboard, match won:** the halves dim to 30%, a `surface` panel gives the match, "Kevin
   takes it 5 – 2", what happens next, and an Undo button.
@@ -145,18 +146,20 @@ Agreed with Kevin in UX phase 3 (`design/ux-plan.md`, Decisions); the mock-ups a
 <https://claude.ai/artifact/PjVTJpHqistZrN2vwS7qXR>.
 
 - **An action lives on the thing it acts on.** About the last frame (undo, tags): on the last
-  frame's receipt in the status line. About the match: the match sheet behind ≡, or the
+  frame's receipt at the foot of the board (tags), and Undo beside the clock at the top, away from
+  the back arrow. About the match: the match sheet behind ≡, or the
   match-won panel for the next match. About the night: last in the match sheet, set apart.
 - **The other phone is never surprised.** Anything done to the score (a frame, an undo, a tag)
   is named on both phones, and says when it came from the other phone.
-- **Messages on the scoreboard go in the status line**, in place of the receipt, never over a
+- **Messages on the scoreboard go at the foot of the board**, in place of the receipt, never over a
   button, and never as a snackbar outside the palette.
 - **Back from the scoreboard goes Home**, whether you use the arrow or the system gesture.
   Leaving never ends the night, and resuming shows the board as you left it.
 - **A night ends at the table:** a full-time panel on both phones, then Home.
-- **The status line is read from the rail.** Its text is Barlow 600 14 sp, +0.06em, in `fg-2`,
+- **The top and foot lines are read from the rail.** Their text is Barlow 600 14 sp, +0.06em, in `fg-2`,
   and tonight's score is white Montserrat 700 20 sp. This is the one place outside the type table's
-  steps. A double frame (two within 10 s from different phones) is the one amber state on the board.
+  steps. Nothing on them moves when something else comes and goes: the clock stays centred
+  whether Undo shows or not, and the unsynced cloud has its own slot beside the receipt. A double frame (two within 10 s from different phones) is the one amber state on the board.
 
 ## Open design questions
 

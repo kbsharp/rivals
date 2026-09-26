@@ -105,19 +105,19 @@ the phase 4 states named below.
 | Action | Where it lives | Taps | Job |
 |---|---|---|---|
 | **Record a frame** | Tap the player's half; a haptic, and the score rolls | 1 | 1 |
-| See the last frame | Its receipt on the status line: "FRAME 6 · KEVIN", "· THEIR PHONE" when the other phone recorded it, and its tags (`session-receipt-their-phone`, `session-receipt-tagged`) | 0 | 1, 2 |
-| **Undo the last frame** | Round button beside the receipt; one tap, unconfirmed. Both phones then show "KEVIN UNDID FRAME 6 · 4 – 2 → 3 – 2" in the receipt's place for 4 s (`session-undone`) | 1 | 2 |
+| See the last frame | Its receipt, centred at the foot of the board: "FRAME 6 · KEVIN", "· THEIR PHONE" when the other phone recorded it, and its tags (`session-receipt-their-phone`, `session-receipt-tagged`) | 0 | 1, 2 |
+| **Undo the last frame** | Round button to the right of the clock, top centre; one tap, unconfirmed. Both phones then show "KEVIN UNDID FRAME 6 · 4 – 2 → 3 – 2" in the receipt's place for 4 s (`session-undone`) | 1 | 2 |
 | Catch a double frame | Two frames from different phones within 10 s turn the receipt amber: "FRAMES 2 & 3 · 3 S APART" (`session-double`) | 0 | 2 |
-| **Tag the last frame** | Tap the receipt → *Break & run*, *Golden break*, *Won on three fouls* above it; a chosen tag wears the winner's colour; a tap off them closes them (`session-tags`) | 2 | 3 |
-| Back to Home | Arrow, left end of the status line (session keeps running) | 1 | 6 |
-| Read the clock, match, game, race, tonight's score | Status line: the match at 14 sp in `fg-2`, tonight's score in white numbers | 0 | 1, 4 |
-| Pending-sync cloud | Status line, after the clock (`session-pending`) | 0 | feedback |
+| **Tag the last frame** | Tap the receipt → *Break & run*, *Golden break*, *Won on three fouls* centred above it; a chosen tag wears the winner's colour; choosing one, or a tap off them, closes them (`session-tags`) | 2 | 3 |
+| Back to Home | Arrow, left end of the top line (session keeps running) | 1 | 6 |
+| Read the clock, match, game, race, tonight's score | Top line: the match at 14 sp in `fg-2` on the left, the clock centred, tonight's score in white numbers on the right | 0 | 1, 4 |
+| Pending-sync cloud | Its own slot right of the receipt, kept when hidden so nothing shifts (`session-pending`) | 0 | feedback |
 | "On the hill" | Chip under a player's pips at race − 1 | 0 | 1 |
-| Messages ("Couldn't save…", "Match 4 ended · no winner") | In the receipt's place on the status line, amber for errors, 4–6 s (`session-message`, `session-next-notice`) | 0 | feedback |
+| Messages ("Couldn't save…", "Match 4 ended · no winner") | In the receipt's place at the foot, amber for errors, 4–6 s (`session-message`, `session-next-notice`) | 0 | feedback |
 
-### The match sheet (≡, right end of the status line)
+### The match sheet (≡, right end of the top line)
 
-≡ dims the board and raises a sheet above the status line (`session-sheet`,
+≡ dims the board and drops a sheet below the top line (`session-sheet`,
 `session-sheet-new-match`, `session-sheet-open-ended`). A tap on the dimmed board closes it.
 
 | Item | Shown when | Taps | Job |
@@ -150,14 +150,14 @@ phones, with a heavier haptic.
 ### Between matches (`session-next`)
 
 Only after *End match* by hand. Two columns: tonight's score; "Next match" with the settings
-picker. The status line stays, with back, notices and ≡.
+picker. The top line stays, with back, tonight's score and ≡, and the foot keeps notices and the receipt.
 
 | Action | Where it lives | Taps (from here) | Job |
 |---|---|---|---|
 | **Start match** | Primary button, with the game and race picker above it | 1 + adjustments | 4 |
 | *Undo last frame* | Text action under it (reopens the ended match) | 1 | 2 |
-| *End session* → confirm (`session-next-end-session`) | ≡ on the status line | 2 | 5 |
-| Back to Home | Arrow on the status line | 1 | 6 |
+| *End session* → confirm (`session-next-end-session`) | ≡ on the top line | 2 | 5 |
+| Back to Home | Arrow on the top line | 1 | 6 |
 
 ### Leaving the session
 
