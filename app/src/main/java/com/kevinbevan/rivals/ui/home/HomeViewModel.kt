@@ -15,6 +15,7 @@ import com.kevinbevan.rivals.model.Rivalry
 import com.kevinbevan.rivals.model.RivalryStatus
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.model.Status
+import com.kevinbevan.rivals.model.capitalised
 import com.kevinbevan.rivals.model.displayNames
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
@@ -91,6 +92,9 @@ data class HomeUiState(
 ) {
     val activeGuestGame: GuestGame? get() = guestGames.firstOrNull { it.active }
     val finishedGuestGames: List<GuestGame> get() = guestGames.filter { !it.active }
+
+    /** A finished quick game can go to a rivalry once you're signed in and have a rival. */
+    val canSaveGuestGames: Boolean get() = signedIn && rivals.isNotEmpty()
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -124,7 +128,7 @@ class HomeViewModel(
                     val names = displayNames(players)
                     fun nameOf(uid: String) = names[uid] ?: "Someone"
                     Cloud(
-                        myName = names[me] ?: user.displayName.orEmpty(),
+                        myName = names[me] ?: capitalised(user.displayName.orEmpty()),
                         rivalries = rivalries,
                         rivals = rivalries.filter { it.status == RivalryStatus.ACTIVE }.map { r ->
                             val rivalId = r.rivalOf(me)
@@ -153,7 +157,7 @@ class HomeViewModel(
                     )
                 }
             }
-            .catch { emit(Cloud(myName = user.displayName.orEmpty(), error = messageFor(it))) }
+            .catch { emit(Cloud(myName = capitalised(user.displayName.orEmpty()), error = messageFor(it))) }
     }
 
     val uiState: StateFlow<HomeUiState> = combine(cloud, guestRepository.observeGames(), local) { cloud, games, local ->
@@ -255,7 +259,7 @@ class HomeViewModel(
                 }
 
         private fun guestGame(s: Session): GuestGame {
-            fun side(id: String) = GuestSide(id, s.names[id] ?: "Player", s.matchWins.winsOf(id))
+            fun side(id: String) = GuestSide(id, s.names[id]?.let(::capitalised) ?: "Player", s.matchWins.winsOf(id))
             return GuestGame(
                 id = s.id,
                 active = s.status == Status.ACTIVE,

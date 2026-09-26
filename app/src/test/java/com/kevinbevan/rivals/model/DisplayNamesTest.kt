@@ -17,13 +17,20 @@ class DisplayNamesTest {
     @Test
     fun sharedFirstNamesFallBackToFullNames() {
         val names = displayNames(listOf(p("a", "Kevin Bevan", "k@x.com"), p("b", "kevin Smith", "s@x.com")))
-        assertEquals(mapOf("a" to "Kevin Bevan", "b" to "kevin Smith"), names)
+        assertEquals(mapOf("a" to "Kevin Bevan", "b" to "Kevin Smith"), names)
     }
 
     @Test
     fun identicalNamesFallBackToEmails() {
         val names = displayNames(listOf(p("a", "Kevin", "iambevan@gmail.com"), p("b", "kevin", "kbevan.dev@gmail.com")))
         assertEquals(mapOf("a" to "iambevan", "b" to "kbevan.dev"), names)
+    }
+
+    @Test
+    fun namesAreCapitalisedButOtherwiseAsTyped() {
+        assertEquals(mapOf("a" to "Julian", "b" to "Kevin"), displayNames(listOf(p("a", "julian", "j@x.com"), p("b", "Kevin B", "k@x.com"))))
+        assertEquals("Mary-jane McDonald", capitalised(" mary-jane mcDonald "))
+        assertEquals("", capitalised(""))
     }
 
     @Test

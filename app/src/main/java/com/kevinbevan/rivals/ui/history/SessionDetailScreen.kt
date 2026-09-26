@@ -58,6 +58,7 @@ import com.kevinbevan.rivals.ui.components.IconAction
 import com.kevinbevan.rivals.ui.components.Label
 import com.kevinbevan.rivals.ui.components.LoadingState
 import com.kevinbevan.rivals.ui.components.StatRow
+import com.kevinbevan.rivals.ui.components.PrimaryButton
 import com.kevinbevan.rivals.ui.components.TopBar
 import com.kevinbevan.rivals.ui.session.ConfirmDialog
 import com.kevinbevan.rivals.ui.session.describe
@@ -70,13 +71,15 @@ import java.time.Instant
 @Composable
 fun SessionDetailScreen(
     onBack: () -> Unit,
+    /** Saves a finished quick game to a rivalry; `null` when it can't be. */
+    onSave: (() -> Unit)? = null,
     viewModel: SessionDetailViewModel = viewModel(factory = SessionDetailViewModel.Factory),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(uiState.deleted) {
         if (uiState.deleted) onBack()
     }
-    SessionDetailContent(uiState, onBack, onDelete = viewModel::delete)
+    SessionDetailContent(uiState, onBack, onDelete = viewModel::delete, onSave = onSave)
 }
 
 /**
@@ -88,6 +91,7 @@ internal fun SessionDetailContent(
     uiState: SessionDetailUiState,
     onBack: () -> Unit,
     onDelete: () -> Unit,
+    onSave: (() -> Unit)? = null,
 ) {
     val session = uiState.session
     var confirmingDelete by rememberSaveable { mutableStateOf(false) }
@@ -132,6 +136,8 @@ internal fun SessionDetailContent(
             )
             else -> {
                 Header(session, me, rival)
+                // A quick game is only on this phone until it's saved: that's the thing to do here.
+                if (onSave != null && session?.status == Status.ENDED) PrimaryButton("Save to a rivalry", onSave)
                 val totals = remember(uiState.matches, me.uid) { eventTotals(uiState.matches, me.uid) }
                 if (totals.isNotEmpty()) NightTotals(totals)
                 if (uiState.matches.isEmpty()) {

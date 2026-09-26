@@ -21,6 +21,7 @@ import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.ui.session.DoubleFrame
 import com.kevinbevan.rivals.ui.session.FrameReceipt
+import com.kevinbevan.rivals.ui.session.FullTime
 import com.kevinbevan.rivals.ui.session.MatchResult
 import com.kevinbevan.rivals.ui.session.Notice
 import androidx.compose.ui.semantics.SemanticsActions
@@ -278,5 +279,30 @@ class SessionUiTest {
         compose.onNodeWithContentDescription("Back to home").assertIsDisplayed()
         compose.onNodeWithContentDescription("Game menu").performClick()
         compose.onNodeWithText("End tonight's session?").assertIsDisplayed()
+    }
+
+    @Test
+    fun fullTimeTellsTheNightAndLeavesForHomeOrItsDetail() {
+        var done = 0
+        var seeNight = 0
+        show(
+            state(a = 5, b = 4, matchesA = 3, matchesB = 1).copy(
+                match = null,
+                fullTime = FullTime(
+                    venue = "The Crown", length = java.time.Duration.ofMinutes(182), winnerId = "a",
+                    headline = "Kevin takes the night 3 – 1", summary = "Four matches, 26 frames.",
+                    allTime = 13 to 9, lastMatch = null,
+                ),
+            ),
+            SessionActions(onBack = { done++ }, onSeeNight = { seeNight++ }),
+        )
+        compose.onNodeWithText("FULL TIME · THE CROWN · 3 H 02 M").assertIsDisplayed()
+        compose.onNodeWithText("Kevin takes the night 3 – 1").assertIsDisplayed()
+        compose.onNodeWithText("13 – 9").assertIsDisplayed()
+        // The board behind it no longer takes frames.
+        compose.onNodeWithTag("score-a").assertDoesNotExist()
+        compose.onNodeWithText("See the night").performClick()
+        compose.onNodeWithText("Done").performClick()
+        assertEquals(1 to 1, done to seeNight)
     }
 }

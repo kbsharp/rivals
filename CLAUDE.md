@@ -95,7 +95,7 @@ Show a clear message when Firestore refuses something; don't fail silently.
 4. **Session** (the main screen):
    - landscape and full screen: each player's half of the screen is the tap target for a frame win
    - one status line along the bottom: the back arrow, the match clock, the last frame's receipt with a one-tap Undo, the match, the game and race, tonight's score, and ≡ in the corner. Nothing sits on the centre line
-   - where actions live (UX phase 3; `design/brief.md`, "Where actions live"). **Being built in UX phase 4**, so check `design/ux-plan.md` for what has landed:
+   - where actions live (UX phase 3; `design/brief.md`, "Where actions live"; built in UX phase 4):
      - the last frame (undo, and tagging it: break & run, golden break, won on three fouls) is on its receipt
      - the match (game, race, End match) and End session are in the match sheet behind ≡
      - the next match's settings, and the winning frame's tags, are in the match-won panel

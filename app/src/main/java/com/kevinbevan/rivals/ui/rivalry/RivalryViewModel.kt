@@ -16,6 +16,7 @@ import com.kevinbevan.rivals.domain.StatsCalculator
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Rivalry
 import com.kevinbevan.rivals.model.RivalryStatus
+import com.kevinbevan.rivals.model.capitalised
 import com.kevinbevan.rivals.model.displayNames
 import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
@@ -119,7 +120,7 @@ class RivalryViewModel(
             val active = SessionRepository.oldestActive(sessions)
             RivalryUiState(
                 loading = false,
-                myName = names[me] ?: user.displayName.orEmpty(),
+                myName = names[me] ?: capitalised(user.displayName.orEmpty()),
                 rivalName = names[rivalId] ?: "Rival",
                 accepted = r.status == RivalryStatus.ACTIVE,
                 myWins = totals.winsOf(me),

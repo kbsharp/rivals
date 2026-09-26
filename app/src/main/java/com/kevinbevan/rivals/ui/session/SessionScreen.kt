@@ -1,6 +1,7 @@
 package com.kevinbevan.rivals.ui.session
 
 import android.content.pm.ActivityInfo
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -113,17 +114,24 @@ import java.time.Instant
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
+/**
+ * The scoreboard. [onHome] is every way off it: the arrow, system back, a night deleted
+ * because nothing was played, and *Done* at full time. [onSeeNight] opens the night's detail
+ * from the full-time panel.
+ */
 @Composable
 fun SessionScreen(
-    onExit: () -> Unit,
-    onHome: () -> Unit = onExit,
+    onHome: () -> Unit,
+    onSeeNight: () -> Unit = onHome,
     viewModel: SessionViewModel = viewModel(factory = SessionViewModel.Factory),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState.ended) {
-        if (uiState.ended) onExit()
+        if (uiState.ended) onHome()
     }
+    // Back means one thing on the board: Home, with the night still running.
+    BackHandler(onBack = onHome)
 
     ScoreboardWindow()
 
@@ -140,6 +148,8 @@ fun SessionScreen(
             onEndSession = viewModel::endSession,
             onDismissResult = viewModel::dismissResult,
             onDismissNotice = viewModel::dismissNotice,
+            onResultShown = viewModel::resultShown,
+            onSeeNight = onSeeNight,
         ),
     )
 }
@@ -181,6 +191,8 @@ class SessionActions(
     val onEndSession: () -> Unit = {},
     val onDismissResult: () -> Unit = {},
     val onDismissNotice: (Notice) -> Unit = {},
+    val onResultShown: (String) -> Unit = {},
+    val onSeeNight: () -> Unit = {},
 )
 
 private enum class SessionDialog { END_MATCH, END_SESSION }
@@ -233,8 +245,11 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
 
     val haptics = LocalHapticFeedback.current
     LaunchedEffect(result?.matchId) {
-        // A heavier thump than a frame: the match is over.
-        if (result != null) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        if (result != null) {
+            // A heavier thump than a frame: the match is over.
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            actions.onResultShown(result.matchId)
+        }
     }
     LaunchedEffect(result?.matchId, held) {
         if (result != null && !held) {
@@ -249,8 +264,22 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
     }
 
     Box(Modifier.fillMaxSize().background(Rivals.colors.base)) {
+        val fullTime = uiState.fullTime
         if (uiState.loading || me == null || rival == null) {
             Label("Opening the scoreboard…", Modifier.align(Alignment.Center))
+        } else if (fullTime != null) {
+            // Full time: the last match stays on the dimmed board, and the panel tells the night.
+            Row(Modifier.fillMaxSize().alpha(0.3f)) {
+                ScoreHalf(me, Rivals.colors.you, Rivals.colors.youTint, fullTime.lastMatch?.settings?.raceTo, false, {}, Modifier.weight(1f))
+                ScoreHalf(rival, Rivals.colors.rival, Rivals.colors.rivalTint, fullTime.lastMatch?.settings?.raceTo, false, {}, Modifier.weight(1f))
+            }
+            FullTimePanel(
+                fullTime = fullTime,
+                youId = me.uid,
+                onDone = actions.onBack,
+                onSeeNight = actions.onSeeNight,
+                modifier = Modifier.align(Alignment.Center).windowInsetsPadding(WindowInsets.safeDrawing),
+            )
         } else {
             if (match != null) {
                 // The board dims behind a panel or the sheet so it's the only thing to read.
@@ -900,6 +929,73 @@ private fun MatchWonPanel(
             if (canUndo) SecondaryButton("Undo", onUndo, Modifier.fillMaxWidth())
         }
     }
+}
+
+/**
+ * The night is over, on both phones: where and how long, who took it, what happened, and what
+ * it does to the all-time score. *Done* goes Home; *See the night* opens its detail.
+ */
+@Composable
+private fun FullTimePanel(
+    fullTime: FullTime,
+    youId: String,
+    onDone: () -> Unit,
+    onSeeNight: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val header = listOfNotNull("Full time", fullTime.venue, fullTime.length?.let(::formatLength)).joinToString(" · ")
+    Row(
+        modifier = modifier
+            .widthIn(max = 720.dp)
+            .padding(horizontal = Space.s24)
+            .background(Rivals.colors.surface, Shapes.panel)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 28.dp, vertical = Space.s24)
+            .testTag("full-time"),
+        horizontalArrangement = Arrangement.spacedBy(Space.s24),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+            Label(
+                header,
+                color = when (fullTime.winnerId) {
+                    null -> Rivals.colors.fg3
+                    else -> Rivals.colors.forPlayer(fullTime.winnerId, youId)
+                },
+            )
+            Text(
+                fullTime.headline,
+                style = Rivals.type.headline.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                color = Rivals.colors.fg,
+            )
+            if (fullTime.summary.isNotEmpty()) {
+                Text(fullTime.summary, style = Rivals.type.body, color = Rivals.colors.fg2)
+            }
+            fullTime.allTime?.let { (mine, theirs) ->
+                Row(
+                    Modifier.padding(top = Space.s12),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Space.s16),
+                ) {
+                    Label("All time")
+                    Text(
+                        "$mine – $theirs",
+                        style = Rivals.type.number.copy(fontSize = 26.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold),
+                        color = Rivals.colors.fg,
+                    )
+                }
+            }
+        }
+        Column(Modifier.width(180.dp), verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+            PrimaryButton("Done", onDone)
+            SecondaryButton("See the night", onSeeNight, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/** "3 h 02 m", or "42 min" under the hour. */
+internal fun formatLength(length: Duration): String {
+    val minutes = length.toMinutes().coerceAtLeast(0)
+    return if (minutes >= 60) "%d h %02d m".format(minutes / 60, minutes % 60) else "$minutes min"
 }
 
 /**

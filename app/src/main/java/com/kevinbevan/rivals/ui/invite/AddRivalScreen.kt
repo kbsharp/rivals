@@ -33,6 +33,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kevinbevan.rivals.model.capitalised
 import com.kevinbevan.rivals.R
 import com.kevinbevan.rivals.ui.components.Avatar
 import com.kevinbevan.rivals.ui.components.ListRow
@@ -228,12 +229,12 @@ private fun Found(uiState: AddRivalUiState, onInvite: () -> Unit) {
     val found = uiState.found
     when {
         found != null && uiState.invited -> ListRow(
-            title = found.displayName.ifBlank { found.shortName },
+            title = capitalised(found.displayName).ifBlank { found.shortName },
             subtitle = "Invited. Once they accept, you can start sessions together.",
             leading = { Avatar(found.shortName) },
         )
         found != null -> ListRow(
-            title = found.displayName.ifBlank { found.shortName },
+            title = capitalised(found.displayName).ifBlank { found.shortName },
             subtitle = found.email,
             leading = { Avatar(found.shortName) },
             trailing = {

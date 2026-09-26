@@ -11,6 +11,7 @@ import com.kevinbevan.rivals.data.LocalSessionStore
 import com.kevinbevan.rivals.data.MatchDefaults
 import com.kevinbevan.rivals.data.PlayerRepository
 import com.kevinbevan.rivals.data.RivalryRepository
+import com.kevinbevan.rivals.data.SeenResults
 import com.kevinbevan.rivals.data.SessionRepository
 import com.kevinbevan.rivals.domain.ScoreRules
 import java.io.File
@@ -33,6 +34,9 @@ class AppContainer(context: Context) {
 
     /** How the last match was set up, so the next one opens the same way. */
     val matchDefaults = MatchDefaults(context)
+
+    /** Which match-won panel each session last showed, so resuming doesn't show it again. */
+    val seenResults = SeenResults(context)
 
     private val cloudStore = FirestoreSessionStore(firestore, playerRepository)
     private val guestStore = LocalSessionStore(File(context.filesDir, "guest-games.json"))

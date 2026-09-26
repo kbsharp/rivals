@@ -83,7 +83,11 @@ fun HomeScreen(
     onOpenRivalry: (String) -> Unit,
     onAddRival: () -> Unit,
     onOpenSession: (SessionRoute) -> Unit,
-    onOpenGuestGame: (String) -> Unit,
+    /** Opens a finished quick game's detail, and whether it could be saved from there. */
+    onOpenGuestGame: (id: String, canSave: Boolean) -> Unit,
+    /** A quick game to open the Save dialog for, asked for by its detail. */
+    saveRequest: String? = null,
+    onSaveRequestHandled: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -102,7 +106,7 @@ fun HomeScreen(
             onSignOut = viewModel::signOut,
             onStartQuickGame = viewModel::startQuickGame,
             onResumeQuickGame = { onOpenSession(SessionRoute(it, guest = true)) },
-            onOpenGuestGame = onOpenGuestGame,
+            onOpenGuestGame = { onOpenGuestGame(it, uiState.canSaveGuestGames) },
             onSaveGuestGame = viewModel::saveGuestGame,
             onOpenRivalry = onOpenRivalry,
             onStartSession = viewModel::startSession,
@@ -111,7 +115,9 @@ fun HomeScreen(
             onAcceptInvite = viewModel::acceptInvite,
             onRemoveInvite = viewModel::removeInvite,
             onMessageShown = viewModel::dismissMessage,
+            onSaveRequestHandled = onSaveRequestHandled,
         ),
+        saveRequest = saveRequest,
     )
 }
 
@@ -133,6 +139,7 @@ data class HomeActions(
     val onAcceptInvite: (String) -> Unit = {},
     val onRemoveInvite: (String) -> Unit = {},
     val onMessageShown: () -> Unit = {},
+    val onSaveRequestHandled: () -> Unit = {},
 )
 
 /**
@@ -141,9 +148,15 @@ data class HomeActions(
  * labelled blocks — Rivals, Play, On this phone — kept apart by space, not lines.
  */
 @Composable
-internal fun HomeContent(uiState: HomeUiState, actions: HomeActions) {
+internal fun HomeContent(uiState: HomeUiState, actions: HomeActions, saveRequest: String? = null) {
     var settingUpGame by rememberSaveable { mutableStateOf(false) }
     var savingGameId by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(saveRequest) {
+        if (saveRequest != null) {
+            savingGameId = saveRequest
+            actions.onSaveRequestHandled()
+        }
+    }
     var startingRivalryId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.message) {
@@ -396,7 +409,7 @@ private const val GUEST_GAMES_SHOWN = 3
 private fun GuestGames(uiState: HomeUiState, actions: HomeActions, onSave: (String) -> Unit) {
     var showAll by rememberSaveable { mutableStateOf(false) }
     val games = uiState.finishedGuestGames
-    val canSave = uiState.signedIn && uiState.rivals.isNotEmpty()
+    val canSave = uiState.canSaveGuestGames
     Section(
         "On this phone",
         action = if (games.size > GUEST_GAMES_SHOWN) {

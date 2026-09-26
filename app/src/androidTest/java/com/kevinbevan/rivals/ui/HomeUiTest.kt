@@ -21,6 +21,7 @@ import com.kevinbevan.rivals.ui.home.InviteCard
 import com.kevinbevan.rivals.ui.home.RivalCard
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -111,6 +112,22 @@ class HomeUiTest {
         compose.onNodeWithText("TOM").performClick()
         compose.onAllNodesWithText("Save").onLast().performClick() // the dialog's, not the row's
         assertEquals(Triple("g1", "r1", "guest-a"), saved)
+    }
+
+    @Test
+    fun aQuickGamesDetailOpensTheSaveDialogOnHome() {
+        var handled = false
+        compose.setContent {
+            Fixture {
+                HomeContent(
+                    signedIn.copy(guestGames = listOf(finished)),
+                    HomeActions(onSaveRequestHandled = { handled = true }),
+                    saveRequest = "g1",
+                )
+            }
+        }
+        compose.onNodeWithText("WHICH ONE WAS YOU?").assertIsDisplayed()
+        assertTrue(handled)
     }
 
     @Test

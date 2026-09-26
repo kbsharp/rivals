@@ -10,6 +10,7 @@ import com.kevinbevan.rivals.domain.WritePlan
 import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.Session
+import com.kevinbevan.rivals.model.capitalised
 import java.io.File
 import java.io.IOException
 import java.time.Instant
@@ -82,7 +83,8 @@ class LocalSessionStore(
     override fun observeFrames(sessionId: String, matchId: String): Flow<Synced<List<Frame>>> =
         docs.map { frames(it, sessionId, matchId) }.distinctUntilChanged().map { Synced(it, hasPendingWrites = false) }
 
-    override fun observeNames(session: Session): Flow<Map<String, String>> = flowOf(session.names)
+    override fun observeNames(session: Session): Flow<Map<String, String>> =
+        flowOf(session.names.mapValues { capitalised(it.value) })
 
     override suspend fun loadSession(sessionId: String): Session =
         docs.value[SessionDoc(sessionId)]?.let { sessionFrom(sessionId, it) }

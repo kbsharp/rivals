@@ -8,6 +8,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.toRoute
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.kevinbevan.rivals.RivalsApp
@@ -37,13 +38,17 @@ fun RivalsNavHost() {
     }
 
     NavHost(navController = navController, startDestination = HomeRoute) {
-        composable<HomeRoute> {
+        composable<HomeRoute> { entry ->
+            // A quick game's detail asks Home to save it, since Home holds the Save dialog.
+            val saveRequest by entry.savedStateHandle.getStateFlow<String?>(SAVE_GAME, null).collectAsStateWithLifecycle()
             HomeScreen(
+                saveRequest = saveRequest,
+                onSaveRequestHandled = { entry.savedStateHandle[SAVE_GAME] = null },
                 onSignIn = { navController.navigate(SignInRoute) },
                 onOpenRivalry = { navController.navigate(RivalryRoute(it)) },
                 onAddRival = { navController.navigate(AddRivalRoute) },
                 onOpenSession = { navController.navigate(it) },
-                onOpenGuestGame = { navController.navigate(SessionDetailRoute(it, guest = true)) },
+                onOpenGuestGame = { id, canSave -> navController.navigate(SessionDetailRoute(id, guest = true, canSave = canSave)) },
             )
         }
         composable<SignInRoute> {
@@ -72,13 +77,32 @@ fun RivalsNavHost() {
             )
         }
         composable<SessionRoute> {
+            val route = it.toRoute<SessionRoute>()
             SessionScreen(
-                onExit = { navController.popBackStack() },
                 onHome = { navController.popBackStack(HomeRoute, inclusive = false) },
+                onSeeNight = {
+                    navController.navigate(SessionDetailRoute(route.sessionId, route.guest)) {
+                        popUpTo(HomeRoute)
+                    }
+                },
             )
         }
         composable<SessionDetailRoute> {
-            SessionDetailScreen(onBack = { navController.popBackStack() })
+            val route = it.toRoute<SessionDetailRoute>()
+            SessionDetailScreen(
+                onBack = { navController.popBackStack() },
+                onSave = if (route.guest && route.canSave) {
+                    {
+                        navController.previousBackStackEntry?.savedStateHandle?.set(SAVE_GAME, route.sessionId)
+                        navController.popBackStack()
+                    }
+                } else {
+                    null
+                },
+            )
         }
     }
 }
+
+/** The quick game Session detail asks Home to save. */
+private const val SAVE_GAME = "saveGame"

@@ -64,6 +64,7 @@ import com.kevinbevan.rivals.ui.rivalry.RivalryUiState
 import com.kevinbevan.rivals.ui.rivalry.SessionItem
 import com.kevinbevan.rivals.ui.session.DoubleFrame
 import com.kevinbevan.rivals.ui.session.FrameReceipt
+import com.kevinbevan.rivals.ui.session.FullTime
 import com.kevinbevan.rivals.ui.session.MatchResult
 import com.kevinbevan.rivals.ui.session.Notice
 import com.kevinbevan.rivals.ui.session.PlayerSide
@@ -250,6 +251,30 @@ class FlowScreenshots(private val theme: String) {
         Board(board(notice = Notice(1, "Couldn't save to the server: you're offline", warning = true)))
     }
 
+    // Full time, on both phones.
+    private val fullTime = FullTime(
+        venue = "The Crown",
+        length = java.time.Duration.ofMinutes(182),
+        winnerId = "a",
+        headline = "Kevin takes the night 3\u00A0–\u00A01",
+        summary = "Four matches, 26 frames. 2 break & runs, a golden break and a hill-hill decider.",
+        allTime = 13 to 9,
+        lastMatch = Match("m4", 4, MatchSettings(GameType.NINE_BALL, 5), Status.ENDED, mapOf("a" to 5, "b" to 4)),
+    )
+    @Test fun sessionFullTime() = shoot("session-full-time", landscape = true) {
+        Board(board(a = 5, b = 4, matchesA = 3, matchesB = 1, running = false).copy(fullTime = fullTime))
+    }
+    @Test fun sessionFullTimeLevel() = shoot("session-full-time-level", landscape = true) {
+        Board(
+            board(a = 2, b = 5, matchesA = 1, matchesB = 1, running = false, names = "Kevin" to "Tom").copy(
+                fullTime = fullTime.copy(
+                    venue = null, length = java.time.Duration.ofMinutes(48), winnerId = null,
+                    headline = "Level on the night, 1 – 1", summary = "Two matches, 12 frames.", allTime = null,
+                ),
+            ),
+        )
+    }
+
     // The last frame's receipt, in each of its states.
     @Test fun sessionReceiptTheirPhone() = shoot("session-receipt-their-phone", landscape = true) {
         Board(board(a = 3, b = 3, receipt = FrameReceipt(6, "b", "Julian", theirPhone = true, events = emptySet())))
@@ -422,6 +447,9 @@ class FlowScreenshots(private val theme: String) {
     @Test fun detailNotFound() = shoot("detail-not-found") { Detail(detail(found = false)) }
     @Test fun detailNoMatches() = shoot("detail-no-matches") { Detail(detail(matches = false)) }
     @Test fun detailQuickGame() = shoot("detail-quick-game") { Detail(detail(rivalName = "Tom")) }
+    @Test fun detailQuickGameSave() = shoot("detail-quick-game-save") {
+        SessionDetailContent(detail(rivalName = "Tom"), onBack = {}, onDelete = {}, onSave = {})
+    }
     @Test fun detailMenu() = shoot("detail-menu", steps = { tapIcon("More") }) { Detail(detail()) }
     @Test fun detailDelete() = shoot("detail-delete", steps = { tapIcon("More"); tap("Delete session") }) { Detail(detail()) }
 

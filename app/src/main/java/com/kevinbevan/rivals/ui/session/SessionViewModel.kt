@@ -6,7 +6,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.toRoute
+import com.kevinbevan.rivals.data.SeenResults
 import com.kevinbevan.rivals.data.SessionRepository
+import com.kevinbevan.rivals.domain.Highlight
+import com.kevinbevan.rivals.domain.ScoreRules
+import com.kevinbevan.rivals.domain.highlightsOf
+import com.kevinbevan.rivals.model.MatchWithFrames
+import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.data.Synced
 import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.FrameEvent
@@ -22,7 +28,10 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -104,6 +113,24 @@ data class SessionUiState(
     val pendingSync: Boolean = false,
     /** Shown on the status line in place of the receipt; cleared by [SessionViewModel.dismissNotice]. */
     val notice: Notice? = null,
+    /** The night has ended, here or on the other phone: the full-time panel. */
+    val fullTime: FullTime? = null,
+)
+
+/** The night, told at the table once it's over, on both phones. */
+data class FullTime(
+    val venue: String?,
+    val length: Duration?,
+    /** Who took the night; `null` when it's level. */
+    val winnerId: String?,
+    /** "Kevin takes the night 3 – 1". */
+    val headline: String,
+    /** "Four matches, 26 frames. 2 break & runs and a golden break." */
+    val summary: String,
+    /** All-time match wins, yours first, tonight included; `null` for a quick game. */
+    val allTime: Pair<Int, Int>?,
+    /** The last match played, to leave on the dimmed board behind the panel. */
+    val lastMatch: Match?,
 )
 
 /** Two frames from different phones this close together are probably one frame, recorded twice. */
@@ -117,6 +144,10 @@ class SessionViewModel(
     /** The signed-in player's uid, if any. */
     private val currentUid: () -> String?,
     private val sessionRepository: SessionRepository,
+    /** Which match-won panel this session last showed on this phone. */
+    private val seenResults: SeenResults = SeenResults(),
+    /** Every session [me] is in, for the all-time score at full time. */
+    private val observeSessionsOf: (me: String) -> Flow<List<Session>> = { flowOf(emptyList()) },
 ) : ViewModel() {
 
     private data class Local(
@@ -129,7 +160,8 @@ class SessionViewModel(
         val resultSeen: String? = null,
     )
 
-    private val local = MutableStateFlow(Local())
+    // A panel shown before the board was left isn't shown again on the way back.
+    private val local = MutableStateFlow(Local(resultSeen = seenResults[sessionId]))
 
     private val matches = sessionRepository.observeMatches(sessionId)
 
@@ -172,13 +204,44 @@ class SessionViewModel(
             now.copy(undone = Undone(noticeKeys.incrementAndGet(), byMe, gone, before.played.match!!))
         }
         .filterNotNull()
+        // An undo that reopens a match takes back its result, so winning it again is news.
+        .onEach { b ->
+            val seen = local.value.resultSeen
+            if (seen != null && b.matches.value.any { it.id == seen && it.status == Status.ACTIVE }) {
+                seenResults[sessionId] = null
+                local.update { it.copy(resultSeen = null) }
+            }
+        }
+
+    /** Once the night is over: every match with its frames, and the all-time score. */
+    private val night = session
+        .map { it.value?.takeIf { s -> s.status == Status.ENDED } }
+        .distinctUntilChanged { a, b -> a?.id == b?.id }
+        .flatMapLatest { s ->
+            if (s == null) flowOf(null)
+            else combine(
+                sessionRepository.observeMatchesWithFrames(sessionId).map { it.value },
+                allTimeOf(s),
+            ) { matches, allTime -> Night(matches, allTime) }
+        }
+
+    private fun allTimeOf(session: Session): Flow<Map<String, Int>?> {
+        val me = currentUid()
+        if (guest || me == null || session.rivalryId == null) return flowOf(null)
+        return observeSessionsOf(me)
+            .map<List<Session>, Map<String, Int>?> { all -> ScoreRules.headToHead(all.filter { it.rivalryId == session.rivalryId }) }
+            // The panel doesn't wait for it, and does without it if it can't be read.
+            .onStart { emit(null) }
+            .catch { emit(null) }
+    }
 
     val uiState: StateFlow<SessionUiState> = combine(
         session,
         board,
         names,
         local,
-    ) { session, board, names, local ->
+        night.onStart { emit(null) },
+    ) { session, board, names, local, night ->
         val matches = board.matches
         val s = session.value
         if (s == null || local.exited) return@combine SessionUiState(loading = false, ended = true)
@@ -199,6 +262,15 @@ class SessionViewModel(
         )
         val me = side(myId)
         val rivalSide = side(rivalId)
+        if (s.status == Status.ENDED) {
+            val last = latestFirst.firstOrNull { it.framesPlayed > 0 }
+            return@combine SessionUiState(
+                loading = false,
+                me = me.copy(frames = last?.frameWins?.winsOf(myId) ?: 0),
+                rival = rivalSide.copy(frames = last?.frameWins?.winsOf(rivalId) ?: 0),
+                fullTime = fullTime(s, night, me, rivalSide, last),
+            )
+        }
         SessionUiState(
             loading = false,
             ended = s.status == Status.ENDED,
@@ -279,9 +351,14 @@ class SessionViewModel(
 
     fun changeSettings(settings: MatchSettings) = act { sessionRepository.changeSettings(sessionId, settings) }
 
+    /** Ends the night: the full-time panel follows on both phones, or, if nothing was played, Home. */
     fun endSession() = act {
-        sessionRepository.endSession(sessionId)
-        local.update { it.copy(exited = true) }
+        if (sessionRepository.endSession(sessionId)) local.update { it.copy(exited = true) }
+    }
+
+    /** The match-won panel for [matchId] is on screen: leaving and coming back won't show it again. */
+    fun resultShown(matchId: String) {
+        seenResults[sessionId] = matchId
     }
 
     /** The match-won panel has been read (or timed out): let the next match have the board. */
@@ -322,6 +399,28 @@ class SessionViewModel(
         val double: DoubleFrame? = null,
     )
 
+    private data class Night(val matches: List<MatchWithFrames>, val allTime: Map<String, Int>?)
+
+    private fun fullTime(session: Session, night: Night?, me: PlayerSide, rival: PlayerSide, last: Match?): FullTime {
+        val winner = when {
+            me.matches > rival.matches -> me
+            rival.matches > me.matches -> rival
+            else -> null
+        }
+        val loser = if (winner == me) rival else me
+        return FullTime(
+            venue = session.venue,
+            length = session.startedAt?.let { start -> session.endedAt?.let { Duration.between(start, it) } },
+            winnerId = winner?.uid,
+            // The score never breaks across lines.
+            headline = if (winner != null) "${winner.name} takes the night ${winner.matches}\u00A0–\u00A0${loser.matches}"
+                else "Level on the night, ${me.matches}\u00A0–\u00A0${rival.matches}",
+            summary = nightSummary(night?.matches.orEmpty()),
+            allTime = night?.allTime?.let { it.winsOf(me.uid) to it.winsOf(rival.uid) },
+            lastMatch = last,
+        )
+    }
+
     private data class Undone(val key: Long, val byMe: Boolean, val frame: Frame, val match: Match)
 
     private data class Board(
@@ -350,6 +449,36 @@ class SessionViewModel(
     }
 
     companion object {
+        /** "Four matches, 26 frames. 2 break & runs, a golden break and a hill-hill decider." */
+        internal fun nightSummary(matches: List<MatchWithFrames>): String {
+            val played = matches.filter { it.match.framesPlayed > 0 }
+            if (played.isEmpty()) return ""
+            val frames = played.sumOf { it.match.framesPlayed }
+            val counts = played.size.let { "${countWord(it).replaceFirstChar(Char::uppercase)} ${if (it == 1) "match" else "matches"}" } +
+                ", $frames ${if (frames == 1) "frame" else "frames"}."
+            val tags = played.flatMap { it.frames }.flatMap { it.events }
+            val highlights = played.flatMap(::highlightsOf)
+            fun some(n: Int, one: String, many: String) = when (n) {
+                0 -> null
+                1 -> one
+                else -> "$n $many"
+            }
+            val extras = listOfNotNull(
+                some(tags.count { it == FrameEvent.BREAK_AND_RUN }, "a break & run", "break & runs"),
+                some(tags.count { it == FrameEvent.GOLDEN_BREAK }, "a golden break", "golden breaks"),
+                some(tags.count { it == FrameEvent.THREE_FOULS }, "a frame won on three fouls", "frames won on three fouls"),
+                some(highlights.count { it is Highlight.HillHill }, "a hill-hill decider", "hill-hill deciders"),
+                some(highlights.count { it is Highlight.Comeback }, "a comeback", "comebacks"),
+                some(highlights.count { it is Highlight.Shutout }, "a shutout", "shutouts"),
+            )
+            if (extras.isEmpty()) return counts
+            val list = if (extras.size == 1) extras.single() else extras.dropLast(1).joinToString(", ") + " and " + extras.last()
+            return "$counts ${list.replaceFirstChar(Char::uppercase)}."
+        }
+
+        private fun countWord(n: Int): String =
+            listOf("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten").getOrNull(n) ?: "$n"
+
         private fun played(matches: List<Match>, recent: List<Pair<String, Synced<List<Frame>>>>): Played {
             val latestFirst = matches.sortedByDescending { it.number }
             val total = latestFirst.take(2).sumOf { it.framesPlayed }
@@ -400,6 +529,8 @@ class SessionViewModel(
                     guest = route.guest,
                     currentUid = { container.authRepository.currentUser?.uid },
                     sessionRepository = container.sessions(route.guest),
+                    seenResults = container.seenResults,
+                    observeSessionsOf = { me -> container.rivalryRepository.observeSessions(me).map { it.value } },
                 )
             }
         }

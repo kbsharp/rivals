@@ -9,8 +9,15 @@ data class Player(
 ) {
     /** First name for tight spaces like the score buttons. */
     val shortName: String
-        get() = displayName.substringBefore(' ').ifBlank { email.substringBefore('@') }.ifBlank { "?" }
+        get() = capitalised(displayName.substringBefore(' ')).ifBlank { email.substringBefore('@') }.ifBlank { "?" }
 }
+
+/**
+ * [name] with each word's first letter in capitals ("julian" → "Julian"), the rest as typed,
+ * so a name reads as one wherever it's shown ("Play Julian"), including at the start of a line.
+ */
+fun capitalised(name: String): String =
+    name.trim().split(' ').joinToString(" ") { it.replaceFirstChar(Char::uppercaseChar) }
 
 /**
  * Names to show for [players], keyed by uid: first names, unless two players share one
@@ -19,7 +26,7 @@ data class Player(
 fun displayNames(players: List<Player>): Map<String, String> {
     val candidates = listOf<(Player) -> String>(
         { it.shortName },
-        { it.displayName.ifBlank { it.shortName } },
+        { capitalised(it.displayName).ifBlank { it.shortName } },
         { it.email.substringBefore('@').ifBlank { it.uid } },
     )
     for (name in candidates) {

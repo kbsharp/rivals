@@ -129,10 +129,10 @@ halves) tried on the phone in phase 5. A 14-step storyboard runs a night through
 ## UX phase 4: Build
 _One problem area per pass, in the order below._
 
-- [ ] For each area: change → `scripts/emulator-tests.sh` renders → compare with the chosen
+- [x] For each area: change → `scripts/emulator-tests.sh` renders → compare with the chosen
       mock-up → fix. Add renders for any new state, and UI tests for any new action. Commit,
       push and install per the Conventions in `CLAUDE.md`
-- [ ] Update `design/flow.md` as the flow changes
+- [x] Update `design/flow.md` as the flow changes
 
 **Exit:** every decision is built, the renders match the mock-ups, tests pass.
 
@@ -142,8 +142,20 @@ Progress (2026-09-26):
       the match-won panel's next match and winning-frame tags (it stops timing out once touched),
       messages on the status line instead of snackbars, and the louder status line. The
       between-matches panel keeps the status line and holds only *Start match* and *Undo*.
-- [ ] Area 5: back goes Home, "seen" per match, the full-time panel
-- [ ] F14 and F15
+- [x] Area 5: the arrow and system back both go Home; "seen" is kept per session on the phone
+      (an undo that reopens the match clears it); ending the night shows the full-time panel on
+      both phones (*Done* → Home, *See the night* → Session detail); an empty night is still
+      deleted and goes straight Home.
+- [x] F14: a finished quick game's Session detail has *Save to a rivalry*, which opens Home's
+      Save dialog. F15: names are capitalised wherever they're shown ("Play Julian").
+
+**Done 2026-09-26.** Built as decided, with these choices made in the building:
+- Who undid a frame isn't stored: a phone that didn't ask for the undo names the rival. A quick
+  game says "Frame 6 undone" instead, since one phone can't tell who tapped.
+- The full-time panel shows the all-time score (match wins) without the mock-up's "+1 tonight",
+  which didn't say what it counted.
+- The match sheet has no *End match* before the first frame (nothing to end), as the menu had.
+- The tag row and the match sheet close on a tap on the dimmed board; neither records a frame.
 
 ## UX phase 5: A real night
 - [ ] 🧑 Kevin and Julian play a night on the new build; Kevin notes anything that jars

@@ -17,6 +17,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kevinbevan.rivals.model.capitalised
 import com.kevinbevan.rivals.model.Invite
 import com.kevinbevan.rivals.ui.components.EmptyState
 import com.kevinbevan.rivals.ui.components.ErrorState
@@ -109,7 +110,7 @@ internal fun InviteContent(
 
 @Composable
 private fun Scoreboard(invite: Invite) {
-    val from = invite.fromName.ifBlank { "Someone" }
+    val from = capitalised(invite.fromName).ifBlank { "Someone" }
     Column(verticalArrangement = Arrangement.spacedBy(Space.s24)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Label("All time")

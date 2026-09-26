@@ -42,7 +42,7 @@ flowchart LR
 | **Add a rival** (`AddRivalRoute`) | Home *Add a rival* (row, or the primary button with no rivals) | *Open invite* → Invite; share sheet (leaves the app); back arrow | Pops back |
 | **Invite** (`InviteRoute`) | Share link `rivals-15bd9.web.app/invite/{code}` (deep link); Add a rival → *Enter a code* | *Accept* → Rivalry, with the stack reset to Home → Rivalry; *Sign in…* → Sign in; back arrow → pops, or Home when opened cold from the link | Same as the back arrow |
 | **Rivalry** (`RivalryRoute`) | Home *Head to head* (hero), another rival's row; Invite *Accept* | Session; Session detail; *Remove rival* → Home (the screen leaves when the rivalry is gone, here or on the other phone); back arrow | Pops back |
-| **Session** (`SessionRoute`) | Home *Play X* / *Resume session* / *Quick game* / *Resume quick game*; Rivalry *Start session* / *Resume session* | Back arrow → **Home** (pops everything above it); ending the session → pops back one (Home or Rivalry); the other phone ending it → same | Pops back one: Home, or **Rivalry** if started there — not the same place as the back arrow |
+| **Session** (`SessionRoute`) | Home *Play X* / *Resume session* / *Quick game* / *Resume quick game*; Rivalry *Start session* / *Resume session* | Back arrow → **Home** (pops everything above it); ending the session, here or on the other phone → full-time panel → *Done* Home or *See the night* Session detail; a deleted empty night → Home | **Home**, as the arrow (UX phase 4) |
 | **Session detail** (`SessionDetailRoute`) | Rivalry Sessions row; Home quick-game row (guest) | Back arrow; *Delete session* → pops back | Pops back |
 
 Signing out while on a rival's screen (Rivalry, Add a rival, a rivals' Session or its detail)
@@ -68,7 +68,7 @@ what's going on; renders: `home`, `home-idle`, `home-live`, `home-invites`,
 | *Add a rival* | Row at the end of **Rivals**; the primary button when there are none | — | 8 |
 | *Quick game* → dialog (names, game, race) → *Start* | Row in **Play** (`home-quick-game`); primary button when signed out | — | 8 |
 | *Resume quick game* | Replaces the Quick game row / button while one runs | — | 8 |
-| Open a finished quick game | Row in **On this phone** → Session detail (guest) | — | 7 |
+| Open a finished quick game | Row in **On this phone** → Session detail (guest), which offers *Save to a rivalry* when signed in with a rival (`detail-quick-game-save`): it goes back to Home's Save dialog | — | 7 |
 | *Save* a quick game to a rivalry → dialog (which side was you, against whom) | Button on each quick-game row, signed in with a rival (`home-save-game`) | — | 8 |
 | *See all N* / *Show fewer* quick games | Text action beside **On this phone** (more than three) | — | 7 |
 | *Sign out* | Overflow menu, top bar (`home-menu`); its only item; no confirmation | — | 8 |
@@ -161,14 +161,16 @@ picker. The status line stays, with back, notices and ≡.
 
 ### Leaving the session
 
-- *End session* (menu, or the between-matches panel) → confirm → the session ends on both
-  phones and each pops back one screen (Home or Rivalry). A session with nothing played is
-  deleted rather than kept.
-- The back arrow goes to Home and leaves the session running; Home and Rivalry then offer
-  *Resume session*. System back pops one screen instead.
-- Resuming re-shows the last match-won panel if nothing has been played in the new match yet,
-  even after it was seen on this phone: "seen" isn't kept when the board is left
-  (walkthrough, after 13).
+- The back arrow and system back both go **Home**, with no prompt; the night keeps running and
+  Home and Rivalry offer *Resume session*.
+- Resuming shows the board as it was left: a match-won panel shown once isn't shown again
+  ("seen" is kept per session on the phone), unless an undo reopens that match.
+- *End session* (match sheet, or ≡ between matches) → confirm → the board dims and a
+  **full-time panel** shows on both phones (`session-full-time`, `session-full-time-level`):
+  venue and length, "Kevin takes the night 3 – 1", the night in a sentence (matches, frames,
+  tags, hill-hill deciders, comebacks, shutouts), and the all-time score (not for a quick
+  game). *Done* → Home; *See the night* → Session detail, whose back goes Home.
+- A session with nothing played is deleted rather than kept, with no panel: straight Home.
 
 ## Session detail
 
