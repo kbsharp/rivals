@@ -104,7 +104,8 @@ Show a clear message when Firestore refuses something; don't fail silently.
 
 `design/brief.md` is the agreed design brief: palette, type, spacing, shape, layout rules and
 motion. Follow it for every UI change; don't introduce a colour, size or radius that isn't in it.
-`design/audit.md` is the review it came from, and `design/ref/` holds Kevin's reference
+`design/ux-plan.md` is the UX review in progress (flow and the in-game menu, before Release): when Kevin says "UX phase N", do that phase from there.
+`design/audit.md` is the review the brief came from, and `design/ref/` holds Kevin's reference
 screenshots. The mock-ups of the agreed direction are at
 <https://claude.ai/artifact/Cykp6oXE8meC1tupSfLu1c>.
 

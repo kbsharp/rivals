@@ -211,6 +211,15 @@ it on the phone._
 **Exit:** met in the renders — every screen matches the brief in the dark theme and the light
 theme is derived and legible. Kevin's look on a real phone is the last word.
 
+## Phase 13: UX review
+_Added 2026-09-26, before Release. Phases 11–12 settled the look; this one is the flow: where
+actions live, the way through a night, and the in-game menu. Its own five phases are in
+`design/ux-plan.md` (capture, audit, proposals, build, a real night)._
+
+- [ ] UX phases 1–5 in `design/ux-plan.md`
+
+**Exit:** that plan's phase 5 is met.
+
 ---
 
 ## Open questions
