@@ -139,8 +139,28 @@ in all.
   rival's initial in `rival` on `rival-tint`.
 - **The top bar carries the rack**, drawn small (`RackMark`) beside "Rivals".
 
+## Where actions live (UX phase 3, 2026-09-26)
+
+Agreed with Kevin in UX phase 3 (`design/ux-plan.md`, Decisions); the mock-ups are at
+<https://claude.ai/artifact/PjVTJpHqistZrN2vwS7qXR>.
+
+- **An action lives on the thing it acts on.** About the last frame (undo, tags): on the last
+  frame's receipt in the status line. About the match: the match sheet behind ≡, or the
+  match-won panel for the next match. About the night: last in the match sheet, set apart.
+- **The other phone is never surprised.** Anything done to the score (a frame, an undo, a tag)
+  is named on both phones, and says when it came from the other phone.
+- **Messages on the scoreboard go in the status line**, in place of the receipt, never over a
+  button, and never as a snackbar outside the palette.
+- **Back from the scoreboard goes Home**, whether you use the arrow or the system gesture.
+  Leaving never ends the night, and resuming shows the board as you left it.
+- **A night ends at the table:** a full-time panel on both phones, then Home.
+- **The status line is read from the rail.** Its text is Barlow 600 14 sp, +0.06em, in `fg-2`,
+  and tonight's score is white Montserrat 700 20 sp. This is the one place outside the type table's
+  steps. A double frame (two within 10 s from different phones) is the one amber state on the board.
+
 ## Open design questions
 
 - The scoreboard has no colour fill, so in a bright room the halves are told apart only by the
   small coloured names. If that reads weakly on the phone, add a tint of about 8% to each half
-  rather than colouring the numbers.
+  rather than colouring the numbers. UX phase 3 kept this open: try it (option 6C)
+  on the phone during UX phase 5's real night.

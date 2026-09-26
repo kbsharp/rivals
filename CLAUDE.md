@@ -94,8 +94,13 @@ Show a clear message when Firestore refuses something; don't fail silently.
 3. **Rivalry**: the win ring and all-time score, the primary action, then **SESSIONS | STATS** tabs. Sessions is the nights you've played; Stats is the mirrored table. Neither is a screen of its own any more.
 4. **Session** (the main screen):
    - landscape and full screen: each player's half of the screen is the tap target for a frame win
-   - one quiet status line along the bottom: the match clock, the match, the game and race, tonight's score, and the menu in the corner. Nothing sits on the centre line
-   - everything else sits behind that menu: tag the last frame (break & run, golden break, won on three fouls), undo, change game or end match, end session
+   - one status line along the bottom: the back arrow, the match clock, the last frame's receipt with a one-tap Undo, the match, the game and race, tonight's score, and ≡ in the corner. Nothing sits on the centre line
+   - where actions live (UX phase 3; `design/brief.md`, "Where actions live"). **Being built in UX phase 4**, so check `design/ux-plan.md` for what has landed:
+     - the last frame (undo, and tagging it: break & run, golden break, won on three fouls) is on its receipt
+     - the match (game, race, End match) and End session are in the match sheet behind ≡
+     - the next match's settings, and the winning frame's tags, are in the match-won panel
+   - anything done to the score is named on both phones; scoreboard messages go in the status line, never over a button
+   - back (arrow or gesture) goes Home and never ends the night; ending it shows a full-time panel on both phones, then Home
    - when a match is won the board dims and a panel names the winner, with Undo in it
    - keep it as clean as possible; don't add on-screen controls without a strong reason
 5. **Session detail**: one night, match by match, with its frames as boxed digits.

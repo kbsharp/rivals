@@ -89,11 +89,11 @@ _A UX expert's review of the flow, before any solutions._
 - [x] Findings ranked by severity (blocks a task / slows it / friction / polish), each with its
       screenshot and the job it hurts
 - [x] **What works:** a short list of things the next phases must not break
-- [ ] 🧑 Kevin reads it (comments on the artifact are fine) and picks which findings go forward
+- [x] 🧑 Kevin reads it (comments on the artifact are fine) and picks which findings go forward
 
 **Exit:** the audit is agreed and the list of problem areas to solve is written below.
 
-**Written 2026-09-26; waiting on Kevin's read.** 16 findings (none blocks a task; 3 slow one,
+**Agreed 2026-09-26.** All six problem areas went forward. 16 findings (none blocks a task; 3 slow one,
 all about fixing a mistake: undo is silent on both phones, two taps deep beside End session, and
 nothing helps catch a double frame). The menu inventory moves tags and undo out of the menu to
 contextual and on-screen places, leaving it *Match settings*, *End match*, *End session*. Six
@@ -110,14 +110,14 @@ _Real alternatives, so the choice isn't just "polish the first idea"._
       helps and hurts, and Claude's recommendation
 - [x] The whole night as a storyboard in the recommended option: the sequence of screens from
       opening the app to ending the session
-- [ ] 🧑 Kevin comments on the artifact; revise until each area has a decision
-- [ ] Decisions written below, and any new rule of thumb (e.g. "where actions live") added to
+- [x] 🧑 Kevin comments on the artifact; revise until each area has a decision
+- [x] Decisions written below, and any new rule of thumb (e.g. "where actions live") added to
       `design/brief.md` and the Session section of `CLAUDE.md`
 
 **Exit:** every problem area has a chosen design, recorded here and in the brief.
 
-**Proposed 2026-09-26; waiting on Kevin's comments.** No pick of problem areas was recorded
-from phase 2, so all six are in (any can be dropped). Recommended: **1A** the last frame on the
+**Decided 2026-09-26: Kevin took every recommendation** (see Decisions). All six areas went
+forward. The picks: **1A** the last frame on the
 status line with one-tap Undo, named on both phones, amber for a double frame · **2A** tag by
 tapping that receipt, and in the match-won panel for the winning frame · **3B** ≡ opens a match
 sheet (game and race editable mid-match, End match, End session) · **4A** the match-won panel sets
@@ -148,6 +148,45 @@ _One problem area per pass, in the order below._
 ## Decisions
 
 _Filled in by phases 2–3._
+
+**Phase 2 (2026-09-26).** All six problem areas go forward. F14 and F15 are built in phase 4
+as the audit describes them; F16 stays as it is.
+
+**Phase 3 (2026-09-26): the recommended option in every area.** Mock-ups and storyboard are in the
+phase 3 artifact. Build them in phase 4 in this order: 1 and 2 share the last-frame receipt, so
+they're built together; 3 and 4 share the game chips and race stepper.
+
+1. **Fixing a mistake → 1A.** After each frame, the status line shows a receipt: "FRAME 6 ·
+   KEVIN", with the name in the player's colour, plus " · THEIR PHONE" when the other phone recorded
+   it. A round Undo button (≥ 48 dp target) sits beside it. Undo is one tap and unconfirmed. For
+   four seconds afterwards, the receipt is replaced on both phones by a message naming what went
+   ("KEVIN UNDID FRAME 6"). Two frames recorded within 10 s from different phones turn the
+   receipt amber ("FRAMES 5 & 6 · 4 S APART"). Undo stays in the match-won panel. It leaves the menu.
+2. **Tagging → 2A.** Tapping the receipt opens the three tags above it. A chosen tag takes the
+   frame winner's colour on its tint, and the receipt then carries the tag on both phones. The
+   match-won panel offers "Tag the winning frame" chips. Tags leave the menu.
+3. **The game menu → 3B.** ≡ dims the board and raises a match sheet: "Match N" with the
+   score and clock; the game chips and race stepper (with Open-ended), which change the running
+   match at once, on both phones, and never below the leader's score + 1; then End match and,
+   set apart, End session, both still confirmed. It replaces the dropdown menu.
+4. **Between matches → 4A.** The next match still starts automatically. The match-won panel
+   gains a "NEXT · 9-ball · race to 5 · Change" line that expands to the chips and stepper.
+   Once the panel is touched it stops timing out, and it stays open until *Play on*. The
+   between-matches panel (after *End match* by hand) keeps the status line (← Home, ≡) and holds
+   only *Start match* and *Undo last frame*. **Every message on the scoreboard shows in the
+   status line**, in place of the receipt; no snackbars over it.
+5. **Leaving and ending → 5A.** The arrow and system back both go Home, with no prompt. "Seen"
+   is remembered per match, so resuming never re-shows a match-won panel. Confirming End session
+   shows a full-time panel over the dimmed board on both phones: venue and length, "Kevin takes the
+   night 3 – 1", the highlights, and the all-time score. *Done* → Home; *See the night* → Session
+   detail. An empty session is still deleted, with no panel.
+6. **Glancing from the rail → 6A.** The status line's match, game and race go to Barlow 600
+   14 sp, +0.06em, `fg-2` (from the 12 sp `label` in `fg-3`). Tonight's score is a small label
+   plus white Montserrat 700 20 sp numbers. The tinted halves (6C) are tried on the phone in
+   phase 5, and the brief's open question stays open until then.
+
+The rules of thumb that come with these are in `design/brief.md` ("Where actions live") and
+the Session section of `CLAUDE.md`.
 
 ## Artifacts
 
