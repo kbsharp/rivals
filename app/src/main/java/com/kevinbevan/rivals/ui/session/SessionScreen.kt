@@ -11,7 +11,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,6 +27,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -36,18 +40,15 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -59,19 +60,27 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -92,6 +101,7 @@ import com.kevinbevan.rivals.ui.components.Pips
 import com.kevinbevan.rivals.ui.components.PrimaryButton
 import com.kevinbevan.rivals.ui.components.SecondaryButton
 import com.kevinbevan.rivals.ui.components.TextAction
+import com.kevinbevan.rivals.ui.components.ToggleChip
 import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.theme.Rivals
 import com.kevinbevan.rivals.ui.theme.RivalsTheme
@@ -100,6 +110,7 @@ import com.kevinbevan.rivals.ui.theme.Shapes
 import com.kevinbevan.rivals.ui.theme.Space
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
 @Composable
@@ -128,7 +139,7 @@ fun SessionScreen(
             onChangeSettings = viewModel::changeSettings,
             onEndSession = viewModel::endSession,
             onDismissResult = viewModel::dismissResult,
-            onMessageShown = viewModel::dismissMessage,
+            onDismissNotice = viewModel::dismissNotice,
         ),
     )
 }
@@ -169,10 +180,10 @@ class SessionActions(
     val onChangeSettings: (MatchSettings) -> Unit = {},
     val onEndSession: () -> Unit = {},
     val onDismissResult: () -> Unit = {},
-    val onMessageShown: () -> Unit = {},
+    val onDismissNotice: (Notice) -> Unit = {},
 )
 
-private enum class SessionDialog { CHANGE_SETTINGS, END_MATCH, END_SESSION }
+private enum class SessionDialog { END_MATCH, END_SESSION }
 
 /** The status line along the foot of the board. Nothing sits on the centre line. */
 private val StatusLineHeight = 52.dp
@@ -180,49 +191,71 @@ private val StatusLineHeight = 52.dp
 /** How long the match-won panel holds the board before the next match gets on with it. */
 private const val ResultPanelMillis = 9_000L
 
+/** How long a notice has the status line: what an undo took back, or what went wrong. */
+private const val NoticeMillis = 4_000L
+private const val WarningMillis = 6_000L
+
 /**
  * The scoreboard: charcoal field, each player owns half of it, and tapping their half records a
  * frame for them. Their name and race pips carry their colour; the score is always white.
- * Everything that isn't scoring lives behind the menu in the corner of the status line.
+ *
+ * Every other action lives on the thing it acts on (brief, "Where actions live"): the last
+ * frame's receipt on the status line holds Undo and its tags, the match sheet behind ≡ holds
+ * the match and the night, and the match-won panel sets the next match. Messages take the
+ * receipt's place on the status line, never a snackbar over the board.
  */
 @Composable
 internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
     var dialog by rememberSaveable { mutableStateOf<SessionDialog?>(null) }
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(uiState.message) {
-        uiState.message?.let {
-            snackbarHostState.showSnackbar(it)
-            actions.onMessageShown()
+    var sheetOpen by rememberSaveable { mutableStateOf(false) }
+    var tagsOpen by rememberSaveable { mutableStateOf(false) }
+    var receiptX by remember { mutableIntStateOf(0) }
+    val notice = uiState.notice
+    LaunchedEffect(notice?.key) {
+        if (notice != null) {
+            delay(if (notice.warning) WarningMillis else NoticeMillis)
+            actions.onDismissNotice(notice)
         }
     }
     val match = uiState.match
     val me = uiState.me
     val rival = uiState.rival
     val result = uiState.justWon
+    val receipt = uiState.lastFrame
+    // A new last frame (from either phone), or none, closes the tags that were open on the old one.
+    LaunchedEffect(receipt?.number, receipt?.winnerId, notice != null) { if (receipt == null || notice != null) tagsOpen = false }
+    LaunchedEffect(match == null) { if (match == null) sheetOpen = false }
     // Held for the length of the fade-out, so the panel still has something to draw.
     var lastResult by remember { mutableStateOf(result) }
     LaunchedEffect(result) { if (result != null) lastResult = result }
+    // Once the panel has been touched (a tag, the next match's settings) it waits for Play on.
+    var held by remember(result?.matchId) { mutableStateOf(false) }
 
     val haptics = LocalHapticFeedback.current
     LaunchedEffect(result?.matchId) {
-        if (result != null) {
-            // A heavier thump than a frame: the match is over.
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        // A heavier thump than a frame: the match is over.
+        if (result != null) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+    LaunchedEffect(result?.matchId, held) {
+        if (result != null && !held) {
             delay(ResultPanelMillis)
             actions.onDismissResult()
         }
     }
+    val defaults = rememberMatchDefaults()
+    val changeSettings = { settings: MatchSettings ->
+        defaults.last = settings
+        actions.onChangeSettings(settings)
+    }
 
     Box(Modifier.fillMaxSize().background(Rivals.colors.base)) {
-        when {
-            uiState.loading || me == null || rival == null ->
-                Label("Opening the scoreboard…", Modifier.align(Alignment.Center))
-
-            match != null -> {
-                // The board dims behind the match-won panel so the panel is the only thing to
-                // read, and dims back when the next match takes over.
+        if (uiState.loading || me == null || rival == null) {
+            Label("Opening the scoreboard…", Modifier.align(Alignment.Center))
+        } else {
+            if (match != null) {
+                // The board dims behind a panel or the sheet so it's the only thing to read.
                 val dim by animateFloatAsState(
-                    if (result != null) 0.3f else 1f,
+                    if (result != null || sheetOpen) 0.3f else 1f,
                     Motion.tween(Motion.NORMAL),
                     label = "boardDim",
                 )
@@ -248,17 +281,8 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                 }
                 if (result != null) {
                     // The dimmed board is the panel's backdrop, not a scoreboard: a tap anywhere
-                    // on it gets on with the next match rather than waiting the panel out.
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = actions.onDismissResult,
-                            )
-                            .testTag("result-backdrop"),
-                    )
+                    // on it gets on with the next match, unless the panel is being used.
+                    Backdrop("result-backdrop") { if (!held) actions.onDismissResult() }
                 }
                 AnimatedVisibility(
                     visible = result != null,
@@ -266,7 +290,8 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     exit = fadeOut(Motion.tween(Motion.FAST)),
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .windowInsetsPadding(WindowInsets.safeDrawing),
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .padding(bottom = StatusLineHeight),
                 ) {
                     // Kept after the result clears so the panel can fade rather than vanish.
                     val shown = result ?: lastResult ?: return@AnimatedVisibility
@@ -274,44 +299,64 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                         result = shown,
                         youWon = shown.winnerId == me.uid,
                         canUndo = uiState.canUndo,
+                        next = match.settings,
+                        winningFrame = receipt?.takeIf { match.framesPlayed == 0 },
+                        onTouched = { held = true },
+                        onChangeNext = changeSettings,
+                        onToggleTag = actions.onToggleEvent,
                         onPlayOn = actions.onDismissResult,
                         onUndo = { actions.onDismissResult(); actions.onUndo() },
                     )
                 }
-                StatusLine(
+            } else {
+                NextMatchPanel(
                     uiState = uiState,
-                    match = match,
-                    actions = actions,
-                    onDialog = { dialog = it },
-                    modifier = Modifier.align(Alignment.BottomCenter),
+                    onStart = actions.onStartMatch,
+                    onUndo = actions.onUndo,
                 )
             }
-
-            else -> NextMatchPanel(
+            StatusLine(
                 uiState = uiState,
-                onStart = actions.onStartMatch,
-                onUndo = actions.onUndo,
-                onEndSession = { dialog = SessionDialog.END_SESSION },
+                tagsOpen = tagsOpen,
                 onBack = actions.onBack,
+                onUndo = actions.onUndo,
+                onReceipt = { tagsOpen = !tagsOpen },
+                onReceiptPlaced = { receiptX = it },
+                onMenu = { if (match != null) sheetOpen = true else dialog = SessionDialog.END_SESSION },
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
+            if (tagsOpen && receipt != null) {
+                Backdrop("tags-backdrop") { tagsOpen = false }
+                TagRow(
+                    receipt = receipt,
+                    youId = me.uid,
+                    onToggle = actions.onToggleEvent,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .offset { IntOffset(receiptX, 0) }
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
+                        .padding(bottom = StatusLineHeight + Space.s4),
+                )
+            }
+            if (sheetOpen && match != null) {
+                Backdrop("sheet-backdrop") { sheetOpen = false }
+                MatchSheet(
+                    match = match,
+                    me = me,
+                    rival = rival,
+                    onChange = changeSettings,
+                    onEndMatch = { sheetOpen = false; dialog = SessionDialog.END_MATCH },
+                    onEndSession = { sheetOpen = false; dialog = SessionDialog.END_SESSION },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+                        .padding(start = Space.s48, end = Space.s48, bottom = StatusLineHeight + Space.s4),
+                )
+            }
         }
-        SnackbarHost(
-            snackbarHostState,
-            Modifier
-                .align(Alignment.BottomCenter)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .padding(bottom = 72.dp),
-        )
     }
 
     when (dialog) {
-        SessionDialog.CHANGE_SETTINGS -> MatchSettingsDialog(
-            title = "Change game",
-            confirmLabel = "Save",
-            initial = match?.settings ?: uiState.lastSettings,
-            onConfirm = { dialog = null; actions.onChangeSettings(it) },
-            onDismiss = { dialog = null },
-        )
         SessionDialog.END_MATCH -> ConfirmDialog(
             title = "End this match?",
             text = match?.let { endMatchConsequence(it, uiState) }.orEmpty(),
@@ -340,6 +385,21 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
         )
         null -> Unit
     }
+}
+
+/** A clear layer over the board: a tap on it closes what's open instead of recording a frame. */
+@Composable
+private fun Backdrop(tag: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .testTag(tag),
+    )
 }
 
 /** What ending [match] by hand will mean, per [ScoreRules.manualWinner]. */
@@ -466,19 +526,26 @@ private fun RollingScore(frames: Int, fontSize: TextUnit, emSize: Dp) {
 }
 
 /**
- * The quiet line along the bottom: the match clock, then what's being played and tonight's
- * score, with the menu in the corner. Everything else on the board is score.
+ * The line along the bottom, read from the rail: back, the match clock, the last frame's
+ * receipt with Undo (or a notice in its place), then the match and tonight's score, with ≡ in
+ * the corner. Between matches it keeps the same place for back, notices and ≡.
  */
 @Composable
 private fun StatusLine(
     uiState: SessionUiState,
-    match: Match,
-    actions: SessionActions,
-    onDialog: (SessionDialog) -> Unit,
+    tagsOpen: Boolean,
+    onBack: () -> Unit,
+    onUndo: () -> Unit,
+    onReceipt: () -> Unit,
+    onReceiptPlaced: (Int) -> Unit,
+    onMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val me = uiState.me ?: return
     val rival = uiState.rival ?: return
+    val match = uiState.match
+    val notice = uiState.notice
+    val receipt = uiState.lastFrame?.takeIf { uiState.canUndo }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -488,8 +555,8 @@ private fun StatusLine(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.s12),
     ) {
-        IconAction(R.drawable.ic_arrow_back, "Back to home", actions.onBack)
-        MatchClock(match.startedAt)
+        IconAction(R.drawable.ic_arrow_back, "Back to home", onBack)
+        if (match != null) MatchClock(match.startedAt)
         if (uiState.pendingSync) {
             Icon(
                 painterResource(R.drawable.ic_cloud_upload),
@@ -498,14 +565,235 @@ private fun StatusLine(
                 modifier = Modifier.size(16.dp),
             )
         }
-        Label(
-            "Match ${match.number} · ${match.settings.describe()} · " +
-                "Tonight ${me.matches} – ${rival.matches}",
-            color = Rivals.colors.fg3,
-            textAlign = TextAlign.Center,
+        when {
+            notice != null -> NoticePill(notice, Modifier.weight(1f, fill = false))
+            receipt != null -> Receipt(
+                receipt = receipt,
+                youId = me.uid,
+                open = tagsOpen,
+                onClick = onReceipt,
+                onUndo = onUndo,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .onGloballyPositioned { onReceiptPlaced(it.positionInRoot().x.roundToInt()) },
+            )
+        }
+        MatchInfo(
+            match = match,
+            tonight = me.matches to rival.matches,
+            // Beside a receipt it moves right to make room; alone it sits in the middle.
+            alignEnd = notice != null || receipt != null,
             modifier = Modifier.weight(1f),
         )
-        GameMenu(uiState = uiState, match = match, actions = actions, onDialog = onDialog)
+        IconAction(R.drawable.ic_menu, "Game menu", onMenu)
+    }
+}
+
+/** What's being played, one step louder than a label, and tonight's score as a score. */
+@Composable
+private fun MatchInfo(match: Match?, tonight: Pair<Int, Int>, alignEnd: Boolean, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(Space.s16, if (alignEnd) Alignment.End else Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (match != null) {
+            Text(
+                "Match ${match.number} · ${match.settings.describe()}".uppercase(),
+                style = Rivals.type.status,
+                color = Rivals.colors.fg2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Label("Tonight", maxLines = 1)
+            Text(
+                "${tonight.first} – ${tonight.second}",
+                style = Rivals.type.number.copy(fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold),
+                color = Rivals.colors.fg,
+                maxLines = 1,
+                modifier = Modifier.testTag("tonight"),
+            )
+        }
+    }
+}
+
+/**
+ * The last frame: "FRAME 6 · KEVIN", the name in its winner's colour, "· THEIR PHONE" when the
+ * other phone recorded it, and its tags. Amber when it looks like one frame recorded on both
+ * phones. Tapping it opens the tags; the round button beside it takes it back.
+ */
+@Composable
+private fun Receipt(
+    receipt: FrameReceipt,
+    youId: String,
+    open: Boolean,
+    onClick: () -> Unit,
+    onUndo: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val double = receipt.double
+    val text = buildAnnotatedString {
+        fun add(part: String) = append(part.uppercase())
+        if (double != null) {
+            add(if (double.first != null) "Frames ${double.first} & ${receipt.number}" else "Last two frames")
+            add(" · ${double.secondsApart} s apart")
+        } else {
+            add("Frame ${receipt.number} · ")
+            withStyle(SpanStyle(color = Rivals.colors.forPlayer(receipt.winnerId, youId), fontWeight = FontWeight.Bold)) {
+                add(receipt.winnerName)
+            }
+            if (receipt.theirPhone) add(" · their phone")
+            FrameEvent.entries.filter { it in receipt.events }.forEach { add(" · ${it.label}") }
+        }
+    }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s4)) {
+        Box(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .heightIn(min = Space.touch)
+                .clickable(role = Role.Button, onClickLabel = "Tag frame ${receipt.number}", onClick = onClick)
+                .testTag("receipt"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text,
+                style = Rivals.type.label.copy(letterSpacing = 0.08.em),
+                color = if (double != null) Rivals.colors.live else Rivals.colors.fg2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .background(if (double != null) Rivals.colors.liveTint else Rivals.colors.raised, Shapes.pill)
+                    .let { if (open) it.border(2.dp, Rivals.colors.fg3, Shapes.pill) else it }
+                    .padding(horizontal = 14.dp, vertical = 9.dp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(Space.touch)
+                .clickable(role = Role.Button, onClickLabel = "Undo frame ${receipt.number}", onClick = onUndo)
+                .testTag("undo"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.size(40.dp).background(Rivals.colors.raised, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(
+                    painterResource(R.drawable.ic_undo),
+                    contentDescription = "Undo frame ${receipt.number}",
+                    tint = Rivals.colors.fg,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}
+
+/** A message in the receipt's place: white on `raised`, or amber when something went wrong. */
+@Composable
+private fun NoticePill(notice: Notice, modifier: Modifier = Modifier) {
+    Text(
+        notice.text.uppercase(),
+        style = Rivals.type.label.copy(letterSpacing = 0.08.em),
+        color = if (notice.warning) Rivals.colors.live else Rivals.colors.fg,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier
+            .background(if (notice.warning) Rivals.colors.liveTint else Rivals.colors.raised, Shapes.pill)
+            .padding(horizontal = 14.dp, vertical = 9.dp)
+            .testTag("notice"),
+    )
+}
+
+/** The last frame's tags, raised above its receipt. A chosen tag wears the winner's colour. */
+@Composable
+private fun TagRow(
+    receipt: FrameReceipt,
+    youId: String,
+    onToggle: (FrameEvent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .background(Rivals.colors.surface, Shapes.panel)
+            .padding(Space.s12)
+            .testTag("tags"),
+        horizontalArrangement = Arrangement.spacedBy(Space.s8),
+    ) {
+        TagChips(receipt, youId, onToggle)
+    }
+}
+
+@Composable
+private fun TagChips(receipt: FrameReceipt, youId: String, onToggle: (FrameEvent) -> Unit) {
+    FrameEvent.entries.forEach { event ->
+        ToggleChip(
+            text = event.label,
+            selected = event in receipt.events,
+            onClick = { onToggle(event) },
+            color = Rivals.colors.forPlayer(receipt.winnerId, youId),
+            tint = Rivals.colors.tintForPlayer(receipt.winnerId, youId),
+        )
+    }
+}
+
+/**
+ * Behind ≡: this match, and the way out of the night. The game and race change the running
+ * match at once, on both phones; End match and, set apart, End session are still confirmed.
+ */
+@Composable
+private fun MatchSheet(
+    match: Match,
+    me: PlayerSide,
+    rival: PlayerSide,
+    onChange: (MatchSettings) -> Unit,
+    onEndMatch: () -> Unit,
+    onEndSession: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // Held here so quick taps on the stepper build on each other, not on a snapshot in flight.
+    var settings by remember(match.id) { mutableStateOf(match.settings) }
+    LaunchedEffect(match.settings) { settings = match.settings }
+    val minRace = ScoreRules.minRace(match)
+    val minutes = match.startedAt?.let { Duration.between(it, Instant.now()).toMinutes().coerceAtLeast(0) }
+    Row(
+        modifier = modifier
+            .widthIn(max = 800.dp)
+            .fillMaxWidth()
+            .background(Rivals.colors.surface, Shapes.panel)
+            // Taps between its controls stay on it, rather than reaching the backdrop.
+            .pointerInput(Unit) { detectTapGestures() }
+            .padding(horizontal = 28.dp, vertical = Space.s24)
+            .testTag("match-sheet"),
+        horizontalArrangement = Arrangement.spacedBy(Space.s32),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s12)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
+                Text("Match ${match.number}", style = Rivals.type.headline, color = Rivals.colors.fg)
+                Label(
+                    "${me.name} ${me.frames} – ${rival.frames} ${rival.name}" + (minutes?.let { " · $it min" } ?: ""),
+                    maxLines = 1,
+                )
+            }
+            MatchSettingsRows(
+                settings = settings,
+                onChange = { settings = it; onChange(it) },
+                minRace = minRace,
+            )
+            Text(
+                "Changes apply at once." + if (minRace > 1) " The race can't go below $minRace." else "",
+                style = Rivals.type.caption,
+                color = Rivals.colors.fg2,
+            )
+        }
+        Column(
+            modifier = Modifier.width(180.dp).padding(top = 42.dp),
+            verticalArrangement = Arrangement.spacedBy(Space.s12),
+        ) {
+            if (match.framesPlayed > 0) SecondaryButton("End match", onEndMatch, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(Space.s16))
+            SecondaryButton("End session", onEndSession, Modifier.fillMaxWidth())
+        }
     }
 }
 
@@ -537,28 +825,39 @@ internal fun formatElapsed(seconds: Long): String {
 }
 
 /**
- * The match is won: the board dims and this says who took it and what happens next. Play on
- * (or a tap anywhere on the dimmed board) hands the board to the next match; Undo is the way
- * back if the wrong half was tapped.
+ * The match is won: the board dims and this says who took it and what happens next. The next
+ * match is already running, and its settings can be changed here; the winning frame can be
+ * tagged. Play on (or a tap on the dimmed board, until the panel's been used) hands the board
+ * to the next match; Undo is the way back if the wrong half was tapped.
  */
 @Composable
 private fun MatchWonPanel(
     result: MatchResult,
     youWon: Boolean,
     canUndo: Boolean,
+    next: MatchSettings,
+    winningFrame: FrameReceipt?,
+    onTouched: () -> Unit,
+    onChangeNext: (MatchSettings) -> Unit,
+    onToggleTag: (FrameEvent) -> Unit,
     onPlayOn: () -> Unit,
     onUndo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var changing by rememberSaveable(result.matchId) { mutableStateOf(false) }
+    var settings by remember(result.matchId) { mutableStateOf(next) }
+    LaunchedEffect(next) { settings = next }
     Row(
         modifier = modifier
             // Wide enough that the winner's line stays on one line beside the buttons.
-            .widthIn(max = 680.dp)
+            .widthIn(max = 720.dp)
             .padding(horizontal = Space.s24)
             .background(Rivals.colors.surface, Shapes.panel)
+            // Taps between its controls stay on it, rather than reaching the backdrop.
+            .pointerInput(Unit) { detectTapGestures() }
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 28.dp, vertical = Space.s24)
             .testTag("match-won"),
-        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.s24),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -572,6 +871,26 @@ private fun MatchWonPanel(
                 color = Rivals.colors.fg,
             )
             Text(result.next, style = Rivals.type.body, color = Rivals.colors.fg2)
+            Spacer(Modifier.height(Space.s8))
+            if (changing) {
+                MatchSettingsRows(
+                    settings = settings,
+                    onChange = { settings = it; onTouched(); onChangeNext(it) },
+                    gameLabel = "Next game",
+                )
+            } else {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
+                    Label("Next")
+                    Text(next.describe().replaceFirstChar { it.uppercase() }, style = Rivals.type.rowTitle, color = Rivals.colors.fg)
+                    TextAction("Change", { changing = true; onTouched() }, color = Rivals.colors.fg)
+                }
+                if (winningFrame != null) {
+                    Label("Tag the winning frame")
+                    Row(Modifier.padding(top = Space.s4), horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
+                        TagChips(winningFrame, if (youWon) result.winnerId else "") { onTouched(); onToggleTag(it) }
+                    }
+                }
+            }
         }
         Column(
             modifier = Modifier.width(150.dp),
@@ -583,98 +902,15 @@ private fun MatchWonPanel(
     }
 }
 
-/** Everything that isn't scoring, behind the one button in the corner. */
-@Composable
-private fun GameMenu(
-    uiState: SessionUiState,
-    match: Match,
-    actions: SessionActions,
-    onDialog: (SessionDialog) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var open by remember { mutableStateOf(false) }
-    Box(modifier) {
-        IconAction(R.drawable.ic_menu, "Game menu", { open = true })
-        DropdownMenu(
-            expanded = open,
-            onDismissRequest = { open = false },
-            containerColor = Rivals.colors.surface,
-            shape = Shapes.panel,
-        ) {
-            val tagged = uiState.lastFrameEvents
-            if (tagged != null) {
-                Label(
-                    "Last frame",
-                    color = Rivals.colors.fg3,
-                    modifier = Modifier.padding(horizontal = Space.s16, vertical = Space.s8),
-                )
-                FrameEvent.entries.forEach { event ->
-                    DropdownMenuItem(
-                        text = { Text(event.label, style = Rivals.type.body, color = Rivals.colors.fg) },
-                        leadingIcon = {
-                            if (event in tagged) {
-                                Icon(
-                                    painterResource(R.drawable.ic_check),
-                                    contentDescription = "Tagged",
-                                    tint = Rivals.colors.fg,
-                                )
-                            } else {
-                                Spacer(Modifier.size(24.dp))
-                            }
-                        },
-                        onClick = { open = false; actions.onToggleEvent(event) },
-                    )
-                }
-            }
-            MenuItem("Undo last frame", R.drawable.ic_undo, enabled = uiState.canUndo) {
-                open = false
-                actions.onUndo()
-            }
-            if (match.framesPlayed == 0) {
-                MenuItem("Change game") { open = false; onDialog(SessionDialog.CHANGE_SETTINGS) }
-            } else {
-                MenuItem("End match") { open = false; onDialog(SessionDialog.END_MATCH) }
-            }
-            MenuItem("End session") { open = false; onDialog(SessionDialog.END_SESSION) }
-        }
-    }
-}
-
-@Composable
-private fun MenuItem(
-    text: String,
-    iconRes: Int? = null,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    DropdownMenuItem(
-        text = {
-            Text(
-                text,
-                style = Rivals.type.body,
-                color = if (enabled) Rivals.colors.fg else Rivals.colors.fg3,
-            )
-        },
-        leadingIcon = {
-            if (iconRes != null) {
-                Icon(painterResource(iconRes), contentDescription = null, tint = Rivals.colors.fg2)
-            } else {
-                Spacer(Modifier.size(24.dp))
-            }
-        },
-        enabled = enabled,
-        onClick = onClick,
-    )
-}
-
-/** Between matches (after one was ended by hand): set up the next, laid out for landscape. */
+/**
+ * Between matches (after one was ended by hand): tonight's score, and the next match to start.
+ * Home, notices and End session stay where they are on the board, on the status line.
+ */
 @Composable
 private fun NextMatchPanel(
     uiState: SessionUiState,
     onStart: (MatchSettings) -> Unit,
     onUndo: () -> Unit,
-    onEndSession: () -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val defaults = rememberMatchDefaults()
@@ -686,58 +922,52 @@ private fun NextMatchPanel(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
+            .padding(bottom = StatusLineHeight)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-    Row(
-        modifier = Modifier
-            .widthIn(max = 720.dp)
-            .fillMaxWidth()
-            .padding(horizontal = Space.s24, vertical = Space.s16),
-        horizontalArrangement = Arrangement.spacedBy(Space.s32),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s16)) {
-            Label("Tonight")
-            if (me != null && rival != null) {
-                Row(
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(Space.s12),
-                ) {
-                    Text("${me.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
-                    Text(
-                        "–",
-                        style = Rivals.type.display.copy(fontSize = 24.sp),
-                        color = Rivals.colors.hairline,
-                        modifier = Modifier.padding(bottom = Space.s8),
-                    )
-                    Text("${rival.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
+        Row(
+            modifier = Modifier
+                .widthIn(max = 720.dp)
+                .fillMaxWidth()
+                .padding(horizontal = Space.s24, vertical = Space.s16),
+            horizontalArrangement = Arrangement.spacedBy(Space.s32),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s16)) {
+                Label("Tonight")
+                if (me != null && rival != null) {
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(Space.s12),
+                    ) {
+                        Text("${me.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
+                        Text(
+                            "–",
+                            style = Rivals.type.display.copy(fontSize = 24.sp),
+                            color = Rivals.colors.hairline,
+                            modifier = Modifier.padding(bottom = Space.s8),
+                        )
+                        Text("${rival.matches}", style = Rivals.type.display, color = Rivals.colors.fg)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Label(me.name, color = Rivals.colors.you)
+                        Label(rival.name, color = Rivals.colors.rival)
+                    }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Label(me.name, color = Rivals.colors.you)
-                    Label(rival.name, color = Rivals.colors.rival)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s12)) {
+                Label("Next match")
+                MatchSettingsPicker(settings, { settings = it })
+                PrimaryButton("Start match", {
+                    defaults.last = settings
+                    onStart(settings)
+                })
+                if (uiState.canUndo) {
+                    TextAction("Undo last frame", onUndo, Modifier.align(Alignment.CenterHorizontally))
                 }
             }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s12)) {
-            Label("Next match")
-            MatchSettingsPicker(settings, { settings = it })
-            PrimaryButton("Start match", {
-                defaults.last = settings
-                onStart(settings)
-            })
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Space.s8),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextAction("End session", onEndSession)
-                Spacer(Modifier.weight(1f))
-                if (uiState.canUndo) TextAction("Undo last frame", onUndo)
-                TextAction("Home", onBack)
-            }
-        }
-    }
     }
 }
 
@@ -759,7 +989,7 @@ private fun SessionContentPreview() {
                 me = PlayerSide("a", "Kevin", frames = 4, matches = 2),
                 rival = PlayerSide("b", "Julian", frames = 2, matches = 1),
                 match = previewMatch,
-                lastFrameEvents = setOf(FrameEvent.BREAK_AND_RUN),
+                lastFrame = FrameReceipt(6, "a", "Kevin", theirPhone = false, events = setOf(FrameEvent.BREAK_AND_RUN)),
                 canUndo = true,
                 pendingSync = true,
             ),

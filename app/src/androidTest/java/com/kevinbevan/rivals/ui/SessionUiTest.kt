@@ -1,6 +1,12 @@
 package com.kevinbevan.rivals.ui
 
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -13,7 +19,12 @@ import com.kevinbevan.rivals.model.GameType
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Status
+import com.kevinbevan.rivals.ui.session.DoubleFrame
+import com.kevinbevan.rivals.ui.session.FrameReceipt
 import com.kevinbevan.rivals.ui.session.MatchResult
+import com.kevinbevan.rivals.ui.session.Notice
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.getOrNull
 import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
 import com.kevinbevan.rivals.ui.session.SessionContent
@@ -25,6 +36,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+
+/** A node whose click is labelled [label] (the steppers carry theirs as a click label). */
+private fun hasClickLabel(label: String) = SemanticsMatcher("click label $label") {
+    it.config.getOrNull(SemanticsActions.OnClick)?.label == label
+}
 
 @RunWith(AndroidJUnit4::class)
 class SessionUiTest {
@@ -39,7 +55,7 @@ class SessionUiTest {
         me = PlayerSide("a", "Kevin", frames = a, matches = matchesA),
         rival = PlayerSide("b", "Julian", frames = b, matches = matchesB),
         match = match(a, b),
-        lastFrameEvents = if (a + b > 0) emptySet() else null,
+        lastFrame = if (a + b > 0) FrameReceipt(a + b, "a", "Kevin", theirPhone = false, events = emptySet()) else null,
         canUndo = a + b > 0 || matchesA + matchesB > 0,
     )
 
@@ -59,7 +75,8 @@ class SessionUiTest {
     fun theScoreRaceAndHillAreShown() {
         show(state(a = 4, b = 2))
         // The status line is one label along the foot of the board, and labels are uppercase.
-        compose.onNodeWithText("MATCH 2 · 9-BALL · RACE TO 5 · TONIGHT 1 – 0").assertIsDisplayed()
+        compose.onNodeWithText("MATCH 2 · 9-BALL · RACE TO 5").assertIsDisplayed()
+        compose.onNodeWithTag("tonight").assertTextEquals("1 – 0")
         compose.onNodeWithText("ON THE HILL").assertIsDisplayed()
     }
 
@@ -110,30 +127,87 @@ class SessionUiTest {
         compose.onNodeWithText("Play on").performClick()
         assertEquals(1, dismissed)
         // The dimmed board behind the panel closes it too, rather than doing nothing.
-        compose.onNodeWithTag("result-backdrop").performClick()
+        compose.onNodeWithTag("result-backdrop").performTouchInput { click(Offset(10f, 10f)) }
         assertEquals(2, dismissed)
     }
 
     @Test
-    fun theMenuTagsTheLastFrame() {
+    fun theReceiptNamesTheLastFrameAndUndoesItInOneTap() {
+        var undone = 0
+        show(
+            state(a = 3, b = 3).copy(lastFrame = FrameReceipt(6, "b", "Julian", theirPhone = true, events = emptySet())),
+            SessionActions(onUndo = { undone++ }),
+        )
+        compose.onNodeWithText("FRAME 6 · JULIAN · THEIR PHONE").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Undo frame 6").performClick()
+        assertEquals(1, undone)
+    }
+
+    @Test
+    fun aDoubleFrameIsCalledOut() {
+        show(state(a = 1, b = 2).copy(lastFrame = FrameReceipt(3, "b", "Julian", true, emptySet(), DoubleFrame(2, 4))))
+        compose.onNodeWithText("FRAMES 2 & 3 · 4 S APART").assertIsDisplayed()
+    }
+
+    @Test
+    fun aNoticeTakesTheReceiptsPlaceThenGoes() {
+        compose.mainClock.autoAdvance = false
+        val dismissed = mutableListOf<Notice>()
+        val notice = Notice(1, "Julian undid frame 6 · 4 – 2 → 3 – 2")
+        show(state().copy(notice = notice), SessionActions(onDismissNotice = { dismissed += it }))
+        compose.mainClock.advanceTimeBy(500)
+        compose.onNodeWithText("JULIAN UNDID FRAME 6 · 4 – 2 → 3 – 2").assertIsDisplayed()
+        compose.onNodeWithTag("receipt").assertDoesNotExist()
+        compose.mainClock.advanceTimeBy(5_000)
+        assertEquals(listOf(notice), dismissed)
+    }
+
+    @Test
+    fun tappingTheReceiptTagsTheLastFrame() {
         val toggled = mutableListOf<FrameEvent>()
         show(
-            state().copy(lastFrameEvents = setOf(FrameEvent.GOLDEN_BREAK)),
+            state().copy(lastFrame = FrameReceipt(4, "a", "Kevin", false, setOf(FrameEvent.GOLDEN_BREAK))),
             SessionActions(onToggleEvent = { toggled += it }),
         )
-        compose.onNodeWithContentDescription("Game menu").performClick()
-        compose.onNodeWithText("LAST FRAME").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Tagged").assertIsDisplayed()
-        compose.onNodeWithText("Break & run").performClick()
+        compose.onNodeWithText("FRAME 4 · KEVIN · GOLDEN BREAK").performClick()
+        compose.onNodeWithText("GOLDEN BREAK").assertIsSelected()
+        compose.onNodeWithText("BREAK & RUN").performClick()
         assertEquals(listOf(FrameEvent.BREAK_AND_RUN), toggled)
+        // A tap off the tags closes them, rather than recording a frame.
+        compose.onNodeWithTag("tags-backdrop").performClick()
+        compose.onNodeWithTag("tags").assertDoesNotExist()
     }
 
     @Test
     fun withNothingPlayedThereIsNothingToTagOrUndo() {
         show(state(a = 0, b = 0, matchesA = 0))
-        compose.onNodeWithContentDescription("Game menu").performClick()
-        compose.onNodeWithText("LAST FRAME").assertDoesNotExist()
-        compose.onNodeWithText("Undo last frame").assertIsNotEnabled()
+        compose.onNodeWithTag("receipt").assertDoesNotExist()
+        compose.onNodeWithTag("undo").assertDoesNotExist()
+    }
+
+    @Test
+    fun theWinningFrameIsTaggedAndTheNextMatchSetInTheMatchWonPanel() {
+        val toggled = mutableListOf<FrameEvent>()
+        val changed = mutableListOf<MatchSettings>()
+        var dismissed = 0
+        show(
+            state(a = 0, b = 0).copy(
+                justWon = MatchResult("m1", 1, "9-ball", "a", "Kevin", 5, 2, "Match 2 starts now. Tonight 1 – 0."),
+                lastFrame = FrameReceipt(7, "a", "Kevin", false, emptySet()),
+            ),
+            SessionActions(onToggleEvent = { toggled += it }, onChangeSettings = { changed += it }, onDismissResult = { dismissed++ }),
+        )
+        compose.onNodeWithText("9-ball · race to 5").assertIsDisplayed()
+        compose.onNodeWithText("WON ON THREE FOULS").performClick()
+        assertEquals(listOf(FrameEvent.THREE_FOULS), toggled)
+        compose.onNodeWithText("Change").performClick()
+        compose.onNode(hasClickLabel("One more frame")).performClick()
+        assertEquals(listOf(MatchSettings(GameType.NINE_BALL, raceTo = 6)), changed)
+        // Touched, the panel waits for Play on: the dimmed board no longer closes it.
+        compose.onNodeWithTag("result-backdrop").performTouchInput { click(Offset(10f, 10f)) }
+        assertEquals(0, dismissed)
+        compose.onNodeWithText("Play on").performClick()
+        assertEquals(1, dismissed)
     }
 
     @Test
@@ -144,11 +218,31 @@ class SessionUiTest {
     }
 
     @Test
-    fun beforeTheFirstFrameTheGameCanBeChangedButNotEnded() {
+    fun theMatchSheetChangesTheRaceMidMatchButNotBelowTheLeader() {
+        val changed = mutableListOf<MatchSettings>()
+        show(state(a = 4, b = 2), SessionActions(onChangeSettings = { changed += it }))
+        compose.onNodeWithContentDescription("Game menu").performClick()
+        compose.onNodeWithTag("match-sheet").assertIsDisplayed()
+        compose.onNodeWithText("The race can't go below 5.", substring = true).assertIsDisplayed()
+        compose.onNode(hasClickLabel("One fewer frame")).assertIsNotEnabled()
+        compose.onNode(hasClickLabel("One more frame")).performClick()
+        compose.onNodeWithText("10-BALL").performClick()
+        assertEquals(
+            listOf(MatchSettings(GameType.NINE_BALL, raceTo = 6), MatchSettings(GameType.TEN_BALL, raceTo = 6)),
+            changed,
+        )
+        compose.onNodeWithTag("race-to").assertTextEquals("6")
+        // A tap on the dimmed board closes the sheet.
+        compose.onNodeWithTag("sheet-backdrop").performClick()
+        compose.onNodeWithTag("match-sheet").assertDoesNotExist()
+    }
+
+    @Test
+    fun beforeTheFirstFrameTheSheetHasNoEndMatch() {
         show(state(a = 0, b = 0))
         compose.onNodeWithContentDescription("Game menu").performClick()
-        compose.onNodeWithText("Change game").assertIsDisplayed()
         compose.onNodeWithText("End match").assertDoesNotExist()
+        compose.onNodeWithText("End session").assertIsDisplayed()
     }
 
     @Test
@@ -156,7 +250,6 @@ class SessionUiTest {
         var ended = false
         show(state(a = 3, b = 1), SessionActions(onEndMatch = { ended = true }))
         compose.onNodeWithContentDescription("Game menu").performClick()
-        compose.onNodeWithText("Change game").assertDoesNotExist()
         compose.onNodeWithText("End match").performClick()
         compose.onNodeWithText("won't count", substring = true).assertIsDisplayed()
         compose.onNodeWithText("End match").performClick()
@@ -181,5 +274,9 @@ class SessionUiTest {
         compose.onNodeWithTag("score-a").assertDoesNotExist()
         compose.onNodeWithText("Start match").performClick()
         assertEquals(race5, started)
+        // Home and End session are on the status line, as on the board.
+        compose.onNodeWithContentDescription("Back to home").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Game menu").performClick()
+        compose.onNodeWithText("End tonight's session?").assertIsDisplayed()
     }
 }

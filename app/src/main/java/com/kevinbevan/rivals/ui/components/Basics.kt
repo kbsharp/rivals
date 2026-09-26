@@ -1,6 +1,10 @@
 package com.kevinbevan.rivals.ui.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.getValue
+import com.kevinbevan.rivals.ui.theme.Motion
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -168,6 +172,42 @@ fun Chip(
             Box(Modifier.size(8.dp).background(color, CircleShape))
         }
         Label(text, color = color)
+    }
+}
+
+/**
+ * A chip that is on or off, 48dp tall. On wears [color] on [tint]: the accent (`you`) for a
+ * choice, or a player's colour for something credited to them, such as a frame's tag.
+ */
+@Composable
+fun ToggleChip(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    color: Color = Rivals.colors.you,
+    tint: Color = Rivals.colors.youTint,
+    role: Role = Role.Checkbox,
+) {
+    val background by animateColorAsState(
+        if (selected) tint else Rivals.colors.raised,
+        Motion.tween(Motion.FAST),
+        label = "chip background",
+    )
+    val content by animateColorAsState(
+        if (selected) color else Rivals.colors.fg2,
+        Motion.tween(Motion.FAST),
+        label = "chip text",
+    )
+    Box(
+        modifier = modifier
+            .heightIn(min = Space.touch)
+            .background(background, Shapes.pill)
+            .selectable(selected = selected, role = role, onClick = onClick)
+            .padding(horizontal = Space.s16, vertical = Space.s12),
+        contentAlignment = Alignment.Center,
+    ) {
+        Label(text, color = content, maxLines = 1)
     }
 }
 

@@ -1,6 +1,5 @@
 package com.kevinbevan.rivals.ui.session
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +33,10 @@ import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.ui.components.Label
 import com.kevinbevan.rivals.ui.components.SecondaryButton
 import com.kevinbevan.rivals.ui.components.TextAction
+import com.kevinbevan.rivals.ui.components.ToggleChip
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.platform.testTag
 import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.theme.Motion
 import com.kevinbevan.rivals.ui.theme.Rivals
@@ -131,34 +134,59 @@ private fun Hint(text: String) {
     Text(text, style = Rivals.type.caption, color = Rivals.colors.fg3)
 }
 
+@Composable
+private fun ChoiceChip(text: String, selected: Boolean, onClick: () -> Unit) =
+    ToggleChip(text, selected, onClick, role = Role.RadioButton)
+
 /**
- * A chip that is either on or off. On is the app's accent — [RivalsColors.you] on its tint,
- * the same teal that names you everywhere else — so a row of chips reads at a glance instead
- * of as black and white.
+ * Game and race on two rows, each led by its label: the match sheet's and the match-won
+ * panel's version of [MatchSettingsPicker]. Every tap is a change, applied at once. The race
+ * can't go below [minRace], the leader's score plus one.
  */
 @Composable
-private fun ChoiceChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    val background by animateColorAsState(
-        if (selected) Rivals.colors.youTint else Rivals.colors.raised,
-        Motion.tween(Motion.FAST),
-        label = "chip background",
-    )
-    val content by animateColorAsState(
-        if (selected) Rivals.colors.you else Rivals.colors.fg2,
-        Motion.tween(Motion.FAST),
-        label = "chip text",
-    )
-    Box(
-        modifier = Modifier
-            .heightIn(min = Space.touch)
-            .background(background, Shapes.pill)
-            .clickable(role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = Space.s16, vertical = Space.s12),
-        contentAlignment = Alignment.Center,
-    ) {
-        Label(text, color = content, maxLines = 1)
+fun MatchSettingsRows(
+    settings: MatchSettings,
+    onChange: (MatchSettings) -> Unit,
+    modifier: Modifier = Modifier,
+    minRace: Int = 1,
+    gameLabel: String = "Game",
+) {
+    var lastRace by remember { mutableIntStateOf(settings.raceTo ?: DefaultMatchSettings.raceTo!!) }
+    val race = settings.raceTo
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
+            Label(gameLabel, Modifier.width(RowLabelWidth))
+            GameType.entries.forEach { type ->
+                val chosen = settings.gameType == type
+                ChoiceChip(type.label, chosen) { onChange(settings.copy(gameType = if (chosen) null else type)) }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
+            Label("Race to", Modifier.width(RowLabelWidth))
+            Stepper("−", "One fewer frame", enabled = race != null && race > minRace) {
+                onChange(settings.copy(raceTo = race!! - 1))
+            }
+            Text(
+                text = race?.toString() ?: "–",
+                modifier = Modifier.widthIn(min = 40.dp).testTag("race-to"),
+                style = Rivals.type.headline,
+                color = if (race == null) Rivals.colors.fg3 else Rivals.colors.fg,
+                textAlign = TextAlign.Center,
+            )
+            Stepper("+", "One more frame", enabled = race != null && race < MAX_RACE) {
+                onChange(settings.copy(raceTo = race!! + 1))
+            }
+            Spacer(Modifier.width(Space.s4))
+            ChoiceChip("Open-ended", race == null) {
+                val open = race != null
+                if (open) lastRace = race
+                onChange(settings.copy(raceTo = if (open) null else lastRace.coerceAtLeast(minRace)))
+            }
+        }
     }
 }
+
+private val RowLabelWidth = 80.dp
 
 @Composable
 private fun Stepper(glyph: String, label: String, enabled: Boolean, onClick: () -> Unit) {

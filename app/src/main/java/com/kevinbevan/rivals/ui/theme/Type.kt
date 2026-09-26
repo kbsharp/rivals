@@ -93,6 +93,11 @@ data class RivalsTypography(
     val labelSmall: TextStyle = barlow(11, 14, FontWeight.SemiBold).copy(letterSpacing = 0.12.em),
     /** The text inside a button. */
     val button: TextStyle = barlow(16, 22, FontWeight.Bold),
+    /**
+     * The scoreboard's status line, read from the rail: the one size outside the steps above
+     * (brief, "Where actions live"). Uppercase it at the call site.
+     */
+    val status: TextStyle = barlow(14, 20, FontWeight.SemiBold).copy(letterSpacing = 0.06.em),
 )
 
 val LocalRivalsTypography = androidx.compose.runtime.staticCompositionLocalOf { RivalsTypography() }

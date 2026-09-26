@@ -3,6 +3,7 @@
 How Rivals is put together as a thing to use: every route, every way in and out of it, and
 every action on every screen. Built for UX phase 1 (`design/ux-plan.md`) from
 `ui/navigation` and the screens as of `da2e884`. Nothing here is a judgement; that's phase 2.
+UX phase 4 keeps it current as the flow changes.
 
 - **Renders** of every state named below are in `design/audit/renders/` as `<name>-dark.png` /
   `<name>-light.png`. On the landscape board, an open menu is composited onto the board where a
@@ -93,47 +94,45 @@ Renders: `rivalry`, `rivalry-stats`, `rivalry-live`, `rivalry-empty`, `rivalry-n
 
 Landscape, status bar hidden, screen kept on. Three states: the board with a match running,
 the match-won panel over the dimmed board, and the between-matches panel (only after a match
-is ended by hand). Renders: `session`, `session-board`, `session-first-frame`,
-`session-hill-hill`, `session-open-ended`, `session-quick-game`, `session-pending`,
-`session-message`, `session-loading`, `session-won`, `session-next`.
+is ended by hand). UX phase 4 rebuilt it on "where actions live" (`design/brief.md`): the last
+frame's receipt, the match sheet and the match-won panel replaced the ≡ dropdown. Renders:
+`session`, `session-board`, `session-first-frame`, `session-hill-hill`, `session-open-ended`,
+`session-quick-game`, `session-pending`, `session-loading`, `session-won`, `session-next`, and
+the phase 4 states named below.
 
 ### On the board
 
 | Action | Where it lives | Taps | Job |
 |---|---|---|---|
 | **Record a frame** | Tap the player's half; a haptic, and the score rolls | 1 | 1 |
+| See the last frame | Its receipt on the status line: "FRAME 6 · KEVIN", "· THEIR PHONE" when the other phone recorded it, and its tags (`session-receipt-their-phone`, `session-receipt-tagged`) | 0 | 1, 2 |
+| **Undo the last frame** | Round button beside the receipt; one tap, unconfirmed. Both phones then show "KEVIN UNDID FRAME 6 · 4 – 2 → 3 – 2" in the receipt's place for 4 s (`session-undone`) | 1 | 2 |
+| Catch a double frame | Two frames from different phones within 10 s turn the receipt amber: "FRAMES 2 & 3 · 3 S APART" (`session-double`) | 0 | 2 |
+| **Tag the last frame** | Tap the receipt → *Break & run*, *Golden break*, *Won on three fouls* above it; a chosen tag wears the winner's colour; a tap off them closes them (`session-tags`) | 2 | 3 |
 | Back to Home | Arrow, left end of the status line (session keeps running) | 1 | 6 |
-| Read the clock, match number, game, race, tonight's score | Status line along the bottom | 0 | 1, 4 |
+| Read the clock, match, game, race, tonight's score | Status line: the match at 14 sp in `fg-2`, tonight's score in white numbers | 0 | 1, 4 |
 | Pending-sync cloud | Status line, after the clock (`session-pending`) | 0 | feedback |
 | "On the hill" | Chip under a player's pips at race − 1 | 0 | 1 |
-| Errors ("Couldn't save…", "Nothing to undo", "No frame to tag yet") | Snackbar above the status line (`session-message`) | 0 | feedback |
+| Messages ("Couldn't save…", "Match 4 ended · no winner") | In the receipt's place on the status line, amber for errors, 4–6 s (`session-message`, `session-next-notice`) | 0 | feedback |
 
-### The game menu (≡, right end of the status line)
+### The match sheet (≡, right end of the status line)
 
-Its contents change with the state of the night (`session-menu`, `session-menu-new-match`,
-`session-menu-first-frame`):
+≡ dims the board and raises a sheet above the status line (`session-sheet`,
+`session-sheet-new-match`, `session-sheet-open-ended`). A tap on the dimmed board closes it.
 
 | Item | Shown when | Taps | Job |
 |---|---|---|---|
-| **LAST FRAME** heading, then *Break & run*, *Golden break*, *Won on three fouls* (a tick on the ones set; tap toggles) | Any frame has been played this session. The frame is the session's last one, which is the previous match's winner right after a match is won | 2 | 3 |
-| *Undo last frame* | Always; greyed out before the first frame | 2 | 2 |
-| *Change game* → Match settings dialog → *Save* (`session-change-game`) | The running match has no frames yet | 3 + adjustments | 4 |
+| "Match 4", the score and minutes played | Always | 1 | 4 |
+| Game chips, race stepper and *Open-ended*: change the running match at once, on both phones. The race can't go below the leader's score + 1 | Always | 2 | 4 |
 | *End match* → confirm (`session-end-match`, `session-end-match-open-ended`) | The running match has frames | 3 | 4 |
-| *End session* → confirm (`session-end-session`, `session-end-session-empty`) | Always | 3 | 5 |
+| *End session* → confirm (`session-end-session`, `session-end-session-empty`), set apart | Always | 3 | 5 |
 
-- Up to 6 items plus a heading. Tagging (occasional, about the last frame), undo (a fix),
-  match settings and ending the night all share one list with no grouping but the heading.
-- Undo has no confirmation and no feedback beyond the score rolling back. It reaches back one
-  match: with a new match just started, it deletes it and takes the winning frame off the
-  previous one, reopening it.
-- *End match* only appears once a frame is in; *Change game* only before. They sit in the same
-  slot.
 - *End match*'s confirm says what the match will count as: with a race, "won't count for
   either of you"; open-ended, the leader wins it, or level counts for nobody.
 - *End session*'s confirm gives the final score and, with frames in the running match, what
   happens to it; with nothing played, it says the session will be deleted.
 
-### Match won (`session-won`)
+### Match won (`session-won`, `session-won-tagged`, `session-won-change`)
 
 A race is reached → the next match starts automatically with the same settings; the board dims
 and a panel says "Kevin takes it 5 – 2" and "Match 5 starts now. Tonight 3 – 1.", on both
@@ -142,22 +141,23 @@ phones, with a heavier haptic.
 | Action | Where it lives | Taps | Job |
 |---|---|---|---|
 | *Play on* | Primary button in the panel | 1 | 1 |
-| Tap anywhere on the dimmed board | Same as Play on (a frame tap here does not record) | 1 | 1 |
+| Tap anywhere on the dimmed board | Same as Play on, until the panel has been touched | 1 | 1 |
 | *Undo* | Secondary button in the panel: takes the winning frame back and reopens the match | 1 | 2 |
-| Wait | The panel clears itself after 9 s | 0 | — |
-| Change the next match's game or race | Menu → *Change game* (the new match has no frames) | 3+ | 4 |
+| Tag the winning frame | "Tag the winning frame" chips in the panel | 1 | 3 |
+| Change the next match's game or race | "NEXT · 9-ball · race to 5 · *Change*" → the chips and stepper, applied to the match already running | 2+ | 4 |
+| Wait | The panel clears itself after 9 s, unless it's been touched: then it waits for *Play on* | 0 | — |
 
 ### Between matches (`session-next`)
 
-Only after *End match* by hand. Laid out in two columns: tonight's score; "Next match" with the
-settings picker.
+Only after *End match* by hand. Two columns: tonight's score; "Next match" with the settings
+picker. The status line stays, with back, notices and ≡.
 
 | Action | Where it lives | Taps (from here) | Job |
 |---|---|---|---|
 | **Start match** | Primary button, with the game and race picker above it | 1 + adjustments | 4 |
-| *End session* → confirm (`session-next-end-session`) | Text action, bottom left | 2 | 5 |
-| *Undo last frame* | Text action, bottom right (reopens the ended match) | 1 | 2 |
-| *Home* | Text action, bottom right | 1 | 6 |
+| *Undo last frame* | Text action under it (reopens the ended match) | 1 | 2 |
+| *End session* → confirm (`session-next-end-session`) | ≡ on the status line | 2 | 5 |
+| Back to Home | Arrow on the status line | 1 | 6 |
 
 ### Leaving the session
 
@@ -224,13 +224,12 @@ Renders `sign-in`, `sign-in-busy`, `sign-in-error`. Job 8.
 | New session | Home *Play X*, Rivalry *Start session* | Start | — | `home-new-session`, `rivalry-new-session` |
 | Quick game | Home | Start | — | `home-quick-game`, `quick-game`, `quick-game-chosen` |
 | Save to a rivalry | Home quick-game row | Save | — | `home-save-game` |
-| Change game | Session menu | Save | — | `session-change-game` |
-| End this match? | Session menu | End match | No | `session-end-match`, `session-end-match-open-ended` |
-| End tonight's session? | Session menu; between-matches panel | End session | No | `session-end-session`, `session-end-session-empty`, `session-next-end-session` |
+| End this match? | Match sheet | End match | No | `session-end-match`, `session-end-match-open-ended` |
+| End tonight's session? | Match sheet; ≡ between matches | End session | No | `session-end-session`, `session-end-session-empty`, `session-next-end-session` |
 | Remove *Julian*? | Rivalry overflow | Remove | Amber | `rivalry-remove` |
 | Delete this session? | Session detail overflow | Delete | Amber | `detail-delete` |
 
-Not confirmed: undo (menu, panel), every tag toggle, sign out, decline or cancel an invite.
+Not confirmed: undo (receipt, panel), every tag toggle, every change in the match sheet, sign out, decline or cancel an invite.
 
 ## Overflow menus
 
@@ -239,4 +238,4 @@ Not confirmed: undo (menu, panel), every tag toggle, sign out, decline or cancel
 | Home (⋮, signed in only) | Sign out |
 | Rivalry (⋮) | Remove rival |
 | Session detail (⋮, ended sessions only) | Delete session |
-| Session (≡) | Last frame tags ×3, Undo last frame, Change game / End match, End session |
+| Session (≡) | Not a menu since UX phase 4: the match sheet (above) |

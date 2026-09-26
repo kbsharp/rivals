@@ -203,10 +203,17 @@ class ScoreRules(private val newId: () -> String) {
         )
     }
 
-    /** Changes how [match] is played, e.g. switching game type. Only allowed before its first frame. */
+    /**
+     * Changes how [match] is played, e.g. switching game type or lengthening the race, even
+     * mid-match. A race can't be set at or below a score already on the board (see [minRace]):
+     * that would be a match already won, and ending it is End match's job.
+     */
     fun changeSettings(session: Session, match: Match, settings: MatchSettings): WritePlan {
         checkActive(session, match)
-        check(match.framesPlayed == 0) { "Match ${match.id} is under way; end it instead" }
+        val race = settings.raceTo
+        check(race == null || race >= minRace(match)) {
+            "Match ${match.id} is already at ${match.frameWins.values.maxOrNull()}; race to $race would be over"
+        }
         return listOf(
             Write.Update(
                 MatchDoc(session.id, match.id),
@@ -321,6 +328,9 @@ class ScoreRules(private val newId: () -> String) {
     }
 
     companion object {
+        /** The shortest race [match] can be changed to: one more than the leader's score. */
+        fun minRace(match: Match): Int = (match.frameWins.values.maxOrNull() ?: 0) + 1
+
         /** Who takes an unfinished match that's ended by hand; see [endMatch]. */
         fun manualWinner(match: Match): String? {
             if (match.settings.raceTo != null) return null

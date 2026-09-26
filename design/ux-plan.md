@@ -136,6 +136,15 @@ _One problem area per pass, in the order below._
 
 **Exit:** every decision is built, the renders match the mock-ups, tests pass.
 
+Progress (2026-09-26):
+- [x] Areas 1–4 and 6: the receipt with one-tap Undo and tags, undo named on both phones, the
+      amber double frame, the match sheet (race editable mid-match, never below the leader + 1),
+      the match-won panel's next match and winning-frame tags (it stops timing out once touched),
+      messages on the status line instead of snackbars, and the louder status line. The
+      between-matches panel keeps the status line and holds only *Start match* and *Undo*.
+- [ ] Area 5: back goes Home, "seen" per match, the full-time panel
+- [ ] F14 and F15
+
 ## UX phase 5: A real night
 - [ ] 🧑 Kevin and Julian play a night on the new build; Kevin notes anything that jars
 - [ ] Fix those, or add them to the next round of this plan

@@ -62,7 +62,10 @@ import com.kevinbevan.rivals.ui.rivalry.ActiveSessionSummary
 import com.kevinbevan.rivals.ui.rivalry.RivalryContent
 import com.kevinbevan.rivals.ui.rivalry.RivalryUiState
 import com.kevinbevan.rivals.ui.rivalry.SessionItem
+import com.kevinbevan.rivals.ui.session.DoubleFrame
+import com.kevinbevan.rivals.ui.session.FrameReceipt
 import com.kevinbevan.rivals.ui.session.MatchResult
+import com.kevinbevan.rivals.ui.session.Notice
 import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
 import com.kevinbevan.rivals.ui.session.SessionContent
@@ -163,7 +166,7 @@ class FlowScreenshots(private val theme: String) {
         save(name, board)
     }
 
-    /** A snackbar is on a timer; hold the clock so it's still up when the shot is taken. */
+    /** A notice or snackbar is on a timer; hold the clock so it's still up when the shot is taken. */
     private fun shootMessage(name: String, landscape: Boolean = false, content: @Composable () -> Unit) {
         compose.mainClock.autoAdvance = false
         setContent(landscape, content)
@@ -185,6 +188,8 @@ class FlowScreenshots(private val theme: String) {
 
     // ---- Session (the scoreboard) ----
 
+    private val frame6 = FrameReceipt(6, "a", "Kevin", theirPhone = false, events = emptySet())
+
     private fun board(
         a: Int = 4,
         b: Int = 2,
@@ -192,12 +197,12 @@ class FlowScreenshots(private val theme: String) {
         matchesB: Int = 1,
         race: Int? = 5,
         game: GameType? = GameType.NINE_BALL,
-        events: Set<FrameEvent>? = emptySet(),
+        receipt: FrameReceipt? = frame6,
         canUndo: Boolean = true,
         pending: Boolean = false,
         running: Boolean = true,
         justWon: MatchResult? = null,
-        message: String? = null,
+        notice: Notice? = null,
         names: Pair<String, String> = "Kevin" to "Julian",
     ) = SessionUiState(
         loading = false,
@@ -208,49 +213,68 @@ class FlowScreenshots(private val theme: String) {
             startedAt = Instant.now().minusSeconds(754),
         ).takeIf { running },
         lastSettings = MatchSettings(game, race),
-        lastFrameEvents = events,
+        lastFrame = receipt?.copy(winnerName = if (receipt.winnerId == "a") names.first else names.second),
         justWon = justWon,
         canUndo = canUndo,
         pendingSync = pending,
-        message = message,
+        notice = notice,
     )
 
     @Composable private fun Board(state: SessionUiState) = SessionContent(state, SessionActions())
 
     private val won = MatchResult("m4", 4, "9-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Tonight 3 – 1.")
+    private val winningFrame = FrameReceipt(7, "a", "Kevin", theirPhone = false, events = emptySet())
+    private val empty = board(a = 0, b = 0, matchesA = 0, matchesB = 0, receipt = null, canUndo = false)
 
     @Test fun sessionLoading() = shoot("session-loading", landscape = true) { Board(SessionUiState()) }
     @Test fun sessionBoard() = shoot("session-board", landscape = true) { Board(board()) }
     @Test fun sessionPending() = shoot("session-pending", landscape = true) { Board(board(pending = true)) }
     @Test fun sessionOpenEnded() = shoot("session-open-ended", landscape = true) { Board(board(a = 7, b = 6, race = null, game = null)) }
     @Test fun sessionHillHill() = shoot("session-hill-hill", landscape = true) { Board(board(a = 4, b = 4)) }
-    @Test fun sessionFirstFrame() = shoot("session-first-frame", landscape = true) {
-        Board(board(a = 0, b = 0, matchesA = 0, matchesB = 0, events = null, canUndo = false))
-    }
+    @Test fun sessionFirstFrame() = shoot("session-first-frame", landscape = true) { Board(empty) }
     @Test fun sessionQuickGame() = shoot("session-quick-game", landscape = true) { Board(board(names = "Kevin" to "Tom")) }
     @Test fun sessionNext() = shoot("session-next", landscape = true) { Board(board(running = false)) }
+    @Test fun sessionNextNotice() = shootMessage("session-next-notice", landscape = true) {
+        Board(board(running = false, notice = Notice(1, "Match 4 ended · no winner")))
+    }
     @Test fun sessionWon() = shoot("session-won", landscape = true) {
-        Board(board(a = 0, b = 0, matchesA = 3, matchesB = 1, justWon = won))
+        Board(board(a = 0, b = 0, matchesA = 3, matchesB = 1, justWon = won, receipt = winningFrame))
+    }
+    @Test fun sessionWonTagged() = shoot("session-won-tagged", landscape = true) {
+        Board(board(a = 0, b = 0, matchesA = 3, matchesB = 1, justWon = won, receipt = winningFrame.copy(events = setOf(FrameEvent.BREAK_AND_RUN))))
+    }
+    @Test fun sessionWonChange() = shoot("session-won-change", landscape = true, steps = { tap("Change") }) {
+        Board(board(a = 0, b = 0, matchesA = 3, matchesB = 1, justWon = won, receipt = winningFrame))
     }
     @Test fun sessionMessage() = shootMessage("session-message", landscape = true) {
-        Board(board(message = "Couldn't save to the server: you're offline"))
+        Board(board(notice = Notice(1, "Couldn't save to the server: you're offline", warning = true)))
     }
 
-    // The game menu, in each of the shapes it takes.
-    @Test fun sessionMenu() = shoot("session-menu", landscape = true, steps = { tapIcon("Game menu") }) {
-        Board(board(events = setOf(FrameEvent.BREAK_AND_RUN)))
+    // The last frame's receipt, in each of its states.
+    @Test fun sessionReceiptTheirPhone() = shoot("session-receipt-their-phone", landscape = true) {
+        Board(board(a = 3, b = 3, receipt = FrameReceipt(6, "b", "Julian", theirPhone = true, events = emptySet())))
     }
-    @Test fun sessionMenuNewMatch() = shoot("session-menu-new-match", landscape = true, steps = { tapIcon("Game menu") }) {
+    @Test fun sessionReceiptTagged() = shoot("session-receipt-tagged", landscape = true) {
+        Board(board(receipt = frame6.copy(events = setOf(FrameEvent.BREAK_AND_RUN))))
+    }
+    @Test fun sessionDouble() = shoot("session-double", landscape = true) {
+        Board(board(a = 1, b = 2, receipt = FrameReceipt(3, "b", "Julian", theirPhone = true, events = emptySet(), double = DoubleFrame(2, 3))))
+    }
+    @Test fun sessionUndone() = shootMessage("session-undone", landscape = true) {
+        Board(board(a = 3, notice = Notice(1, "Kevin undid frame 6 · 4 – 2 → 3 – 2")))
+    }
+    @Test fun sessionTags() = shoot("session-tags", landscape = true, steps = { compose.onNodeWithTag("receipt").performClick() }) {
+        Board(board(receipt = frame6.copy(events = setOf(FrameEvent.BREAK_AND_RUN))))
+    }
+
+    // The match sheet behind ≡, and what it opens.
+    @Test fun sessionSheet() = shoot("session-sheet", landscape = true, steps = { tapIcon("Game menu") }) { Board(board()) }
+    @Test fun sessionSheetNewMatch() = shoot("session-sheet-new-match", landscape = true, steps = { tapIcon("Game menu") }) {
         Board(board(a = 0, b = 0))
     }
-    @Test fun sessionMenuFirstFrame() = shoot("session-menu-first-frame", landscape = true, steps = { tapIcon("Game menu") }) {
-        Board(board(a = 0, b = 0, matchesA = 0, matchesB = 0, events = null, canUndo = false))
+    @Test fun sessionSheetOpenEnded() = shoot("session-sheet-open-ended", landscape = true, steps = { tapIcon("Game menu") }) {
+        Board(board(a = 7, b = 6, race = null, game = null))
     }
-
-    // Everything the menu opens.
-    @Test fun sessionChangeGame() = shoot("session-change-game", landscape = true, dialog = true, steps = {
-        tapIcon("Game menu"); tap("Change game")
-    }) { Board(board(a = 0, b = 0)) }
     @Test fun sessionEndMatch() = shoot("session-end-match", landscape = true, dialog = true, steps = {
         tapIcon("Game menu"); tap("End match")
     }) { Board(board()) }
@@ -262,9 +286,9 @@ class FlowScreenshots(private val theme: String) {
     }) { Board(board()) }
     @Test fun sessionEndSessionEmpty() = shoot("session-end-session-empty", landscape = true, dialog = true, steps = {
         tapIcon("Game menu"); tap("End session")
-    }) { Board(board(a = 0, b = 0, matchesA = 0, matchesB = 0, events = null, canUndo = false)) }
+    }) { Board(empty) }
     @Test fun sessionNextEndSession() = shoot("session-next-end-session", landscape = true, dialog = true, steps = {
-        tap("End session")
+        tapIcon("Game menu")
     }) { Board(board(running = false)) }
 
     // ---- Home ----

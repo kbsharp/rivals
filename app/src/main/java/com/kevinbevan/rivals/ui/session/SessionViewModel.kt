@@ -6,8 +6,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.toRoute
-import com.kevinbevan.rivals.auth.AuthRepository
 import com.kevinbevan.rivals.data.SessionRepository
+import com.kevinbevan.rivals.data.Synced
+import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.Match
 import com.kevinbevan.rivals.model.MatchSettings
@@ -16,6 +17,9 @@ import com.kevinbevan.rivals.model.winsOf
 import com.kevinbevan.rivals.ui.appContainer
 import com.kevinbevan.rivals.ui.messageFor
 import com.kevinbevan.rivals.ui.navigation.SessionRoute
+import java.time.Duration
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,9 +28,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -51,6 +57,34 @@ data class MatchResult(
     val next: String,
 )
 
+/**
+ * The session's last frame, for the receipt on the status line: which frame, whose, and from
+ * which phone. It's what Undo takes back and what a tag goes on.
+ */
+data class FrameReceipt(
+    val number: Int,
+    val winnerId: String,
+    val winnerName: String,
+    /** Recorded on the other phone. Never set in a guest game, which only has one. */
+    val theirPhone: Boolean,
+    val events: Set<FrameEvent>,
+    /** Set when this frame and the one before it look like one frame recorded on both phones. */
+    val double: DoubleFrame? = null,
+)
+
+/** Two frames recorded on different phones within [DoubleFrameSeconds] of each other. */
+data class DoubleFrame(
+    /** The earlier frame's number, when both are in the same match. */
+    val first: Int?,
+    val secondsApart: Long,
+)
+
+/**
+ * A line that takes the receipt's place on the status line for a few seconds: what an undo
+ * took back, or something that went wrong. [key] tells one notice from the next.
+ */
+data class Notice(val key: Long, val text: String, val warning: Boolean = false)
+
 data class SessionUiState(
     val loading: Boolean = true,
     /** The session has ended (here or on the other phone), or doesn't exist. */
@@ -61,28 +95,34 @@ data class SessionUiState(
     val match: Match? = null,
     /** Settings for the next match: the latest match's. */
     val lastSettings: MatchSettings = DefaultMatchSettings,
-    /** Events tagged on the session's last frame; `null` when no frame has been played. */
-    val lastFrameEvents: Set<FrameEvent>? = null,
+    /** The session's last frame; `null` when no frame has been played. */
+    val lastFrame: FrameReceipt? = null,
     /** The match just won, while the panel is still up; `null` once it's been seen. */
     val justWon: MatchResult? = null,
     val canUndo: Boolean = false,
     /** Some of what's on screen is saved on this phone but not yet on the server. */
     val pendingSync: Boolean = false,
-    /** One-off message for a snackbar; cleared by [SessionViewModel.dismissMessage]. */
-    val message: String? = null,
+    /** Shown on the status line in place of the receipt; cleared by [SessionViewModel.dismissNotice]. */
+    val notice: Notice? = null,
 )
+
+/** Two frames from different phones this close together are probably one frame, recorded twice. */
+const val DoubleFrameSeconds = 10L
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionViewModel(
     private val sessionId: String,
     /** A quick game on the phone: nobody's signed in to it, so frames are recorded by its creator. */
     private val guest: Boolean,
-    private val authRepository: AuthRepository,
+    /** The signed-in player's uid, if any. */
+    private val currentUid: () -> String?,
     private val sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private data class Local(
-        val message: String? = null,
+        val notice: Notice? = null,
+        /** Notices up to this key have had their time on the status line. */
+        val noticesSeen: Long = 0,
         /** This phone just ended the session, so leave even if the snapshot hasn't caught up. */
         val exited: Boolean = false,
         /** The match whose result has already been seen on this phone. */
@@ -102,33 +142,54 @@ class SessionViewModel(
 
     private var createdBy: String? = null
 
-    // Frames of the latest two matches, latest first: the last frame is the one events are
-    // tagged on, which may be the previous match's winner; both are kept in the cache for undo.
+    // Frames of the latest two matches, latest first, by match id: the last frame is the one
+    // events are tagged on, which may be the previous match's winner; both are kept in the
+    // cache for undo.
     private val recentFrames = matches
         .map { snap -> snap.value.sortedByDescending { it.number }.take(2).map { it.id } }
         .distinctUntilChanged()
         .flatMapLatest { ids ->
             if (ids.isEmpty()) flowOf(emptyList())
-            else combine(ids.map { sessionRepository.observeFrames(sessionId, it) }) { it.toList() }
+            else combine(ids.map { id -> sessionRepository.observeFrames(sessionId, id).map { id to it } }) { it.toList() }
         }
+
+    /** Undos this phone has asked for that haven't shown up in a snapshot yet. */
+    private val localUndos = AtomicInteger()
+
+    /** Orders notices, so the newest one has the status line. */
+    private val noticeKeys = AtomicLong()
+
+    /**
+     * The latest matches and frames, watched for a frame going missing, which only an undo
+     * does, so both phones can say what was taken back. The last frame is remembered from one
+     * snapshot to the next, since after the undo it's gone.
+     */
+    private val board = combine(matches, recentFrames) { m, recent -> Board(m, recent, played(m.value, recent)) }
+        .runningFold(null as Board?) { before, now ->
+            val gone = before?.played?.frame
+            if (gone == null || now.played.total >= before.played.total) return@runningFold now.copy(undone = before?.undone)
+            val byMe = localUndos.getAndUpdate { (it - 1).coerceAtLeast(0) } > 0
+            now.copy(undone = Undone(noticeKeys.incrementAndGet(), byMe, gone, before.played.match!!))
+        }
+        .filterNotNull()
 
     val uiState: StateFlow<SessionUiState> = combine(
         session,
-        matches,
-        recentFrames,
+        board,
         names,
         local,
-    ) { session, matches, recent, names, local ->
+    ) { session, board, names, local ->
+        val matches = board.matches
         val s = session.value
         if (s == null || local.exited) return@combine SessionUiState(loading = false, ended = true)
         createdBy = s.createdBy
-        val myId = authRepository.currentUser?.uid?.takeIf { !guest && it in s.playerIds } ?: s.playerIds.firstOrNull().orEmpty()
+        val myId = currentUid().takeIf { !guest }?.takeIf { it in s.playerIds } ?: s.playerIds.firstOrNull().orEmpty()
         val rivalId = s.playerIds.firstOrNull { it != myId }.orEmpty()
 
         val latestFirst = matches.value.sortedByDescending { it.number }
         val latest = latestFirst.getOrNull(0)
         val running = latest?.takeIf { it.status == Status.ACTIVE }
-        val lastFrame = recent.firstNotNullOfOrNull { it.value.lastOrNull() }
+        val played = board.played
 
         fun side(uid: String) = PlayerSide(
             uid = uid,
@@ -158,26 +219,38 @@ class SessionViewModel(
                 )
             },
             lastSettings = latest?.settings ?: DefaultMatchSettings,
-            lastFrameEvents = lastFrame?.events,
+            lastFrame = played.frame?.let { frame ->
+                FrameReceipt(
+                    number = frame.number,
+                    winnerId = frame.winnerId,
+                    winnerName = if (frame.winnerId == myId) me.name else rivalSide.name,
+                    theirPhone = !guest && frame.recordedBy != myId,
+                    events = frame.events,
+                    double = played.double,
+                )
+            },
             canUndo = latestFirst.take(2).any { it.framesPlayed > 0 },
-            pendingSync = session.hasPendingWrites || matches.hasPendingWrites || recent.any { it.hasPendingWrites },
-            message = local.message,
+            pendingSync = session.hasPendingWrites || matches.hasPendingWrites || board.recent.any { it.second.hasPendingWrites },
+            // The newest of the two, until it's been shown for long enough.
+            notice = listOfNotNull(local.notice, board.undone?.let { undoNotice(it, me, rivalSide) })
+                .filter { it.key > local.noticesSeen }
+                .maxByOrNull { it.key },
         )
     }
-        .catch { emit(SessionUiState(loading = false, message = messageFor(it))) }
+        .catch { emit(SessionUiState(loading = false, notice = Notice(0, messageFor(it), warning = true))) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SessionUiState())
 
     init {
         viewModelScope.launch {
             sessionRepository.writeErrors.collect {
-                say(if (guest) "Couldn't save the game on this phone: ${messageFor(it)}" else "Couldn't save to the server: ${messageFor(it)}")
+                warn(if (guest) "Couldn't save the game on this phone: ${messageFor(it)}" else "Couldn't save to the server: ${messageFor(it)}")
             }
         }
     }
 
     fun recordFrame(winnerId: String) = act {
-        val recordedBy = (if (guest) createdBy else authRepository.currentUser?.uid)
-            ?: return@act say("Sign in again to record frames")
+        val recordedBy = (if (guest) createdBy else currentUid())
+            ?: return@act warn("Sign in again to record frames")
         // A won match is announced by the panel on the board, not by a snackbar.
         local.update { it.copy(resultSeen = null) }
         sessionRepository.recordFrame(sessionId, winnerId, recordedBy)
@@ -188,12 +261,18 @@ class SessionViewModel(
     }
 
     fun undo() = act {
-        if (!sessionRepository.undoLastFrame(sessionId)) say("Nothing to undo")
+        // Counted first: the snapshot showing the frame gone can arrive before this returns.
+        localUndos.incrementAndGet()
+        if (!sessionRepository.undoLastFrame(sessionId)) {
+            localUndos.updateAndGet { (it - 1).coerceAtLeast(0) }
+            say("Nothing to undo")
+        }
     }
 
     fun endMatch() = act {
+        val number = uiState.value.match?.number
         val winner = sessionRepository.endMatch(sessionId)
-        say(if (winner != null) "${nameOf(winner)} wins the match" else "Match ended with no winner")
+        say("Match $number ended · " + if (winner != null) "${nameOf(winner)} wins it" else "no winner")
     }
 
     fun startMatch(settings: MatchSettings) = act { sessionRepository.startMatch(sessionId, settings) }
@@ -211,9 +290,14 @@ class SessionViewModel(
         local.update { it.copy(resultSeen = seen) }
     }
 
-    fun dismissMessage() = local.update { it.copy(message = null) }
+    /** [notice] has had its time on the status line. */
+    fun dismissNotice(notice: Notice) =
+        local.update { it.copy(noticesSeen = maxOf(it.noticesSeen, notice.key)) }
 
-    private fun say(message: String) = local.update { it.copy(message = message) }
+    private fun say(text: String, warning: Boolean = false) =
+        local.update { it.copy(notice = Notice(noticeKeys.incrementAndGet(), text, warning)) }
+
+    private fun warn(text: String) = say(text, warning = true)
 
     private fun nameOf(uid: String): String =
         uiState.value.let { listOfNotNull(it.me, it.rival) }.firstOrNull { it.uid == uid }?.name ?: "Player"
@@ -225,12 +309,71 @@ class SessionViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                say(messageFor(e))
+                warn(messageFor(e))
             }
         }
     }
 
+    /** What was played, as far as the latest two matches tell: the total, and the last frame. */
+    private data class Played(
+        val total: Int,
+        val match: Match? = null,
+        val frame: Frame? = null,
+        val double: DoubleFrame? = null,
+    )
+
+    private data class Undone(val key: Long, val byMe: Boolean, val frame: Frame, val match: Match)
+
+    private data class Board(
+        val matches: Synced<List<Match>>,
+        val recent: List<Pair<String, Synced<List<Frame>>>>,
+        val played: Played,
+        /** The latest undo seen while the board was open. */
+        val undone: Undone? = null,
+    )
+
+    /** "KEVIN UNDID FRAME 6 · 4 – 2 → 3 – 2", scores from this phone's side. */
+    private fun undoNotice(undone: Undone, me: PlayerSide, rival: PlayerSide): Notice {
+        val wins = undone.match.frameWins
+        val before = wins.winsOf(me.uid) to wins.winsOf(rival.uid)
+        val after = if (undone.frame.winnerId == me.uid) before.copy(first = before.first - 1)
+            else before.copy(second = before.second - 1)
+        val who = when {
+            guest -> "Frame ${undone.frame.number} undone"
+            undone.byMe -> "${me.name} undid frame ${undone.frame.number}"
+            else -> "${rival.name} undid frame ${undone.frame.number}"
+        }
+        return Notice(
+            undone.key,
+            "$who · ${before.first} – ${before.second} → ${after.first} – ${after.second}",
+        )
+    }
+
     companion object {
+        private fun played(matches: List<Match>, recent: List<Pair<String, Synced<List<Frame>>>>): Played {
+            val latestFirst = matches.sortedByDescending { it.number }
+            val total = latestFirst.take(2).sumOf { it.framesPlayed }
+            // The frames that belong to the matches as they are now, latest match first.
+            val frames = latestFirst.take(2).map { m ->
+                m to recent.firstOrNull { it.first == m.id }?.second?.value.orEmpty().sortedBy { it.number }
+            }
+            val (match, matchFrames) = frames.firstOrNull { it.second.isNotEmpty() } ?: return Played(total)
+            val last = matchFrames.last()
+            val earlier = matchFrames.getOrNull(matchFrames.size - 2)
+                ?: frames.dropWhile { it.first != match }.drop(1).firstOrNull()?.second?.lastOrNull()
+            return Played(total, match, last, doubleFrame(earlier, last, sameMatch = earlier in matchFrames))
+        }
+
+        /** [last] looks like [earlier] again, recorded on the other phone. */
+        internal fun doubleFrame(earlier: Frame?, last: Frame, sameMatch: Boolean): DoubleFrame? {
+            if (earlier == null || earlier.recordedBy == last.recordedBy) return null
+            val a = earlier.recordedAt ?: return null
+            val b = last.recordedAt ?: return null
+            val apart = Duration.between(a, b).abs().seconds
+            if (apart > DoubleFrameSeconds) return null
+            return DoubleFrame(first = earlier.number.takeIf { sameMatch }, secondsApart = apart)
+        }
+
         /**
          * The match that was just won, if the board should still be showing it: the previous
          * match ended with a winner, the next one has started, and nothing has been played on
@@ -255,7 +398,7 @@ class SessionViewModel(
                 SessionViewModel(
                     sessionId = route.sessionId,
                     guest = route.guest,
-                    authRepository = container.authRepository,
+                    currentUid = { container.authRepository.currentUser?.uid },
                     sessionRepository = container.sessions(route.guest),
                 )
             }

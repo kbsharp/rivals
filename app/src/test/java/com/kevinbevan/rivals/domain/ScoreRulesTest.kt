@@ -457,12 +457,21 @@ class ScoreRulesTest {
     }
 
     @Test
-    fun changeSettingsRefusesOnceAFrameIsPlayed() {
-        val id = start()
-        win(id, a)
+    fun changeSettingsWorksMidMatchButNeverBelowTheLeader() {
+        val id = start(MatchSettings(GameType.NINE_BALL, raceTo = 5))
+        win(id, a); win(id, a); win(id, a); win(id, b)
+        val match = store.activeMatch(id)!!
+        assertEquals(4, ScoreRules.minRace(match))
         assertThrows(IllegalStateException::class.java) {
-            rules.changeSettings(store.session(id), store.activeMatch(id)!!, open)
+            rules.changeSettings(store.session(id), match, MatchSettings(GameType.NINE_BALL, raceTo = 3))
         }
+        store.apply(rules.changeSettings(store.session(id), match, MatchSettings(GameType.TEN_BALL, raceTo = 4)))
+        val changed = store.activeMatch(id)!!
+        assertEquals(MatchSettings(GameType.TEN_BALL, raceTo = 4), changed.settings)
+        assertEquals(mapOf(a to 3, b to 1), changed.frameWins)
+        // Open-ended is always allowed, and the next frame to the new race ends the match.
+        store.apply(rules.changeSettings(store.session(id), changed, open))
+        assertEquals(open, store.activeMatch(id)!!.settings)
     }
 
     @Test

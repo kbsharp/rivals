@@ -61,6 +61,7 @@ import com.kevinbevan.rivals.ui.rivalry.RivalryContent
 import com.kevinbevan.rivals.ui.rivalry.RivalryTab
 import com.kevinbevan.rivals.ui.rivalry.RivalryUiState
 import com.kevinbevan.rivals.ui.rivalry.SessionItem
+import com.kevinbevan.rivals.ui.session.FrameReceipt
 import com.kevinbevan.rivals.ui.session.MatchResult
 import com.kevinbevan.rivals.ui.session.PlayerSide
 import com.kevinbevan.rivals.ui.session.SessionActions
@@ -259,7 +260,7 @@ class Screenshots {
                 "m", 4, MatchSettings(GameType.NINE_BALL, 5), Status.ACTIVE, mapOf("a" to 4, "b" to 2),
                 startedAt = Instant.now().minusSeconds(754),
             ).takeIf { running },
-            lastFrameEvents = emptySet(),
+            lastFrame = FrameReceipt(6, "a", "Kevin", theirPhone = false, events = emptySet()),
             canUndo = true,
             pendingSync = true,
         ),
@@ -276,6 +277,7 @@ class Screenshots {
                 startedAt = Instant.now(),
             ),
             justWon = MatchResult("m4", 4, "9-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Tonight 3 – 1."),
+            lastFrame = FrameReceipt(7, "a", "Kevin", theirPhone = false, events = emptySet()),
             canUndo = true,
         ),
         SessionActions(),
