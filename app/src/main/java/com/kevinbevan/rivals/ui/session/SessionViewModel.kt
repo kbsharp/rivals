@@ -537,10 +537,13 @@ class SessionViewModel(
 
         /**
          * The match that was just won, if the board should still be showing it: the previous
-         * match ended with a winner, the next one has started, and nothing has been played on
+         * match was won on its race, the next one has started, and nothing has been played on
          * it yet. Returns the match and its winner.
+         *
+         * A match ended by hand never gets the panel: its result was on the between-matches
+         * panel, and the next match was started from there, so there's nothing left to say.
          */
-        private fun justWon(
+        internal fun justWon(
             latestFirst: List<Match>,
             running: Match?,
             seen: String?,
@@ -549,6 +552,8 @@ class SessionViewModel(
             val previous = latestFirst.getOrNull(1) ?: return null
             if (previous.status != Status.ENDED || previous.id == seen) return null
             val winner = previous.winnerId ?: return null
+            val race = previous.settings.raceTo ?: return null
+            if (previous.frameWins.winsOf(winner) < race) return null
             return previous to winner
         }
 

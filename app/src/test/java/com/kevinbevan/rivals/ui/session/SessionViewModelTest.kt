@@ -166,6 +166,25 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun aMatchEndedByHandGoesStraightToTheNextOneWithoutTheWonPanel() = runTest {
+        val board = board()
+        board.vm.changeSettings(MatchSettings(GameType.TEN_BALL, raceTo = null))
+        repeat(3) { board.vm.recordFrame(b) }
+        board.vm.recordFrame(a)
+        advanceUntilIdle()
+        board.vm.endMatch()
+        advanceUntilIdle()
+        // Between matches: Julian took it by leading, and the next match is set up from here.
+        assertNull(board.state.match)
+        assertEquals(b, board.state.playedMatches.single().winnerId)
+
+        board.vm.startMatch(MatchSettings(GameType.TEN_BALL, raceTo = null))
+        advanceUntilIdle()
+        assertEquals(2, board.state.match!!.number)
+        assertNull(board.state.justWon)
+    }
+
+    @Test
     fun theNightEndsWithFullTimeOnBothPhones() = runTest {
         val board = board(raceTo = 2)
         board.vm.recordFrame(a)

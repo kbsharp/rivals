@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -51,6 +52,9 @@ private const val MAX_RACE = 21
  * A game is optional: nothing is picked until you pick one, and tapping the chosen game again
  * clears it, leaving a match that only tracks a score. The race remembers its last length while
  * "No limit" is on, and shows it dimmed. It can't go below [minRace], the leader's score plus one.
+ *
+ * [gameAction] and [raceAction] end the game and race rows, so an action beside the picker (the
+ * match sheet's End match and End session) lines up with the chips rather than floating.
  */
 @Composable
 fun MatchSettingsPicker(
@@ -59,6 +63,8 @@ fun MatchSettingsPicker(
     modifier: Modifier = Modifier,
     minRace: Int = 1,
     gameLabel: String = "Game",
+    gameAction: (@Composable RowScope.() -> Unit)? = null,
+    raceAction: (@Composable RowScope.() -> Unit)? = null,
 ) {
     var lastRace by remember { mutableIntStateOf(settings.raceTo ?: DefaultMatchSettings.raceTo!!) }
     val race = settings.raceTo
@@ -78,6 +84,7 @@ fun MatchSettingsPicker(
                         modifier = Modifier.weight(1f),
                     )
                 }
+                gameAction?.invoke(this)
             }
         }
 
@@ -117,6 +124,7 @@ fun MatchSettingsPicker(
                     },
                     modifier = Modifier.weight(1f),
                 )
+                raceAction?.invoke(this)
             }
             if (race == null) {
                 Hint("You'll end this one from the menu.")

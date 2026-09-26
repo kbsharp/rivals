@@ -821,7 +821,7 @@ private fun MatchSheet(
     LaunchedEffect(match.settings) { settings = match.settings }
     val minRace = ScoreRules.minRace(match)
     val minutes = match.startedAt?.let { Duration.between(it, Instant.now()).toMinutes().coerceAtLeast(0) }
-    Row(
+    Column(
         modifier = modifier
             .widthIn(max = 800.dp)
             .fillMaxWidth()
@@ -830,35 +830,40 @@ private fun MatchSheet(
             .pointerInput(Unit) { detectTapGestures() }
             .padding(horizontal = 28.dp, vertical = Space.s24)
             .testTag("match-sheet"),
-        horizontalArrangement = Arrangement.spacedBy(Space.s32),
+        verticalArrangement = Arrangement.spacedBy(Space.s12),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s12)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
-                Text("Match ${match.number}", style = Rivals.type.headline, color = Rivals.colors.fg)
-                Label(
-                    "${me.name} ${me.frames} – ${rival.frames} ${rival.name}" + (minutes?.let { " · $it min" } ?: ""),
-                    maxLines = 1,
-                )
-            }
-            MatchSettingsPicker(
-                settings = settings,
-                onChange = { settings = it; onChange(it) },
-                minRace = minRace,
-            )
-            Text(
-                "Changes apply at once." + if (minRace > 1) " The race can't go below $minRace." else "",
-                style = Rivals.type.caption,
-                color = Rivals.colors.fg2,
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
+            Text("Match ${match.number}", style = Rivals.type.headline, color = Rivals.colors.fg)
+            Label(
+                "${me.name} ${me.frames} – ${rival.frames} ${rival.name}" + (minutes?.let { " · $it min" } ?: ""),
+                maxLines = 1,
             )
         }
-        Column(
-            modifier = Modifier.width(180.dp).padding(top = 42.dp),
-            verticalArrangement = Arrangement.spacedBy(Space.s12),
-        ) {
-            if (match.framesPlayed > 0) SecondaryButton("End match", onEndMatch, Modifier.fillMaxWidth())
-            Spacer(Modifier.height(Space.s16))
-            SecondaryButton("End session", onEndSession, Modifier.fillMaxWidth())
-        }
+        // End match sits on the game row and End session on the race row, so each lines up
+        // with the chips beside it.
+        MatchSettingsPicker(
+            settings = settings,
+            onChange = { settings = it; onChange(it) },
+            minRace = minRace,
+            gameAction = {
+                SheetAction(if (match.framesPlayed > 0) "End match" else null, onEndMatch)
+            },
+            raceAction = { SheetAction("End session", onEndSession) },
+        )
+        Text(
+            "Changes apply at once." + if (minRace > 1) " The race can't go below $minRace." else "",
+            style = Rivals.type.caption,
+            color = Rivals.colors.fg2,
+        )
+    }
+}
+
+/** One of the sheet's two ways out, at the end of a picker row; an empty slot keeps the chips' width. */
+@Composable
+private fun SheetAction(text: String?, onClick: () -> Unit) {
+    Spacer(Modifier.width(Space.s24))
+    Box(Modifier.width(180.dp).height(Space.touch)) {
+        if (text != null) SecondaryButton(text, onClick, Modifier.fillMaxSize())
     }
 }
 
