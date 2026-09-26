@@ -1,6 +1,7 @@
 package com.kevinbevan.rivals.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -32,6 +34,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -39,6 +42,8 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -50,18 +55,15 @@ import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.ui.components.Avatar
 import com.kevinbevan.rivals.ui.components.ChoiceRow
 import com.kevinbevan.rivals.ui.components.EmptyFormBar
-import com.kevinbevan.rivals.ui.components.FormBar
 import com.kevinbevan.rivals.ui.components.HeadToHead
 import com.kevinbevan.rivals.ui.components.IconAction
 import com.kevinbevan.rivals.ui.components.Label
 import com.kevinbevan.rivals.ui.components.ListRow
-import com.kevinbevan.rivals.ui.components.LiveChip
 import com.kevinbevan.rivals.ui.components.LoadingState
 import com.kevinbevan.rivals.ui.components.PrimaryButton
 import com.kevinbevan.rivals.ui.components.RackMark
 import com.kevinbevan.rivals.ui.components.RivalsTextField
-import com.kevinbevan.rivals.ui.components.RowChevron
-import com.kevinbevan.rivals.ui.components.RowIcon
+import com.kevinbevan.rivals.ui.components.SplitBar
 import com.kevinbevan.rivals.ui.components.SecondaryButton
 import com.kevinbevan.rivals.ui.components.TextAction
 import com.kevinbevan.rivals.ui.components.TopBar
@@ -69,7 +71,6 @@ import com.kevinbevan.rivals.ui.history.formatDay
 import com.kevinbevan.rivals.ui.navigation.SessionRoute
 import com.kevinbevan.rivals.ui.rememberMatchDefaults
 import com.kevinbevan.rivals.ui.session.MatchSettingsPicker
-import com.kevinbevan.rivals.ui.session.NewSessionDialog
 import com.kevinbevan.rivals.ui.session.RivalsDialog
 import com.kevinbevan.rivals.ui.theme.Montserrat
 import com.kevinbevan.rivals.ui.theme.Rivals
@@ -109,8 +110,6 @@ fun HomeScreen(
             onOpenGuestGame = { onOpenGuestGame(it, uiState.canSaveGuestGames) },
             onSaveGuestGame = viewModel::saveGuestGame,
             onOpenRivalry = onOpenRivalry,
-            onStartSession = viewModel::startSession,
-            onResumeSession = { onOpenSession(SessionRoute(it, guest = false)) },
             onAddRival = onAddRival,
             onAcceptInvite = viewModel::acceptInvite,
             onRemoveInvite = viewModel::removeInvite,
@@ -130,11 +129,8 @@ data class HomeActions(
     val onOpenGuestGame: (String) -> Unit = {},
     /** (game id, rivalry id, the guest id that was you) */
     val onSaveGuestGame: (String, String, String) -> Unit = { _, _, _ -> },
+    /** A rival's row opens their rivalry, where a night is started or resumed. */
     val onOpenRivalry: (String) -> Unit = {},
-    /** (rivalry id, first match's settings, venue) */
-    val onStartSession: (String, MatchSettings, String?) -> Unit = { _, _, _ -> },
-    /** Opens the session already running against a rival. */
-    val onResumeSession: (String) -> Unit = {},
     val onAddRival: () -> Unit = {},
     val onAcceptInvite: (String) -> Unit = {},
     val onRemoveInvite: (String) -> Unit = {},
@@ -143,9 +139,9 @@ data class HomeActions(
 )
 
 /**
- * Home is a scoreboard: the head to head with the rival you're playing, in white, with the form
- * bar and tonight's score under it and one primary action. Everything else sits below it in
- * labelled blocks — Rivals, Play, On this phone — kept apart by space, not lines.
+ * Home is a scoreboard of every rival: one mirrored table, you on the left and them on the right,
+ * the rivals you play most recently first. A rival's row is the way into a night with them.
+ * Below it, labelled blocks — Play and On this phone — kept apart by space, not lines.
  */
 @Composable
 internal fun HomeContent(uiState: HomeUiState, actions: HomeActions, saveRequest: String? = null) {
@@ -157,7 +153,6 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions, saveRequest
             actions.onSaveRequestHandled()
         }
     }
-    var startingRivalryId by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(uiState.message) {
         uiState.message?.let {
@@ -184,37 +179,25 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions, saveRequest
                 return@Column
             }
 
-            val hero = uiState.rivals.firstOrNull()
-            if (hero != null) {
-                Hero(hero, actions, onPlay = { startingRivalryId = hero.rivalryId })
+            if (uiState.signedIn && uiState.invites.isNotEmpty()) {
+                Section("Invites") {
+                    uiState.invites.filter { it.incoming }.forEach { InviteRow(it, actions) }
+                    uiState.invites.filter { !it.incoming }.forEach { PendingRow(it, actions) }
+                }
+            }
+
+            if (uiState.rivals.isNotEmpty()) {
+                RivalsBoard(uiState.rivals, actions)
             } else if (uiState.signedIn) {
                 NoRivalsYet(actions)
             } else {
                 SignedOut(uiState, actions) { settingUpGame = true }
             }
 
-            val incoming = uiState.invites.filter { it.incoming }
-            val outgoing = uiState.invites.filter { !it.incoming }
-            if (uiState.signedIn && (uiState.rivals.isNotEmpty() || uiState.invites.isNotEmpty())) {
-                Section("Rivals") {
-                    incoming.forEach { InviteRow(it, actions) }
-                    uiState.rivals.drop(1).forEach { RivalRow(it, actions) }
-                    outgoing.forEach { PendingRow(it, actions) }
-                    // With no rivals yet, Add a rival is already the screen's primary action.
-                    if (uiState.rivals.isNotEmpty()) {
-                        ListRow(
-                            title = "Add a rival",
-                            onClick = actions.onAddRival,
-                            leading = { RowIcon(R.drawable.ic_add) },
-                            trailing = { RowChevron() },
-                        )
-                    }
-                }
-            }
-
-            // Signed out, Quick game is already the screen's primary action.
-            if (uiState.signedIn) {
-                Section("Play") { QuickGameRow(uiState, actions, onSetUp = { settingUpGame = true }) }
+            // Signed out, Quick game is already the screen's primary action; with no rivals yet,
+            // so is Add a rival.
+            if (uiState.signedIn && uiState.rivals.isNotEmpty()) {
+                Section("Play") { PlayTiles(uiState, actions, onSetUp = { settingUpGame = true }) }
             }
 
             if (uiState.finishedGuestGames.isNotEmpty()) {
@@ -232,17 +215,6 @@ internal fun HomeContent(uiState: HomeUiState, actions: HomeActions, saveRequest
                 actions.onStartQuickGame(names, settings)
             },
             onDismiss = { settingUpGame = false },
-        )
-    }
-    val starting = uiState.rivals.firstOrNull { it.rivalryId == startingRivalryId }
-    if (starting != null) {
-        NewSessionDialog(
-            recentVenues = starting.recentVenues,
-            onStart = { settings, venue ->
-                startingRivalryId = null
-                actions.onStartSession(starting.rivalryId, settings, venue)
-            },
-            onDismiss = { startingRivalryId = null },
         )
     }
     val saving = uiState.finishedGuestGames.firstOrNull { it.id == savingGameId }
@@ -295,67 +267,92 @@ private fun HomeTopBar(uiState: HomeUiState, actions: HomeActions) {
     }
 }
 
-/** The rival you're playing, or the first of them: the screen's scoreboard. */
+/** How many rivals show before See all. */
+private const val RIVALS_SHOWN = 3
+
+/**
+ * Every rival as one mirrored table in a panel: your wins, their name, theirs, and the record
+ * as a split bar. Only the first few show until See all.
+ */
 @Composable
-private fun Hero(rival: RivalCard, actions: HomeActions, onPlay: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Label("All time", modifier = Modifier.weight(1f))
-            if (rival.live) LiveChip(Modifier.padding(end = Space.s12))
-            TextAction("Head to head", { actions.onOpenRivalry(rival.rivalryId) })
+private fun RivalsBoard(rivals: List<RivalCard>, actions: HomeActions) {
+    var showAll by rememberSaveable { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = Space.s16)) {
+            Label("You", color = Rivals.colors.you, modifier = Modifier.weight(1f))
+            Label("Rivals", textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+            Label("Them", color = Rivals.colors.rival, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
         }
-        HeadToHead(
-            yourScore = rival.myWins,
-            rivalScore = rival.rivalWins,
-            yourName = "You",
-            rivalName = rival.name,
-            numberStyle = heroScore(),
-            spread = true,
-        )
-        if (rival.nights.isNotEmpty()) {
-            FormBar(rival.nights, yourName = "You", rivalName = rival.name)
-            Row(Modifier.fillMaxWidth()) {
-                Label("Last ${rival.nights.size} nights", modifier = Modifier.weight(1f))
-                NightsLead(rival)
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .background(Rivals.colors.surface, Shapes.panel)
+                .padding(vertical = Space.s8),
+        ) {
+            (if (showAll) rivals else rivals.take(RIVALS_SHOWN)).forEach { rival ->
+                RivalScoreRow(rival, onClick = { actions.onOpenRivalry(rival.rivalryId) })
             }
-        }
-    }
-    val tonight = rival.tonight
-    Column(verticalArrangement = Arrangement.spacedBy(Space.s12)) {
-        if (tonight != null) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                Label("Tonight", modifier = Modifier.weight(1f))
-                Text(
-                    "${tonight.first} – ${tonight.second}",
-                    style = Rivals.type.number.copy(fontSize = 20.sp),
-                    color = Rivals.colors.fg,
-                )
+            if (rivals.size > RIVALS_SHOWN) {
+                Box(Modifier.fillMaxWidth().padding(top = Space.s4), contentAlignment = Alignment.Center) {
+                    TextAction(if (showAll) "Show fewer" else "See all ${rivals.size} rivals", { showAll = !showAll })
+                }
             }
-        }
-        if (rival.activeSessionId != null) {
-            PrimaryButton("Resume session", { actions.onResumeSession(rival.activeSessionId) })
-        } else {
-            PrimaryButton("Play ${rival.name}", onPlay)
         }
     }
 }
 
-/** Home's all-time score: bigger than `display`, because it is the screen's hero. */
+/**
+ * One rival: your all-time wins on the left, theirs on the right, the leader's white and heavy
+ * and the other `fg-3` as in the Stats table, their name between them and who leads under it.
+ */
+@Composable
+private fun RivalScoreRow(rival: RivalCard, onClick: () -> Unit) {
+    val lead = rival.myWins - rival.rivalWins
+    val tonight = rival.tonight
+    val (subtitle, subtitleColor) = when {
+        rival.live && tonight != null -> "Playing now · ${tonight.first} – ${tonight.second}" to Rivals.colors.live
+        rival.live -> "Playing now" to Rivals.colors.live
+        lead > 0 -> "You lead by $lead" to Rivals.colors.you
+        lead < 0 -> "${rival.name} leads by ${-lead}" to Rivals.colors.rival
+        else -> "Level" to Rivals.colors.fg3
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = Space.s16, vertical = Space.s12),
+        verticalArrangement = Arrangement.spacedBy(Space.s12),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RecordNumber(rival.myWins, leading = lead >= 0, align = TextAlign.Start)
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(rival.name, style = Rivals.type.rowTitle, color = Rivals.colors.fg, maxLines = 1)
+                Text(subtitle, style = Rivals.type.caption, color = subtitleColor, maxLines = 1)
+            }
+            RecordNumber(rival.rivalWins, leading = lead <= 0, align = TextAlign.End)
+        }
+        SplitBar(rival.myWins, rival.rivalWins)
+    }
+}
+
+@Composable
+private fun RecordNumber(value: Int, leading: Boolean, align: TextAlign) {
+    Text(
+        value.toString(),
+        style = Rivals.type.headline.copy(
+            fontWeight = if (leading) FontWeight.ExtraBold else FontWeight.SemiBold,
+        ),
+        color = if (leading) Rivals.colors.fg else Rivals.colors.fg3,
+        textAlign = align,
+        maxLines = 1,
+        modifier = Modifier.width(Space.s48 + Space.s24),
+    )
+}
+
+/** The screen's no-rivals scoreboard: bigger than `display`, because it is the screen's hero. */
 @Composable
 @ReadOnlyComposable
 private fun heroScore() = Rivals.type.score.copy(fontSize = 96.sp, lineHeight = 96.sp)
-
-/** Who has won more of the nights in the form bar, in their colour. */
-@Composable
-private fun NightsLead(rival: RivalCard) {
-    val won = rival.nights.count { it == true }
-    val lost = rival.nights.count { it == false }
-    when {
-        won > lost -> Label("You $won – $lost", color = Rivals.colors.you)
-        lost > won -> Label("${rival.name} $lost – $won", color = Rivals.colors.rival)
-        else -> Label("Level $won – $lost")
-    }
-}
 
 /** Signed in, but nobody to play yet: the scoreboard waiting at 0 – 0 for a rival. */
 @Composable
@@ -479,29 +476,44 @@ private fun SignedOut(uiState: HomeUiState, actions: HomeActions, onSetUpGame: (
 }
 
 /**
- * Quick game as a plain row. Signed out it is already the screen's primary action, so the row
- * would be the same offer twice.
+ * Play as equal tiles: the quick game (or the one running, to resume; there's only ever one on
+ * the phone) and Add a rival.
  */
 @Composable
-private fun QuickGameRow(uiState: HomeUiState, actions: HomeActions, onSetUp: () -> Unit) {
-    if (!uiState.signedIn) return
+private fun PlayTiles(uiState: HomeUiState, actions: HomeActions, onSetUp: () -> Unit) {
     val active = uiState.activeGuestGame
-    if (active != null) {
-        ListRow(
-            title = "Resume quick game",
-            subtitle = "${active.left.name} ${active.left.wins} – " +
-                "${active.right.wins} ${active.right.name}",
-            onClick = { actions.onResumeQuickGame(active.id) },
-            leading = { RowIcon(R.drawable.ic_bolt) },
-            trailing = { RowChevron() },
-        )
-    } else {
-        ListRow(
-            title = "Quick game",
-            onClick = onSetUp,
-            leading = { RowIcon(R.drawable.ic_bolt) },
-            trailing = { RowChevron() },
-        )
+    Row(horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
+        if (active != null) {
+            PlayTile(
+                R.drawable.ic_bolt,
+                "Resume",
+                "${active.left.name} ${active.left.wins} – ${active.right.wins} ${active.right.name}",
+                { actions.onResumeQuickGame(active.id) },
+                Modifier.weight(1f),
+            )
+        } else {
+            PlayTile(R.drawable.ic_bolt, "Quick game", "No rival needed", onSetUp, Modifier.weight(1f))
+        }
+        PlayTile(R.drawable.ic_add, "Add a rival", "Email, link or code", actions.onAddRival, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun PlayTile(iconRes: Int, title: String, subtitle: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .heightIn(min = Space.s48 * 2)
+            .clip(Shapes.panel)
+            .background(Rivals.colors.surface)
+            .clickable(onClick = onClick)
+            .padding(Space.s16),
+        verticalArrangement = Arrangement.spacedBy(Space.s12),
+    ) {
+        Icon(painterResource(iconRes), contentDescription = null, tint = Rivals.colors.fg)
+        Column {
+            Text(title, style = Rivals.type.rowTitle, color = Rivals.colors.fg, maxLines = 1)
+            Text(subtitle, style = Rivals.type.caption, color = Rivals.colors.fg3, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
     }
 }
 
@@ -515,34 +527,6 @@ private fun InviteRow(invite: InviteCard, actions: HomeActions) {
                 TextAction("Decline", { actions.onRemoveInvite(invite.rivalryId) })
                 SecondaryButton("Accept", { actions.onAcceptInvite(invite.rivalryId) })
             }
-        },
-    )
-}
-
-/** Another rival: who leads, in their colour, and the all-time score in white. */
-@Composable
-private fun RivalRow(rival: RivalCard, actions: HomeActions) {
-    val lead = rival.myWins - rival.rivalWins
-    val (subtitle, subtitleColor) = when {
-        rival.live -> "Playing now" to Rivals.colors.live
-        lead > 0 -> "You lead by $lead" to Rivals.colors.you
-        lead < 0 -> "${rival.name} leads by ${-lead}" to Rivals.colors.rival
-        else -> "Level" to Rivals.colors.fg3
-    }
-    ListRow(
-        title = rival.name,
-        subtitle = subtitle,
-        subtitleColor = subtitleColor,
-        onClick = { actions.onOpenRivalry(rival.rivalryId) },
-        leading = { Avatar(rival.name, background = Rivals.colors.rivalTint, color = Rivals.colors.rival) },
-        trailing = {
-            Text(
-                "${rival.myWins} – ${rival.rivalWins}",
-                style = Rivals.type.number,
-                color = Rivals.colors.fg,
-                maxLines = 1,
-            )
-            RowChevron()
         },
     )
 }

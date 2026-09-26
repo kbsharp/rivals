@@ -321,7 +321,13 @@ class FlowScreenshots(private val theme: String) {
     private val julian = RivalCard(
         "r1", "Julian", myWins = 12, rivalWins = 9,
         nights = listOf(true, true, false, true, true, false, false, true, true, false),
-        recentVenues = listOf("The Crown", "Rileys"),
+    )
+
+    /** Ten rivals, most recently played first, for how Home holds up with a full phone. */
+    private val tenRivals = listOf(
+        julian, RivalCard("r2", "Lara", 4, 10), RivalCard("r3", "Rosa", 15, 11), RivalCard("r4", "Tom", 12, 12),
+        RivalCard("r5", "Maya", 7, 5), RivalCard("r6", "Sam", 9, 2), RivalCard("r7", "Nina", 5, 9),
+        RivalCard("r8", "Priya", 3, 8), RivalCard("r9", "Oli", 1, 4), RivalCard("r10", "Dev", 2, 0),
     )
 
     private fun home(
@@ -361,7 +367,12 @@ class FlowScreenshots(private val theme: String) {
     }
     @Test fun homeMessage() = shootMessage("home-message") { Home(home(message = "Couldn't start the session: you're offline")) }
     @Test fun homeMenu() = shoot("home-menu", steps = { tapIcon("More") }) { Home(home()) }
-    @Test fun homeNewSession() = shoot("home-new-session", steps = { tap("Play Julian") }) { Home(home()) }
+    @Test fun homeManyRivals() = shoot("home-many-rivals") {
+        Home(home(rivals = tenRivals, guestGames = listOf(guest(0, active = true)) + (1..25).map { guest(it) }))
+    }
+    @Test fun homeRivalsAll() = shoot("home-rivals-all", steps = { tap("See all 10 rivals") }) {
+        Home(home(rivals = tenRivals, guestGames = (1..25).map { guest(it) }))
+    }
     @Test fun homeQuickGame() = shoot("home-quick-game", steps = { tap("Quick game") }) { Home(home()) }
     @Test fun homeSaveGame() = shoot("home-save-game", steps = { tap("Save") }) {
         Home(home(rivals = listOf(julian, RivalCard("r2", "Sam", 7, 9)), guestGames = listOf(guest(1))))

@@ -188,6 +188,29 @@ fun EmptyFormBar(modifier: Modifier = Modifier, slots: Int = 10) {
 }
 
 /**
+ * An all-time record as one bar split in proportion: your share in `you`, theirs in `rival`.
+ * Before either has won, it is an empty `raised` bar.
+ */
+@Composable
+fun SplitBar(yourWins: Int, rivalWins: Int, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth().height(Space.s4).clearAndSetSemantics {},
+        horizontalArrangement = Arrangement.spacedBy(Space.s4),
+    ) {
+        val shape = RoundedCornerShape(2.dp)
+        if (yourWins + rivalWins == 0) {
+            Box(Modifier.weight(1f).fillMaxSize().background(Rivals.colors.raised, shape))
+        }
+        if (yourWins > 0) {
+            Box(Modifier.weight(yourWins.toFloat()).fillMaxSize().background(Rivals.colors.you, shape))
+        }
+        if (rivalWins > 0) {
+            Box(Modifier.weight(rivalWins.toFloat()).fillMaxSize().background(Rivals.colors.rival, shape))
+        }
+    }
+}
+
+/**
  * The win-percentage ring: your share in teal, theirs in apricot, on a `raised` track, with the
  * percentage in white at the centre.
  */

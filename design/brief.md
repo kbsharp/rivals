@@ -140,6 +140,22 @@ in all.
   rival's initial in `rival` on `rival-tint`.
 - **The top bar carries the rack**, drawn small (`RackMark`) beside "Rivals".
 
+## What Home round three settled (2026-09-27)
+
+Chosen by Kevin as "F2" from the mock-ups at <https://claude.ai/artifact/75cYVKXpgHLWThetPuspCB>;
+it replaces the single-rival hero above.
+
+- **Every rival is one mirrored table** in a `surface` panel, headed YOU · RIVALS · THEM: your
+  all-time wins on the left, theirs on the right (the leader's white and heavy, the other `fg-3`,
+  as in the Stats table), the name and who leads between them, and a split bar in both colours.
+  Rows are kept apart by space, not lines.
+- **Most recent first, three shown**, then See all N rivals. The one you're playing leads, and
+  says "Playing now" in `live` with tonight's score.
+- **Home has no primary button.** A rival's row is the way in: it opens their rivalry, whose
+  primary action starts or resumes the night.
+- **Play is two equal tiles**: Quick game (or Resume, since the phone only holds one running game)
+  and Add a rival, which moved out of the rivals list.
+
 ## Where actions live (UX phase 3, 2026-09-26)
 
 Agreed with Kevin in UX phase 3 (`design/ux-plan.md`, Decisions); the mock-ups are at

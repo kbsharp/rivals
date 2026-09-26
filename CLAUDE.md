@@ -89,7 +89,7 @@ Show a clear message when Firestore refuses something; don't fail silently.
 
 ## Screens
 
-1. **Home** (no account needed): the rival you're playing as a head to head with a form bar and one primary action, then labelled blocks: **Rivals** (invites, any other rivals, Add a rival), **Play** (Quick game) and **On this phone** (guest games that can be saved to a rivalry). With no rivals it's a 0 – 0 scoreboard.
+1. **Home** (no account needed): any invites, then every rival as one mirrored table in a panel (your wins, their name and who leads, theirs, a split bar), the one you're playing or played last first, three shown until See all. Tapping a rival opens their rivalry, where a night is started. Then **Play** (Quick game or Resume, and Add a rival, as two equal tiles) and **On this phone** (guest games that can be saved to a rivalry). With no rivals it's a 0 – 0 scoreboard.
 2. **Sign in** and **Invite** are both scoreboards at 0 – 0 with one button. **Add a rival**: three rows — exact email, share link, invite code — one open at a time.
 3. **Rivalry**: the win ring and all-time score, the primary action, then **SESSIONS | STATS** tabs. Sessions is the nights you've played; Stats is the mirrored table. Neither is a screen of its own any more.
 4. **Session** (the main screen):

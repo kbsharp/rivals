@@ -81,20 +81,22 @@ class HomeUiTest {
         compose.onNodeWithText("Alex").assertIsDisplayed()
         compose.onNodeWithText("Waiting for them to accept").assertIsDisplayed()
         compose.onNodeWithText("Accept").performClick()
-        // The one rival is Home's scoreboard; its head to head is a link above the score.
-        compose.onNodeWithText("Head to head").performClick()
+        // A rival's row is the way to their rivalry, where a night is started.
+        compose.onNodeWithText("Julian").performClick()
         assertEquals("r2", accepted)
         assertEquals("r1", opened)
     }
 
     @Test
-    fun playStartsANightAgainstTheRival() {
-        var started: String? = null
-        show(signedIn, HomeActions(onStartSession = { rivalry, _, _ -> started = rivalry }))
-        compose.onNodeWithText("Play Julian").performClick()
-        compose.onNodeWithText("New session").assertIsDisplayed()
-        compose.onNodeWithText("Start").performClick()
-        assertEquals("r1", started)
+    fun onlyTheLatestRivalsShowUntilSeeAll() {
+        var opened: String? = null
+        val rivals = (1..5).map { RivalCard("r$it", "Rival $it", myWins = it, rivalWins = 2) }
+        show(signedIn.copy(rivals = rivals), HomeActions(onOpenRivalry = { opened = it }))
+        compose.onNodeWithText("Rival 3").assertIsDisplayed()
+        compose.onNodeWithText("Rival 4").assertDoesNotExist()
+        compose.onNodeWithText("See all 5 rivals").performClick()
+        compose.onNodeWithText("Rival 5").performScrollTo().performClick()
+        assertEquals("r5", opened)
     }
 
     @Test
@@ -152,7 +154,8 @@ class HomeUiTest {
     fun anotherRivalSaysWhoLeads() {
         show(signedIn.copy(rivals = signedIn.rivals + RivalCard("r2", "Sam", myWins = 7, rivalWins = 9)))
         compose.onNodeWithText("Sam leads by 2").assertIsDisplayed()
-        compose.onNodeWithText("7 – 9").assertIsDisplayed()
+        compose.onNodeWithText("Julian leads by 3").assertDoesNotExist()
+        compose.onNodeWithText("You lead by 3").assertIsDisplayed()
     }
 
     @Test

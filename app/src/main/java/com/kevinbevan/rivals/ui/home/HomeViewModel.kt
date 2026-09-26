@@ -53,8 +53,8 @@ data class RivalCard(
      * collection-group query per rivalry.
      */
     val nights: List<Boolean?> = emptyList(),
-    /** Venues from past nights, most recent first, to offer when starting one. */
-    val recentVenues: List<String> = emptyList(),
+    /** When you last played them: the running night's start, or the latest finished one's. */
+    val lastPlayed: Instant? = null,
 ) {
     val live: Boolean get() = activeSessionId != null
 }
@@ -145,11 +145,15 @@ class HomeViewModel(
                                     it.matchWins.winsOf(me) to it.matchWins.winsOf(rivalId)
                                 },
                                 nights = nights(mine, me, rivalId),
-                                recentVenues = SessionRepository.recentVenues(mine),
+                                lastPlayed = mine.mapNotNull { it.startedAt }.maxOrNull(),
                             )
-                            // A live rivalry leads, then the rest alphabetically: Home's hero is
-                            // whoever you're playing right now.
-                        }.sortedWith(compareByDescending<RivalCard> { it.live }.thenBy { it.name.lowercase() }),
+                            // Whoever you're playing now, then whoever you played last: Home shows
+                            // the first few, so the rivals you actually play stay in reach.
+                        }.sortedWith(
+                            compareByDescending<RivalCard> { it.live }
+                                .thenByDescending(nullsFirst()) { it.lastPlayed }
+                                .thenBy { it.name.lowercase() },
+                        ),
                         invites = rivalries.filter { it.status == RivalryStatus.PENDING }.map {
                             InviteCard(it.id, nameOf(it.rivalOf(me)), incoming = it.invitedBy != me)
                         },
@@ -187,14 +191,6 @@ class HomeViewModel(
     fun startQuickGame(names: Pair<String, String>, settings: MatchSettings) {
         val id = guestRepository.startGame(names, settings)
         local.update { it.copy(openSession = SessionRoute(id, guest = true)) }
-    }
-
-    /** Starts a night against [rivalryId]'s rival and opens it, or opens the one already running. */
-    fun startSession(rivalryId: String, settings: MatchSettings, venue: String?) = act("Couldn't start the session") {
-        val me = authRepository.currentUser?.uid ?: return@act
-        val rivalry = activeRivalries.firstOrNull { it.id == rivalryId } ?: error("That rivalry isn't active")
-        val id = rivalryRepository.startSession(rivalry, me, settings, venue)
-        local.update { it.copy(openSession = SessionRoute(id, guest = false)) }
     }
 
     fun acceptInvite(rivalryId: String) = act("Couldn't accept") {
