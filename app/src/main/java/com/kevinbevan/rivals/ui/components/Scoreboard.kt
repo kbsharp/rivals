@@ -190,7 +190,7 @@ fun FormBar(
             .semantics {
                 contentDescription = buildString {
                     append("Last ${results.size}: $yourName won $wins, $rivalName won $losses")
-                    if (drawn > 0) append(", $drawn drawn")
+                    if (drawn > 0) append(", $drawn tied")
                 }
             },
         horizontalArrangement = Arrangement.spacedBy(Space.s4),
@@ -270,7 +270,7 @@ fun WinRing(
     Box(
         modifier = modifier.size(size).semantics {
             contentDescription =
-                if (total == 0) "No matches played yet" else "You win $percent per cent of matches"
+                if (total == 0) "No matches played yet" else "You win $percent percent of matches"
         },
         contentAlignment = Alignment.Center,
     ) {

@@ -27,17 +27,17 @@ internal fun StatsTab(uiState: RivalryUiState) {
         uiState.error != null -> ErrorState(uiState.error)
         stats == null -> EmptyState(
             title = "No stats yet",
-            body = "They build up from your first night together.",
+            body = "They build up from your first session together.",
         )
         stats.frames.played == 0 -> EmptyState(
-            title = "No frames played yet",
+            title = "No racks played yet",
             body = "Play a match and the numbers start here.",
         )
         else -> Column {
             StatRow("Matches", "${stats.matches.won}", "${stats.matches.lost}", yourLead = lead(stats.matches))
-            StatRow("Frames", "${stats.frames.won}", "${stats.frames.lost}", yourLead = lead(stats.frames))
+            StatRow("Racks", "${stats.frames.won}", "${stats.frames.lost}", yourLead = lead(stats.frames))
             StatRow(
-                "Nights won",
+                "Sessions won",
                 "${stats.nights.won}",
                 "${stats.nights.lost}",
                 yourLead = compare(stats.nights.won, stats.nights.lost),
@@ -45,7 +45,7 @@ internal fun StatsTab(uiState: RivalryUiState) {
             if (stats.nights.drawn > 0) {
                 // Under the label it belongs to, not under either player's number.
                 Text(
-                    "${stats.nights.drawn} drawn",
+                    "${stats.nights.drawn} tied",
                     style = Rivals.type.caption,
                     color = Rivals.colors.fg3,
                     textAlign = TextAlign.Center,
@@ -79,7 +79,7 @@ internal fun StatsTab(uiState: RivalryUiState) {
                             yourLead = lead(game.matches),
                         )
                         StatRow(
-                            "Frames",
+                            "Racks",
                             "${game.frames.won}",
                             "${game.frames.lost}",
                             yourLead = lead(game.frames),

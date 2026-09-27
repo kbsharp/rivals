@@ -123,7 +123,7 @@ private fun Scoreboard(invite: Invite) {
                 color = Rivals.colors.fg,
             )
             Text(
-                "Every session you play together will count towards your head to head, on " +
+                "Every session you play together will count toward your head to head, on " +
                     "both your phones.",
                 style = Rivals.type.body,
                 color = Rivals.colors.fg2,

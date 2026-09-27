@@ -231,7 +231,7 @@ class FlowScreenshots(private val theme: String) {
 
     @Composable private fun Board(state: SessionUiState) = SessionContent(state, SessionActions())
 
-    private val won = MatchResult("m4", 4, "9-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Tonight 3 – 1.")
+    private val won = MatchResult("m4", 4, "9-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Session 3 – 1.")
     private val winningFrame = FrameReceipt(7, "a", "Kevin", theirPhone = false, events = emptySet())
     private val empty = board(a = 0, b = 0, matchesA = 0, matchesB = 0, receipt = null, canUndo = false)
 
@@ -264,8 +264,8 @@ class FlowScreenshots(private val theme: String) {
         venue = "The Crown",
         length = java.time.Duration.ofMinutes(182),
         winnerId = "a",
-        headline = "Kevin takes the night 3\u00A0–\u00A01",
-        summary = "Four matches, 26 frames. 2 break & runs, a golden break and a hill-hill decider.",
+        headline = "Kevin wins the session 3\u00A0–\u00A01",
+        summary = "Four matches, 26 racks. 2 break & runs, a golden break and a hill-hill decider.",
         allTime = 13 to 9,
         lastMatch = Match("m4", 4, MatchSettings(GameType.NINE_BALL, 5), Status.ENDED, mapOf("a" to 5, "b" to 4)),
     )
@@ -277,7 +277,7 @@ class FlowScreenshots(private val theme: String) {
             board(a = 2, b = 5, matchesA = 1, matchesB = 1, running = false, names = "Kevin" to "Tom").copy(
                 fullTime = fullTime.copy(
                     venue = null, length = java.time.Duration.ofMinutes(48), winnerId = null,
-                    headline = "Level on the night, 1 – 1", summary = "Two matches, 12 frames.", allTime = null,
+                    headline = "Session tied, 1 – 1", summary = "Two matches, 12 racks.", allTime = null,
                 ),
             ),
         )
@@ -294,7 +294,7 @@ class FlowScreenshots(private val theme: String) {
         Board(board(a = 1, b = 2, receipt = FrameReceipt(3, "b", "Julian", theirPhone = true, events = emptySet(), double = DoubleFrame(2, 3))))
     }
     @Test fun sessionUndone() = shootMessage("session-undone", landscape = true) {
-        Board(board(a = 3, notice = Notice(1, "Kevin undid frame 6 · 4 – 2 → 3 – 2")))
+        Board(board(a = 3, notice = Notice(1, "Kevin undid rack 6 · 4 – 2 → 3 – 2")))
     }
     @Test fun sessionTags() = shoot("session-tags", landscape = true, steps = { compose.onNodeWithTag("receipt").performClick() }) {
         Board(board(receipt = frame6.copy(events = setOf(FrameEvent.BREAK_AND_RUN))))

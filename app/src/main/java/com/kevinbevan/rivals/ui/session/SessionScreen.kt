@@ -406,7 +406,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
             onDismiss = { dialog = null },
         )
         SessionDialog.END_SESSION -> ConfirmDialog(
-            title = "End tonight's session?",
+            title = "End this session?",
             text = buildString {
                 val nothingPlayed = me != null && rival != null && me.matches + rival.matches == 0 &&
                     !uiState.canUndo && (match?.framesPlayed ?: 0) == 0
@@ -449,7 +449,7 @@ private fun endMatchConsequence(match: Match, uiState: SessionUiState): String {
         return "Nobody has reached ${match.settings.raceTo} yet, so it won't count for either of you."
     }
     val winner = ScoreRules.manualWinner(match)
-        ?: return "It's level, so it won't count for either of you."
+        ?: return "It's tied, so it won't count for either of you."
     val name = listOfNotNull(uiState.me, uiState.rival).firstOrNull { it.uid == winner }?.name ?: "The leader"
     return "$name is ahead, so it goes down as their win."
 }
@@ -493,7 +493,7 @@ private fun ScoreHalf(
             .clickable(
                 enabled = enabled,
                 role = Role.Button,
-                onClickLabel = "Record a frame for ${side.name}",
+                onClickLabel = "Record a rack for ${side.name}",
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
@@ -631,7 +631,7 @@ private fun TopBar(
         ) {
             // Between matches the panel leads with tonight's score, so it isn't repeated here.
             if (match != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Label("Tonight", maxLines = 1)
+                Label("Session", maxLines = 1)
                 Text(
                     "${me.matches} – ${rival.matches}",
                     style = Rivals.type.number.copy(fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold),
@@ -651,14 +651,14 @@ private fun UndoButton(frame: Int, onUndo: () -> Unit) {
     Box(
         modifier = Modifier
             .size(Space.touch)
-            .clickable(role = Role.Button, onClickLabel = "Undo frame $frame", onClick = onUndo)
+            .clickable(role = Role.Button, onClickLabel = "Undo rack $frame", onClick = onUndo)
             .testTag("undo"),
         contentAlignment = Alignment.Center,
     ) {
         Box(Modifier.size(40.dp).background(Rivals.colors.raised, CircleShape), contentAlignment = Alignment.Center) {
             Icon(
                 painterResource(R.drawable.ic_undo),
-                contentDescription = "Undo frame $frame",
+                contentDescription = "Undo rack $frame",
                 tint = Rivals.colors.fg,
                 modifier = Modifier.size(20.dp),
             )
@@ -720,7 +720,7 @@ private fun FootLine(
 private val CloudSlot = 20.dp
 
 /**
- * The last frame: "FRAME 6 · KEVIN", the name in its winner's colour, "· THEIR PHONE" when the
+ * The last frame: "RACK 6 · KEVIN", the name in its winner's colour, "· THEIR PHONE" when the
  * other phone recorded it, and its tags. Amber when it looks like one frame recorded on both
  * phones. Tapping it opens the tags above it; Undo is up by the clock.
  */
@@ -736,10 +736,10 @@ private fun Receipt(
     val text = buildAnnotatedString {
         fun add(part: String) = append(part.uppercase())
         if (double != null) {
-            add(if (double.first != null) "Frames ${double.first} & ${receipt.number}" else "Last two frames")
+            add(if (double.first != null) "Racks ${double.first} & ${receipt.number}" else "Last two racks")
             add(" · ${double.secondsApart} s apart")
         } else {
-            add("Frame ${receipt.number} · ")
+            add("Rack ${receipt.number} · ")
             withStyle(SpanStyle(color = Rivals.colors.forPlayer(receipt.winnerId, youId), fontWeight = FontWeight.Bold)) {
                 add(receipt.winnerName)
             }
@@ -750,7 +750,7 @@ private fun Receipt(
     Box(
         modifier = modifier
             .heightIn(min = Space.touch)
-            .clickable(role = Role.Button, onClickLabel = "Tag frame ${receipt.number}", onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = "Tag rack ${receipt.number}", onClick = onClick)
             .testTag("receipt"),
         contentAlignment = Alignment.Center,
     ) {
@@ -969,7 +969,7 @@ private fun MatchWonPanel(
                     TextAction("Change", { changing = true; onTouched() }, color = Rivals.colors.fg)
                 }
                 if (winningFrame != null) {
-                    Label("Tag the winning frame")
+                    Label("Tag the winning rack")
                     Row(Modifier.padding(top = Space.s4), horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
                         TagChips(winningFrame, if (youWon) result.winnerId else "") { onTouched(); onToggleTag(it) }
                     }
@@ -998,7 +998,7 @@ private fun FullTimePanel(
     onSeeNight: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val header = listOfNotNull("Full time", fullTime.venue, fullTime.length?.let(::formatLength)).joinToString(" · ")
+    val header = listOfNotNull("Final", fullTime.venue, fullTime.length?.let(::formatLength)).joinToString(" · ")
     Row(
         modifier = modifier
             .widthIn(max = 720.dp)
@@ -1042,7 +1042,7 @@ private fun FullTimePanel(
         }
         Column(Modifier.width(180.dp), verticalArrangement = Arrangement.spacedBy(Space.s8)) {
             PrimaryButton("Done", onDone)
-            SecondaryButton("See the night", onSeeNight, Modifier.fillMaxWidth())
+            SecondaryButton("See the session", onSeeNight, Modifier.fillMaxWidth())
         }
     }
 }
@@ -1083,7 +1083,7 @@ private fun NextMatchPanel(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Label("Tonight")
+            Label("Session")
             TallyRow(me, Rivals.colors.you, Rivals.colors.youTint, leads = me.matches > rival.matches)
             TallyRow(rival, Rivals.colors.rival, Rivals.colors.rivalTint, leads = rival.matches > me.matches)
             if (uiState.playedMatches.isNotEmpty()) {
@@ -1103,7 +1103,7 @@ private fun NextMatchPanel(
                 onStart(settings)
             })
             if (uiState.canUndo) {
-                TextAction("Undo last frame", onUndo, Modifier.align(Alignment.CenterHorizontally))
+                TextAction("Undo last rack", onUndo, Modifier.align(Alignment.CenterHorizontally))
             }
         }
     }
@@ -1181,7 +1181,7 @@ private fun PlayedMatchRow(played: PlayedMatch, youId: String) {
             modifier = Modifier.weight(1f),
         )
         Text(
-            played.winnerName ?: "Level",
+            played.winnerName ?: "Tied",
             style = Rivals.type.rowTitle.copy(fontSize = 15.sp, fontWeight = FontWeight.Bold),
             color = if (played.winnerId == null) Rivals.colors.fg2 else Rivals.colors.forPlayer(played.winnerId, youId),
             maxLines = 1,

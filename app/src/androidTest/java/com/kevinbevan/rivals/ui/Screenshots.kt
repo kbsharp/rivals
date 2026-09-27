@@ -276,7 +276,7 @@ class Screenshots {
                 "m5", 5, MatchSettings(GameType.NINE_BALL, 5), Status.ACTIVE, emptyMap(),
                 startedAt = Instant.now(),
             ),
-            justWon = MatchResult("m4", 4, "9-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Tonight 3 – 1."),
+            justWon = MatchResult("m4", 4, "9-ball", "a", "Kevin", 5, 2, "Match 5 starts now. Session 3 – 1."),
             lastFrame = FrameReceipt(7, "a", "Kevin", theirPhone = false, events = emptySet()),
             canUndo = true,
         ),

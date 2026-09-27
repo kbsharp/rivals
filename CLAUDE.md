@@ -12,6 +12,10 @@ As of 2026-09-22 only milestone 6 (**Release**) is left, and it's on hold: it ne
 decisions and console work, not code. Everything in PLAN.md's Phase 12 is built and on the phone;
 what's open there is Kevin's own look at it. Don't start release work without being asked.
 
+## Words
+
+It's an American pool app, so the UI speaks American pool: a **rack** (never "frame"), a **session** (never "night" or "tonight"; people play at any hour), **tied** (not "level" or "drawn"), **final** (not "full time"), "percent", "toward". The code and Firestore schema still say `frame`/`night` (`frames`, `frameWins`, `NightsRecord`); renaming those would need a data migration, so leave them and keep the words out of anything a player reads.
+
 ## Stack
 
 - Kotlin, Jetpack Compose, Material 3

@@ -314,7 +314,7 @@ private fun RivalScoreRow(rival: RivalCard, onClick: () -> Unit) {
         rival.live -> "Playing now" to Rivals.colors.live
         lead > 0 -> "You lead by $lead" to Rivals.colors.you
         lead < 0 -> "${rival.name} leads by ${-lead}" to Rivals.colors.rival
-        else -> "Level" to Rivals.colors.fg3
+        else -> "Tied" to Rivals.colors.fg3
     }
     Column(
         Modifier
@@ -371,7 +371,7 @@ private fun NoRivalsYet(actions: HomeActions) {
             EmptyFormBar()
         }
         Text(
-            "Invite who you play. Every night counts.",
+            "Invite who you play. Every game counts.",
             style = Rivals.type.body,
             color = Rivals.colors.fg2,
         )
@@ -564,7 +564,7 @@ private fun GuestGameRow(game: GuestGame, canSave: Boolean, onOpen: () -> Unit, 
                 withStyle(SpanStyle(color = colors.you)) { append("${game.left.name} won") }
             game.right.wins > game.left.wins ->
                 withStyle(SpanStyle(color = colors.rival)) { append("${game.right.name} won") }
-            else -> append("Level")
+            else -> append("Tied")
         }
     }
     ListRow(

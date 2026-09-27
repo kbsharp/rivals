@@ -108,7 +108,7 @@ internal fun SessionDetailContent(
     if (confirmingDelete) {
         ConfirmDialog(
             title = "Delete this session?",
-            text = "Its matches and frames go too, and it comes off the head to head. " +
+            text = "Its matches and racks go too, and it comes off the head to head. " +
                 "This can't be undone.",
             confirmLabel = "Delete",
             destructive = true,
@@ -366,10 +366,10 @@ private fun HighlightLine(highlight: Highlight, me: DetailPlayer, rival: DetailP
         is Highlight.Shutout -> "Shutout, ${highlight.frames} – 0" to null
         is Highlight.Comeback -> "Came back from ${highlight.trailedBy.first} – ${highlight.trailedBy.second}" to null
         is Highlight.HillHill -> "Won the hill-hill decider" to null
-        is Highlight.Run -> "${highlight.frames} frames in a row" to null
-        is Highlight.Tagged -> highlight.event.label to "Frame ${highlight.frame}"
+        is Highlight.Run -> "${highlight.frames} racks in a row" to null
+        is Highlight.Tagged -> highlight.event.label to "Rack ${highlight.frame}"
         is Highlight.Pack -> "${highlight.size} break & runs in a row" to
-            "Frames ${highlight.firstFrame}–${highlight.lastFrame}"
+            "Racks ${highlight.firstFrame}–${highlight.lastFrame}"
     }
     val mine = highlight.playerId == me.uid
     val name = if (mine) me.name else rival.name
@@ -394,7 +394,7 @@ private fun HighlightLine(highlight: Highlight, me: DetailPlayer, rival: DetailP
 @Composable
 private fun NightTotals(totals: Map<FrameEvent, Count>) {
     Column {
-        Label("Tonight's highlights", modifier = Modifier.padding(bottom = Space.s4))
+        Label("Highlights", modifier = Modifier.padding(bottom = Space.s4))
         totals.forEach { (event, count) ->
             StatRow(
                 event.label,
@@ -430,7 +430,7 @@ private fun FrameBox(
             .padding(if (tagged) 3.dp else 0.dp)
             .background(tint, Shapes.chip)
             .semantics {
-                contentDescription = "Frame $number to $winnerName" +
+                contentDescription = "Rack $number to $winnerName" +
                     events.joinToString("") { ", ${it.label.lowercase()}" }
             },
         contentAlignment = Alignment.Center,

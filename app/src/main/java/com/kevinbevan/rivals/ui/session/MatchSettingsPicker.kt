@@ -100,7 +100,7 @@ fun MatchSettingsPicker(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Stepper("−", "One fewer frame", enabled = race != null && race > minRace) {
+                    Stepper("−", "One fewer rack", enabled = race != null && race > minRace) {
                         onChange(settings.copy(raceTo = race!! - 1))
                     }
                     Text(
@@ -110,7 +110,7 @@ fun MatchSettingsPicker(
                         color = Rivals.colors.fg,
                         textAlign = TextAlign.Center,
                     )
-                    Stepper("+", "One more frame", enabled = race != null && race < MAX_RACE) {
+                    Stepper("+", "One more rack", enabled = race != null && race < MAX_RACE) {
                         onChange(settings.copy(raceTo = race!! + 1))
                     }
                 }

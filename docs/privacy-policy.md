@@ -11,7 +11,7 @@ When you sign in with Google, Rivals stores:
 - **Your Google account name, email address and profile photo link**, so the app can show who's playing. Your email address is also indexed so a friend who types your exact address can invite you; nobody can browse or search the list of players.
 - **Quick games played without signing in** stay on your phone only, until you choose to save one to a rivalry.
 - **An account ID** that Firebase assigns to your sign-in.
-- **The games you record**: sessions (nights out), matches, frames, who won and who broke each frame, the date and time, and a venue name if you enter one.
+- **The games you record**: sessions, matches, racks, who won and who broke each rack, the date and time, and a venue name if you enter one.
 
 If the app crashes, **Firebase Crashlytics** receives a crash report: the error, your device model and Android version, and a random installation ID. It doesn't include your name, email or scores.
 

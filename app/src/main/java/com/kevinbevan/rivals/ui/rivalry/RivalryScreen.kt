@@ -255,7 +255,7 @@ private fun PrimaryAction(
         when {
             active != null -> {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                    Label("Tonight", modifier = Modifier.weight(1f))
+                    Label("Session", modifier = Modifier.weight(1f))
                     Text(
                         "${active.myWins} – ${active.rivalWins}",
                         style = Rivals.type.number.copy(fontSize = 20.sp),

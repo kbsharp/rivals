@@ -8,14 +8,14 @@ Drafts for the forms Play Console asks for before the first internal-testing rel
 - **Default language:** English (United Kingdom)
 - **App or game:** App. **Category:** Sports
 - **Free or paid:** Free
-- **Short description (80 characters max):** Keep pool scores with a friend: frames, matches, nights and stats.
+- **Short description (80 characters max):** Keep pool scores with a friend: racks, matches, sessions and stats.
 - **Full description:**
-  > Rivals keeps score when two friends play pool. Tap the winner of each frame, and matches, nights and your all-time head-to-head update on both phones straight away, even with no signal in the pool hall.
+  > Rivals keeps score when two friends play pool. Tap the winner of each rack, and matches, sessions and your all-time head-to-head update on both phones straight away, even with no signal in the pool hall.
   >
   > • One big button per player, usable one-handed with a cue in the other hand
   > • Races to any length, or open-ended matches; 9-ball, 10-ball or just a score
   > • Undo, including back into the previous match
-  > • History of every night, down to each frame
+  > • History of every session, down to each rack
   > • Stats: win rates, streaks, results by game, and how often the breaker wins
 - **Graphics:** `play/icon-512.png` (app icon) and `play/feature-graphic.png` (feature graphic). Phone screenshots: see `app/build/screenshots` after `scripts/emulator-tests.sh` (Play needs at least 2, 16:9 or 9:16, with a minimum of 320 px on each side), or take them on the phone.
 

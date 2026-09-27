@@ -100,7 +100,7 @@ internal fun SignInContent(
                 }
                 Text(
                     "Sign in to keep score with a rival. Every game you play together counts " +
-                        "towards your head to head, on both your phones.",
+                        "toward your head to head, on both your phones.",
                     style = Rivals.type.body,
                     color = Rivals.colors.fg2,
                 )

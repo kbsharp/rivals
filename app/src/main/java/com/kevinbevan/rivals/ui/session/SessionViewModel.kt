@@ -139,9 +139,9 @@ data class FullTime(
     val length: Duration?,
     /** Who took the night; `null` when it's level. */
     val winnerId: String?,
-    /** "Kevin takes the night 3 – 1". */
+    /** "Kevin takes the session 3 – 1". */
     val headline: String,
-    /** "Four matches, 26 frames. 2 break & runs and a golden break." */
+    /** "Four matches, 26 racks. 2 break & runs and a golden break." */
     val summary: String,
     /** All-time match wins, yours first, tonight included; `null` for a quick game. */
     val allTime: Pair<Int, Int>?,
@@ -303,7 +303,7 @@ class SessionViewModel(
                     winnerFrames = ended.frameWins.winsOf(winnerId),
                     loserFrames = ended.frameWins.filterKeys { it != winnerId }.values.sum(),
                     next = "Match ${running!!.number} starts now. " +
-                        "Tonight ${me.matches} – ${rivalSide.matches}.",
+                        "Session ${me.matches} – ${rivalSide.matches}.",
                 )
             },
             lastSettings = latest?.settings ?: DefaultMatchSettings,
@@ -354,14 +354,14 @@ class SessionViewModel(
 
     fun recordFrame(winnerId: String) = act {
         val recordedBy = (if (guest) createdBy else currentUid())
-            ?: return@act warn("Sign in again to record frames")
+            ?: return@act warn("Sign in again to record racks")
         // A won match is announced by the panel on the board, not by a snackbar.
         local.update { it.copy(resultSeen = null) }
         sessionRepository.recordFrame(sessionId, winnerId, recordedBy)
     }
 
     fun toggleEvent(event: FrameEvent) = act {
-        if (!sessionRepository.toggleLastFrameEvent(sessionId, event)) say("No frame to tag yet")
+        if (!sessionRepository.toggleLastFrameEvent(sessionId, event)) say("No rack to tag yet")
     }
 
     fun undo() = act {
@@ -445,8 +445,8 @@ class SessionViewModel(
             length = session.startedAt?.let { start -> session.endedAt?.let { Duration.between(start, it) } },
             winnerId = winner?.uid,
             // The score never breaks across lines.
-            headline = if (winner != null) "${winner.name} takes the night ${winner.matches}\u00A0–\u00A0${loser.matches}"
-                else "Level on the night, ${me.matches}\u00A0–\u00A0${rival.matches}",
+            headline = if (winner != null) "${winner.name} wins the session ${winner.matches}\u00A0–\u00A0${loser.matches}"
+                else "Session tied, ${me.matches}\u00A0–\u00A0${rival.matches}",
             summary = nightSummary(night?.matches.orEmpty()),
             allTime = night?.allTime?.let { it.winsOf(me.uid) to it.winsOf(rival.uid) },
             lastMatch = last,
@@ -463,16 +463,16 @@ class SessionViewModel(
         val undone: Undone? = null,
     )
 
-    /** "KEVIN UNDID FRAME 6 · 4 – 2 → 3 – 2", scores from this phone's side. */
+    /** "KEVIN UNDID RACK 6 · 4 – 2 → 3 – 2", scores from this phone's side. */
     private fun undoNotice(undone: Undone, me: PlayerSide, rival: PlayerSide): Notice {
         val wins = undone.match.frameWins
         val before = wins.winsOf(me.uid) to wins.winsOf(rival.uid)
         val after = if (undone.frame.winnerId == me.uid) before.copy(first = before.first - 1)
             else before.copy(second = before.second - 1)
         val who = when {
-            guest -> "Frame ${undone.frame.number} undone"
-            undone.byMe -> "${me.name} undid frame ${undone.frame.number}"
-            else -> "${rival.name} undid frame ${undone.frame.number}"
+            guest -> "Rack ${undone.frame.number} undone"
+            undone.byMe -> "${me.name} undid rack ${undone.frame.number}"
+            else -> "${rival.name} undid rack ${undone.frame.number}"
         }
         return Notice(
             undone.key,
@@ -481,13 +481,13 @@ class SessionViewModel(
     }
 
     companion object {
-        /** "Four matches, 26 frames. 2 break & runs, a golden break and a hill-hill decider." */
+        /** "Four matches, 26 racks. 2 break & runs, a golden break and a hill-hill decider." */
         internal fun nightSummary(matches: List<MatchWithFrames>): String {
             val played = matches.filter { it.match.framesPlayed > 0 }
             if (played.isEmpty()) return ""
             val frames = played.sumOf { it.match.framesPlayed }
             val counts = played.size.let { "${countWord(it).replaceFirstChar(Char::uppercase)} ${if (it == 1) "match" else "matches"}" } +
-                ", $frames ${if (frames == 1) "frame" else "frames"}."
+                ", $frames ${if (frames == 1) "rack" else "racks"}."
             val tags = played.flatMap { it.frames }.flatMap { it.events }
             val highlights = played.flatMap(::highlightsOf)
             fun some(n: Int, one: String, many: String) = when (n) {
@@ -498,7 +498,7 @@ class SessionViewModel(
             val extras = listOfNotNull(
                 some(tags.count { it == FrameEvent.BREAK_AND_RUN }, "a break & run", "break & runs"),
                 some(tags.count { it == FrameEvent.GOLDEN_BREAK }, "a golden break", "golden breaks"),
-                some(tags.count { it == FrameEvent.THREE_FOULS }, "a frame won on three fouls", "frames won on three fouls"),
+                some(tags.count { it == FrameEvent.THREE_FOULS }, "a rack won on three fouls", "racks won on three fouls"),
                 some(highlights.count { it is Highlight.HillHill }, "a hill-hill decider", "hill-hill deciders"),
                 some(highlights.count { it is Highlight.Comeback }, "a comeback", "comebacks"),
                 some(highlights.count { it is Highlight.Shutout }, "a shutout", "shutouts"),

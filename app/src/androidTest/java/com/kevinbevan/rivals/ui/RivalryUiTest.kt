@@ -88,7 +88,7 @@ class RivalryUiTest {
         show(ready.copy(activeSession = ActiveSessionSummary("s1", 2, 1)), onResume = { resumed = it })
 
         compose.onNodeWithText("Start session").assertDoesNotExist()
-        compose.onNodeWithText("TONIGHT").assertIsDisplayed()
+        compose.onNodeWithText("SESSION").assertIsDisplayed()
         compose.onNodeWithText("2 – 1").assertIsDisplayed()
         compose.onNodeWithText("Resume session").performClick()
         assertEquals("s1", resumed)
@@ -124,7 +124,7 @@ class RivalryUiTest {
     @Test
     fun withNoNightsTheSessionsTabSaysSo() {
         show(ready)
-        compose.onNodeWithText("No nights yet").assertIsDisplayed()
+        compose.onNodeWithText("No sessions yet").assertIsDisplayed()
     }
 
     @Test
@@ -133,11 +133,11 @@ class RivalryUiTest {
         compose.onNodeWithText("STATS").performClick()
         // MATCHES and FRAMES appear again under each game type, so take the first of each.
         compose.onAllNodesWithText("MATCHES").onFirst().assertIsDisplayed()
-        compose.onAllNodesWithText("FRAMES").onFirst().assertIsDisplayed()
+        compose.onAllNodesWithText("RACKS").onFirst().assertIsDisplayed()
         // CI's emulator screen is shorter than a phone's, so the lower rows need scrolling to.
         compose.onNodeWithText("LONGEST RUN").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("BREAK & RUN").performScrollTo().assertIsDisplayed()
-        compose.onNodeWithText("1 drawn").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("1 tied").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("9-BALL").performScrollTo().assertIsDisplayed()
     }
 
@@ -145,7 +145,7 @@ class RivalryUiTest {
     fun withNothingPlayedTheStatsTabSaysSo() {
         show(ready.copy(stats = stats.copy(frames = Record(0, 0))))
         compose.onNodeWithText("STATS").performClick()
-        compose.onNodeWithText("No frames played yet").assertIsDisplayed()
+        compose.onNodeWithText("No racks played yet").assertIsDisplayed()
     }
 
     @Test

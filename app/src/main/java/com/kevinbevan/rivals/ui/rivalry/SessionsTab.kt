@@ -32,9 +32,9 @@ internal fun SessionsTab(uiState: RivalryUiState, onOpen: (String) -> Unit) {
     when {
         uiState.error != null -> ErrorState(uiState.error)
         uiState.sessions.isEmpty() -> EmptyState(
-            title = "No nights yet",
+            title = "No sessions yet",
             body = "Start a session and it'll be here once you end it, with every match and " +
-                "frame you played.",
+                "rack you played.",
         )
         else -> Column {
             uiState.sessions.forEach { item ->
@@ -49,7 +49,7 @@ private fun SessionRow(item: SessionItem, rivalName: String, onClick: () -> Unit
     val outcome = when {
         item.myWins > item.rivalWins -> "You won" to Rivals.colors.you
         item.rivalWins > item.myWins -> "$rivalName won" to Rivals.colors.rival
-        else -> "Drawn" to Rivals.colors.fg3
+        else -> "Tied" to Rivals.colors.fg3
     }
     Row(
         modifier = Modifier

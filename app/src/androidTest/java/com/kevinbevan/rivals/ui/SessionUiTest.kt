@@ -95,14 +95,14 @@ class SessionUiTest {
                     winnerName = "Kevin",
                     winnerFrames = 5,
                     loserFrames = 2,
-                    next = "Match 2 starts now. Tonight 1 – 0.",
+                    next = "Match 2 starts now. Session 1 – 0.",
                 ),
                 canUndo = true,
             ),
             SessionActions(onUndo = { undone = true }),
         )
         compose.onNodeWithText("Kevin takes it 5 – 2").assertIsDisplayed()
-        compose.onNodeWithText("Match 2 starts now. Tonight 1 – 0.").assertIsDisplayed()
+        compose.onNodeWithText("Match 2 starts now. Session 1 – 0.").assertIsDisplayed()
         // The halves stop taking taps while the result is up.
         compose.onNodeWithTag("score-a").assertIsNotEnabled()
         compose.onNodeWithText("Undo").performClick()
@@ -121,7 +121,7 @@ class SessionUiTest {
                 winnerName = "Kevin",
                 winnerFrames = 5,
                 loserFrames = 2,
-                next = "Match 2 starts now. Tonight 1 – 0.",
+                next = "Match 2 starts now. Session 1 – 0.",
             ),
             canUndo = true,
         )
@@ -140,25 +140,25 @@ class SessionUiTest {
             state(a = 3, b = 3).copy(lastFrame = FrameReceipt(6, "b", "Julian", theirPhone = true, events = emptySet())),
             SessionActions(onUndo = { undone++ }),
         )
-        compose.onNodeWithText("FRAME 6 · JULIAN · THEIR PHONE").assertIsDisplayed()
-        compose.onNodeWithContentDescription("Undo frame 6").performClick()
+        compose.onNodeWithText("RACK 6 · JULIAN · THEIR PHONE").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Undo rack 6").performClick()
         assertEquals(1, undone)
     }
 
     @Test
     fun aDoubleFrameIsCalledOut() {
         show(state(a = 1, b = 2).copy(lastFrame = FrameReceipt(3, "b", "Julian", true, emptySet(), DoubleFrame(2, 4))))
-        compose.onNodeWithText("FRAMES 2 & 3 · 4 S APART").assertIsDisplayed()
+        compose.onNodeWithText("RACKS 2 & 3 · 4 S APART").assertIsDisplayed()
     }
 
     @Test
     fun aNoticeTakesTheReceiptsPlaceThenGoes() {
         compose.mainClock.autoAdvance = false
         val dismissed = mutableListOf<Notice>()
-        val notice = Notice(1, "Julian undid frame 6 · 4 – 2 → 3 – 2")
+        val notice = Notice(1, "Julian undid rack 6 · 4 – 2 → 3 – 2")
         show(state().copy(notice = notice), SessionActions(onDismissNotice = { dismissed += it }))
         compose.mainClock.advanceTimeBy(500)
-        compose.onNodeWithText("JULIAN UNDID FRAME 6 · 4 – 2 → 3 – 2").assertIsDisplayed()
+        compose.onNodeWithText("JULIAN UNDID RACK 6 · 4 – 2 → 3 – 2").assertIsDisplayed()
         compose.onNodeWithTag("receipt").assertDoesNotExist()
         compose.mainClock.advanceTimeBy(5_000)
         assertEquals(listOf(notice), dismissed)
@@ -171,7 +171,7 @@ class SessionUiTest {
             state().copy(lastFrame = FrameReceipt(4, "a", "Kevin", false, setOf(FrameEvent.GOLDEN_BREAK))),
             SessionActions(onToggleEvent = { toggled += it }),
         )
-        compose.onNodeWithText("FRAME 4 · KEVIN · GOLDEN BREAK").performClick()
+        compose.onNodeWithText("RACK 4 · KEVIN · GOLDEN BREAK").performClick()
         compose.onNodeWithText("GOLDEN BREAK").assertIsSelected()
         compose.onNodeWithText("BREAK & RUN").performClick()
         assertEquals(listOf(FrameEvent.BREAK_AND_RUN), toggled)
@@ -198,7 +198,7 @@ class SessionUiTest {
         var dismissed = 0
         show(
             state(a = 0, b = 0).copy(
-                justWon = MatchResult("m1", 1, "9-ball", "a", "Kevin", 5, 2, "Match 2 starts now. Tonight 1 – 0."),
+                justWon = MatchResult("m1", 1, "9-ball", "a", "Kevin", 5, 2, "Match 2 starts now. Session 1 – 0."),
                 lastFrame = FrameReceipt(7, "a", "Kevin", false, emptySet()),
             ),
             SessionActions(onToggleEvent = { toggled += it }, onChangeSettings = { changed += it }, onDismissResult = { dismissed++ }),
@@ -207,7 +207,7 @@ class SessionUiTest {
         compose.onNodeWithText("WON ON THREE FOULS").performClick()
         assertEquals(listOf(FrameEvent.THREE_FOULS), toggled)
         compose.onNodeWithText("Change").performClick()
-        compose.onNode(hasClickLabel("One more frame")).performClick()
+        compose.onNode(hasClickLabel("One more rack")).performClick()
         assertEquals(listOf(MatchSettings(GameType.NINE_BALL, raceTo = 6)), changed)
         // Touched, the panel waits for Play on: the dimmed board no longer closes it.
         compose.onNodeWithTag("result-backdrop").performTouchInput { click(Offset(10f, 10f)) }
@@ -230,8 +230,8 @@ class SessionUiTest {
         compose.onNodeWithContentDescription("Game menu").performClick()
         compose.onNodeWithTag("match-sheet").assertIsDisplayed()
         compose.onNodeWithText("The race can't go below 5.", substring = true).assertIsDisplayed()
-        compose.onNode(hasClickLabel("One fewer frame")).assertIsNotEnabled()
-        compose.onNode(hasClickLabel("One more frame")).performClick()
+        compose.onNode(hasClickLabel("One fewer rack")).assertIsNotEnabled()
+        compose.onNode(hasClickLabel("One more rack")).performClick()
         compose.onNodeWithText("10-BALL").performClick()
         assertEquals(
             listOf(MatchSettings(GameType.NINE_BALL, raceTo = 6), MatchSettings(GameType.TEN_BALL, raceTo = 6)),
@@ -296,7 +296,7 @@ class SessionUiTest {
         // Home and End session are on the status line, as on the board.
         compose.onNodeWithContentDescription("Back to home").assertIsDisplayed()
         compose.onNodeWithContentDescription("Game menu").performClick()
-        compose.onNodeWithText("End tonight's session?").assertIsDisplayed()
+        compose.onNodeWithText("End this session?").assertIsDisplayed()
     }
 
     @Test
@@ -308,18 +308,18 @@ class SessionUiTest {
                 match = null,
                 fullTime = FullTime(
                     venue = "The Crown", length = java.time.Duration.ofMinutes(182), winnerId = "a",
-                    headline = "Kevin takes the night 3 – 1", summary = "Four matches, 26 frames.",
+                    headline = "Kevin wins the session 3 – 1", summary = "Four matches, 26 racks.",
                     allTime = 13 to 9, lastMatch = null,
                 ),
             ),
             SessionActions(onBack = { done++ }, onSeeNight = { seeNight++ }),
         )
-        compose.onNodeWithText("FULL TIME · THE CROWN · 3 H 02 M").assertIsDisplayed()
-        compose.onNodeWithText("Kevin takes the night 3 – 1").assertIsDisplayed()
+        compose.onNodeWithText("FINAL · THE CROWN · 3 H 02 M").assertIsDisplayed()
+        compose.onNodeWithText("Kevin wins the session 3 – 1").assertIsDisplayed()
         compose.onNodeWithText("13 – 9").assertIsDisplayed()
         // The board behind it no longer takes frames.
         compose.onNodeWithTag("score-a").assertDoesNotExist()
-        compose.onNodeWithText("See the night").performClick()
+        compose.onNodeWithText("See the session").performClick()
         compose.onNodeWithText("Done").performClick()
         assertEquals(1 to 1, done to seeNight)
     }

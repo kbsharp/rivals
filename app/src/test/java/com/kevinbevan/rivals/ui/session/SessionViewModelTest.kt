@@ -106,7 +106,7 @@ class SessionViewModelTest {
 
         board.vm.undo()
         advanceUntilIdle()
-        assertEquals("Kevin undid frame 3 · 2 – 1 → 2 – 0", board.state.notice?.text)
+        assertEquals("Kevin undid rack 3 · 2 – 1 → 2 – 0", board.state.notice?.text)
         board.vm.dismissNotice(board.state.notice!!)
         assertNull(board.state.notice)
 
@@ -115,7 +115,7 @@ class SessionViewModelTest {
         advanceUntilIdle()
         val notice = board.state.notice
         assertNotNull(notice)
-        assertEquals("Julian undid frame 2 · 2 – 0 → 1 – 0", notice!!.text)
+        assertEquals("Julian undid rack 2 · 2 – 0 → 1 – 0", notice!!.text)
         assertFalse(notice.warning)
     }
 
@@ -127,7 +127,7 @@ class SessionViewModelTest {
         assertFalse(board.state.lastFrame!!.theirPhone)
         board.vm.undo()
         advanceUntilIdle()
-        assertEquals("Frame 1 undone · 0 – 1 → 0 – 0", board.state.notice?.text)
+        assertEquals("Rack 1 undone · 0 – 1 → 0 – 0", board.state.notice?.text)
     }
 
     @Test
@@ -199,9 +199,9 @@ class SessionViewModelTest {
         advanceUntilIdle()
         val fullTime = board.state.fullTime!!
         assertFalse(board.state.ended)
-        assertEquals("Kevin takes the night 1\u00A0–\u00A00", fullTime.headline)
+        assertEquals("Kevin wins the session 1\u00A0–\u00A00", fullTime.headline)
         assertEquals(a, fullTime.winnerId)
-        assertEquals("Two matches, 3 frames. A break & run and a shutout.", fullTime.summary)
+        assertEquals("Two matches, 3 racks. A break & run and a shutout.", fullTime.summary)
         assertNull("a quick game has no all-time score", fullTime.allTime)
     }
 

@@ -4,11 +4,12 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import java.util.Locale
 
-private val dayFormat = DateTimeFormatter.ofPattern("EEE d MMM yyyy")
+private val dayFormat = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", Locale.US)
 private val timeFormat = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
 
-/** "Tue 22 Sep 2026", in the phone's time zone. */
+/** "Tue, Sep 22, 2026", in the phone's time zone. */
 fun formatDay(instant: Instant?): String =
     instant?.atZone(ZoneId.systemDefault())?.format(dayFormat) ?: "Date unknown"
 
