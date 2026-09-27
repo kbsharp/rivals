@@ -1,225 +1,132 @@
 # Rivals
 
-Android app for tracking scores between friends, starting with pool. Anyone can keep score in a quick game without an account (saved on the phone). Signing in with Google lets you invite a rival; every session, match and frame in a rivalry is stored in Firestore and synced between both phones in real time.
-
-It's pool-only for now, but golf and other sports may follow. Keep pool-specific concepts (frames, 8-ball/9-ball, breaks) in the data model and domain logic rather than baked into the app's structure, but don't build for other sports yet.
+Android app for keeping score between friends; pool only for now. Quick games need no account (stored on the phone). Google sign-in lets you invite a rival; the rivalry's sessions, matches and frames live in Firestore and sync live between both phones. Golf etc. may follow: keep pool concepts (frames, game types, breaks) in the model and domain logic, not the app's structure, but don't build for other sports yet.
 
 ## Status
 
-Work through the milestones at the bottom in order, and tick each one off in this file as it lands.
+Only milestone 6 (Release) is left, on hold since 2026-09-22: it needs Kevin's decisions and console work, not code. Don't start it unless asked. PLAN.md Phase 12 is built and on the phone, awaiting Kevin's review.
 
-As of 2026-09-22 only milestone 6 (**Release**) is left, and it's on hold: it needs Kevin's
-decisions and console work, not code. Everything in PLAN.md's Phase 12 is built and on the phone;
-what's open there is Kevin's own look at it. Don't start release work without being asked.
+## Working efficiently
 
-## Work efficiently, always
-
-Kevin watches the clock. Time spent waiting on builds and tests is the main cost of any change,
-so plan the whole change before touching anything, then verify once at the end. Quality comes
-from choosing the right check, not from running checks often.
-
-- **Batch the edits, then verify once.** Make every edit the change needs first, across all files
-  (search for every occurrence up front, and use one scripted pass for a mechanical change such as
-  a rename or rewording), then run the checks one time. Never edit → test → edit → test.
-- **One Gradle invocation.** Put the tasks in a single command (`./gradlew testDebugUnitTest lint
-  assembleDebug`), not one command each; every separate run pays Gradle's startup and
-  configuration again.
-- **Run the narrowest check that proves the change**, and only the checks that change can break
-  (see "Verify in proportion" under Conventions). A string change can't break sync, so it never
-  gets the emulator.
-- **When something fails, rerun only what failed** (`--tests '*SessionUiTest'`), fix everything
-  that failure shows in one go, then do one final run of the full set once it passes.
-- **Never rerun a green check "to be safe"**, and never rerun locally what CI will run on push.
-- **Look before running.** Grep the tests for strings and tags you're changing and update them
-  in the same pass, so the first run passes instead of teaching you what to fix.
-- **Long runs go in the background** while you get on with something useful: the commit
-  message, the docs, the next edit.
-- If a workflow keeps being slow, fix the workflow (as the move of the UI tests to Robolectric
-  did) rather than waiting on it again.
+Build/test time is the main cost. Plan the whole change, make every edit first (grep for all occurrences, including strings/tags in tests; script mechanical renames), then verify once.
+- One Gradle command for all tasks (`./gradlew testDebugUnitTest lint assembleDebug`).
+- Run only the narrowest checks the change can break:
+  - text/UI/ViewModel: the Gradle line above + look at changed renders. No emulator.
+  - `data/`, repositories, sync, `firestore.rules`: also `rules-test` and `scripts/emulator-tests.sh`.
+- On failure, rerun only what failed (`--tests '*SessionUiTest'`), fix everything it shows in one go, then one full run.
+- Never rerun a green check, or locally rerun what CI runs on push.
+- Background long runs and do other work meanwhile. If a workflow stays slow, fix the workflow.
+- When a chunk passes, without asking: commit, push, and install debug on the phone (`./gradlew installDebug`, or `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` if the emulator is also attached; `adb` is in `platform-tools` under `sdk.dir` from `local.properties`). Revisit once on Play.
 
 ## Words
 
-It's an American pool app, so the UI speaks American pool: a **rack** (never "frame"), a **session** (never "night" or "tonight"; people play at any hour), **tied** (not "level" or "drawn"), **final** (not "full time"), "percent", "toward". Dates follow the phone's locale (`formatDay`), so never hard-code a date order. The code and Firestore schema still say `frame`/`night` (`frames`, `frameWins`, `NightsRecord`); renaming those would need a data migration, so leave them and keep the words out of anything a player reads.
+American pool, in all player-facing text: **rack** (not frame), **session** (not night/tonight), **tied** (not level/drawn), **final** (not full time), "percent", "toward". Dates via the locale (`formatDay`), never a hard-coded order. Code/Firestore keep `frame`/`night` (`frames`, `frameWins`, `NightsRecord`); renaming needs a migration, so leave them.
 
 ## Stack
 
-- Kotlin, Jetpack Compose, Material 3
-- Gradle (Kotlin DSL) with a version catalog (`gradle/libs.versions.toml`)
-- SDK levels: `compileSdk` 37.2 (current stable AndroidX requires it), `targetSdk` 36 (the Google Play minimum for new apps and updates), `minSdk` 26
-- Firebase Auth (Google provider) and Cloud Firestore, via the Firebase BoM
-- Google sign-in through Credential Manager (`androidx.credentials` + `googleid`), not the deprecated legacy Google Sign-In SDK
-- Navigation Compose, ViewModel + StateFlow, coroutines
-- Use current stable versions of all dependencies. Check them; don't guess.
+Kotlin, Compose, Material 3; Gradle Kotlin DSL + version catalog (`gradle/libs.versions.toml`); `compileSdk` 37.2 (needed by current AndroidX), `targetSdk` 36 (Play minimum), `minSdk` 26; Firebase Auth (Google) + Firestore via BoM; sign-in via Credential Manager (`androidx.credentials` + `googleid`), not legacy Google Sign-In; Navigation Compose, ViewModel + StateFlow, coroutines. Use current stable dependency versions: check, don't guess.
 
 ## Architecture
 
-- Single `app` module, with these packages:
-  - `ui/`: screens and ViewModels, one package per feature
-  - `data/`: repositories and Firestore mappers
-  - `model/`: plain data classes
-  - `auth/`: sign-in
-- Repositories expose `Flow`s built from Firestore snapshot listeners, and ViewModels map them to `StateFlow<UiState>`.
-- Use manual constructor injection through an `AppContainer` in the `Application` class. Don't add Hilt unless it starts to hurt.
-- Firestore's offline persistence (on by default on Android) covers bad signal in the pool hall, so don't add Room.
-- Never block the UI on the network. Show pending (not yet synced) writes sensibly.
+- Single `app` module: `ui/` (screens + ViewModels, a package per feature), `data/` (repositories, Firestore mappers), `model/` (data classes), `auth/`.
+- Repositories expose `Flow`s from snapshot listeners; ViewModels map to `StateFlow<UiState>`.
+- Manual DI via `AppContainer` in `Application`; no Hilt unless it hurts.
+- No Room: Firestore offline persistence covers bad signal.
+- Never block UI on the network; show pending (unsynced) writes sensibly.
 
 ## Data model (Firestore)
 
 ```
 players/{uid}                                 // get by uid only, never listed
   displayName, email, photoUrl, createdAt
-
 emails/{lower-cased email}                    // find a rival by exact address
   uid
-
-rivalries/{uidA_uidB}                         // uids in order: one rivalry per pair
+rivalries/{uidA_uidB}                         // sorted uids: one per pair
   playerIds: [uidA, uidB]                     // sorted
-  status: "pending" | "active"                // pending = email invite not yet accepted
+  status: "pending" | "active"                // pending = email invite not accepted
   invitedBy, createdAt, acceptedAt?, inviteCode?
-
-invites/{code}                                // share link: rivals-15bd9.web.app/invite/{code}
+invites/{code}                                // link: rivals-15bd9.web.app/invite/{code}
   from, fromName, createdAt                   // single use, 30 days; readable signed out
-
-sessions/{sessionId}                          // one night out
-  playerIds: [uidA, uidB]
-  rivalryId
-  status: "active" | "ended"
+sessions/{sessionId}
+  playerIds, rivalryId, status: "active" | "ended"
   startedAt, endedAt?, venue?, createdBy
   matchWins: { uidA: n, uidB: n }             // denormalised tally
-
-sessions/{sessionId}/matches/{matchId}        // a race to N frames
-  number: Int                                 // 1-based order within the session
-  gameType: "9-ball" | "10-ball"              // absent when the match names no game
+sessions/{id}/matches/{matchId}               // race to N frames
+  number                                      // 1-based within session
+  gameType?: "9-ball" | "10-ball"             // absent = no game named
   raceTo: Int?                                // null = open-ended
   status: "active" | "ended"
   frameWins: { uidA: n, uidB: n }             // denormalised tally
-  winnerId?, startedAt, endedAt?
-  playerIds                                   // copied from the session, for stats queries
-
-sessions/{sessionId}/matches/{matchId}/frames/{frameId}
-  number, winnerId, breakerId? (legacy), recordedBy, recordedAt
-  events?: ["break-and-run" | "golden-break" | "three-fouls"]   // tagged after the fact, credited to the winner
-  playerIds
+  winnerId?, startedAt, endedAt?, playerIds   // playerIds copied for stats queries
+sessions/{id}/matches/{id}/frames/{frameId}
+  number, winnerId, breakerId? (legacy), recordedBy, recordedAt, playerIds
+  events?: ["break-and-run" | "golden-break" | "three-fouls"]   // tagged later, credited to winner
 ```
 
-Guest (quick) games use the same documents, kept on the phone in `guest-games.json` by `LocalSessionStore` and played through the same `SessionRepository`. Their players are `guest-a` / `guest-b` with typed `names`. Saving one to a rivalry (`GuestClaim`) copies it to Firestore with the guest ids swapped for uids.
+- Guest games: same documents, stored in `guest-games.json` by `LocalSessionStore`, played through `SessionRepository`; players `guest-a`/`guest-b` with typed `names`. `GuestClaim` copies one to a rivalry in Firestore, swapping in uids.
+- Recording/undoing a frame is one batched write: frame doc + `FieldValue.increment` on the match tally (+ session tally when the match finishes).
+- One active session per rivalry (one guest game per phone).
+- On reaching race-to, end the match and auto-start the next with the same settings.
 
-- Recording or undoing a frame is one batched write: the frame doc, plus a `FieldValue.increment` on the match tally. When a match finishes, the same write also updates the session tally.
-- Only one session can be active per rivalry (and one guest game per phone).
-- When a match hits its race-to, end it and start the next match automatically with the same settings.
+## Security rules and indexes
 
-## Security rules
+`firestore.rules` (with `firebase.json`, deployed via Firebase CLI) is membership-based: any Google user can sign in; a player reads/writes only their own profile and email entry, their rivalries, and sessions (with matches/frames) they play in. Sessions can only be created in an active rivalry between exactly its two players. Profiles and emails are get-by-id, never listable. `rules-test/rules.test.js` covers this; its documents mirror what repositories write, so update them when writes change (`SyncTest` proves real writes pass).
 
-`firestore.rules` (kept in the repo with `firebase.json`, deployed with the Firebase CLI) is membership-based: anyone can sign in with Google, and a player can read and write only their own profile and email index entry, their rivalries, and the sessions (with matches and frames) they play in. A session can only be created in an active rivalry between exactly its two players. Profiles and the email index can be fetched by id but never listed, so the player base can't be browsed. `rules-test/rules.test.js` covers all of this against the Firestore emulator, in Node (`npm test` in `rules-test/`, a few seconds). Its documents mirror what the repositories write, so when a repository's writes change, change them there too; `SyncTest` proves the app's real writes get through.
+The emulator doesn't enforce indexes. `firestore.indexes.json` holds what the app needs (Stats' collection-group queries on `matches`/`frames` by `playerIds`); add any new collection-group/compound query there and `firebase deploy --only firestore:indexes`.
 
-The emulator doesn't enforce indexes, so a query that works in tests can still be refused in production. `firestore.indexes.json` holds the ones the app needs (the Stats tab's collection-group queries over `matches` and `frames` by `playerIds`); a new collection-group or compound query gets an entry there, deployed with `firebase deploy --only firestore:indexes`.
-
-Show a clear message when Firestore refuses something; don't fail silently.
+Show a clear message when Firestore refuses something; never fail silently.
 
 ## Screens
 
-1. **Home** (no account needed): any invites, then every rival as one mirrored table in a panel (your wins, their name and who leads, theirs, a split bar), the one you're playing or played last first, three shown until See all. Tapping a rival opens their rivalry, where a night is started. Then **Play** (Quick game or Resume, and Add a rival, as two equal tiles) and **On this phone** (guest games that can be saved to a rivalry). With no rivals it's a 0 – 0 scoreboard.
-2. **Sign in** and **Invite** are both scoreboards at 0 – 0 with one button. **Add a rival**: three rows — exact email, share link, invite code — one open at a time.
-3. **Rivalry**: the win ring and all-time score, the primary action, then **SESSIONS | STATS** tabs. Sessions is the nights you've played; Stats is the mirrored table. Neither is a screen of its own any more.
-4. **Session** (the main screen):
-   - landscape and full screen: each player's half of the screen is the tap target for a frame win
-   - a line along the top: the back arrow and the match, game and race on the left, the clock centred with a one-tap Undo beside it, tonight's score and ≡ on the right. Along the foot, only the last frame's receipt, centred, with the unsynced cloud in a fixed slot beside it. Nothing sits on the centre line
-   - where actions live (UX phase 3; `design/brief.md`, "Where actions live"; built in UX phase 4):
-     - the last frame: Undo beside the clock, and tagging it (break & run, golden break, won on three fouls) on its receipt; choosing a tag closes them
-     - the match (game, race, End match) and End session are in the match sheet behind ≡
-     - the next match's settings, and the winning frame's tags, are in the match-won panel
-   - anything done to the score is named on both phones; scoreboard messages go in the receipt's place, never over a button
-   - back (arrow or gesture) goes Home and never ends the night; ending it shows a full-time panel on both phones, then Home
-   - when a match is won the board dims and a panel names the winner, with Undo in it
-   - keep it as clean as possible; don't add on-screen controls without a strong reason
-5. **Session detail**: one night, a mirrored scoreboard over match panels with their frames as boxed digits, seven to a row. It all scrolls; once the scoreboard has gone the top bar shows the score.
+1. **Home** (no account needed): invites; then rivals as one mirrored table in a panel (your wins, name + who leads, theirs, split bar), current/most recent first, three until See all; tapping opens the rivalry. Then **Play** (Quick game/Resume and Add a rival, two equal tiles) and **On this phone** (guest games, saveable to a rivalry). No rivals: a 0 – 0 scoreboard.
+2. **Sign in** and **Invite**: 0 – 0 scoreboards with one button. **Add a rival**: three rows (email, share link, invite code), one open at a time.
+3. **Rivalry**: win ring, all-time score, primary action (start a session), then **SESSIONS | STATS** tabs (session list; mirrored stats table).
+4. **Session** (main screen), landscape full screen; each player's half is the tap target for a rack win.
+   - Top line: back arrow + match/game/race left; clock centred with one-tap Undo beside it; session score and ≡ right. Foot: only the last rack's receipt, centred, unsynced cloud in a fixed slot beside it. Nothing on the centre line.
+   - Actions (see `design/brief.md`, "Where actions live"): last rack's tags (break & run, golden break, won on three fouls) on its receipt, closing on choice; game, race, End match and End session in the ≡ match sheet; next match's settings and the winning rack's tags in the match-won panel.
+   - Any score change is announced on both phones; messages replace the receipt, never cover a button.
+   - Back (arrow or gesture) goes Home, never ends the session. Ending shows a final panel on both phones, then Home.
+   - Match won: board dims, panel names the winner, with Undo.
+   - Keep it clean; no new on-screen controls without a strong reason.
+5. **Session detail**: mirrored scoreboard over match panels, racks as boxed digits, seven per row. All scrolls; once the scoreboard scrolls away, the top bar shows the score.
 
 ## Design
 
-`design/brief.md` is the agreed design brief: palette, type, spacing, shape, layout rules and
-motion. Follow it for every UI change; don't introduce a colour, size or radius that isn't in it.
-`design/ux-plan.md` is the UX review in progress (flow and the in-game menu, before Release): when Kevin says "UX phase N", do that phase from there.
-`design/audit.md` is the review the brief came from, and `design/ref/` holds Kevin's reference
-screenshots. The mock-ups of the agreed direction are at
-<https://claude.ai/artifact/Cykp6oXE8meC1tupSfLu1c>.
+`design/brief.md` is the agreed brief (palette, type, spacing, shape, layout, motion, logo): follow it for all UI; no colour, size or radius outside it. `design/ux-plan.md`: the pre-release UX review; "UX phase N" means do that phase. `design/audit.md`: the review behind the brief. `design/ref/`: Kevin's reference screenshots. Mock-ups: <https://claude.ai/artifact/Cykp6oXE8meC1tupSfLu1c>.
 
-In short: near-black `#0D0B14`, white scores, cyan `#3FE3EC` for you, hot pink `#FF5FA8` for your
-rival, amber `#FFB020` only for live, delete and errors. The logo is the diamond rack (brief, The logo). Montserrat for numbers (tabular figures), Barlow
-for text. No dividers, no grey cards, one primary action per screen.
+Gist: near-black `#0D0B14`, white scores, cyan `#3FE3EC` you, pink `#FF5FA8` rival, amber `#FFB020` only for live/delete/errors. Diamond-rack logo. Montserrat (tabular) for numbers, Barlow for text. No dividers, no grey cards, one primary action per screen.
 
-The tokens live in `ui/theme`: reach them through `Rivals.colors`, `Rivals.type`, `Space`,
-`Shapes` and `Motion`, never with a literal. `ui/components` holds the vocabulary every screen is
-built from — `Label`, `PrimaryButton`, `ListRow`, `Panel`, `RivalsTextField`, the written
-`EmptyState`/`LoadingState`/`ErrorState`, and the scoreboard parts (`HeadToHead`, `Pips`,
-`FormBar`, `WinRing`, `Tabs`, `StatRow`). Build a screen from those; add to them rather than
-reaching for a Material component. The fonts are bundled under `res/font` (OFL, see
-`docs/licenses`), so nothing is downloaded at runtime.
+Tokens in `ui/theme`, only via `Rivals.colors`, `Rivals.type`, `Space`, `Shapes`, `Motion`, never literals. Build screens from `ui/components` (`Label`, `PrimaryButton`, `ListRow`, `Panel`, `RivalsTextField`, `EmptyState`/`LoadingState`/`ErrorState`, `HeadToHead`, `Pips`, `FormBar`, `WinRing`, `Tabs`, `StatRow`); extend them rather than using raw Material. Fonts bundled in `res/font` (OFL, `docs/licenses`).
 
-The loop for any UI work: change → `./gradlew testDebugUnitTest --tests '*Screenshots*'` (seconds;
-renders every screen and state into `app/build/screenshots`) → look at the PNGs you changed →
-critique against the brief and the refs → fix. The scoreboard renders at landscape size, and the
-between-matches panel and the empty states have their own renders; add a render whenever a pass
-introduces a new state.
+UI loop: change → `./gradlew testDebugUnitTest --tests '*Screenshots*'` (seconds; PNGs in `app/build/screenshots`) → view changed PNGs → critique against brief and refs → fix. Add a render for any new state.
 
 ## Commands
 
-- `./gradlew assembleDebug` and `./gradlew installDebug`
-- `./gradlew testDebugUnitTest` runs every JVM test in about half a minute: the pure-Kotlin logic, and the Compose UI tests (`HomeUiTest`, `RivalryUiTest`, `SessionUiTest`) and screenshots (`Screenshots`, `FlowScreenshots`) under Robolectric + Roborazzi, from plain UI state. Narrow it with `--tests '*SessionUiTest'`. (`./gradlew test` is the same; host tests are off for release and minified.)
-- `./gradlew lint`
-- `cd rules-test && npm test` runs the Firestore rules tests (Node, against the Firestore emulator; `npm ci` there first on a fresh checkout). Seconds, so run it for any change to `firestore.rules`
-- `scripts/emulator-tests.sh` runs only `SyncTest` (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect. Boots the `pool36` emulator headless if none is running (leave it up between runs; the script reuses it); never touches the real project. Nothing about screens lives there any more; keep it that way, since the emulator is the slow part.
-- CI: `.github/workflows/ci.yml` runs all of the above (three jobs in parallel: unit tests/lint/build, rules, Android emulator) on every push to `github.com/kbsharp/rivals` (private). Check with `gh run list` / `gh run view`
-- `SyncTest.statsSeeEveryMatchAndFrameAcrossSessions` is flaky: it fails now and then with "There's no match running", a race between the write and the snapshot it reads back, and passes on a rerun. Rerun before chasing it; fix it properly if it starts failing often
-- `./gradlew installMinified` installs the R8-shrunk release code signed with the debug key, to catch R8 problems before an upload
-- `./gradlew bundleRelease` builds the AAB for Play (signed when `keystore.properties` exists)
-- `scripts/play-graphics.sh` renders `play/*.png` from their SVGs with the app's bundled fonts
+- `./gradlew assembleDebug` / `installDebug` / `lint`
+- `./gradlew testDebugUnitTest` (~30s; same as `test`): pure-Kotlin logic plus Robolectric + Roborazzi UI tests (`HomeUiTest`, `RivalryUiTest`, `SessionUiTest`) and screenshots (`Screenshots`, `FlowScreenshots`) from plain UI state.
+- `cd rules-test && npm test`: rules tests against the Firestore emulator, seconds (`npm ci` first on fresh checkout).
+- `scripts/emulator-tests.sh`: only `SyncTest` (`app/src/androidTest`) on the Android emulator against local Auth/Firestore emulators with real rules (two-phone sync, offline, reconnect). Boots/reuses headless `pool36`; leave it running. Never touches the real project. Keep screen tests out of it.
+- `SyncTest.statsSeeEveryMatchAndFrameAcrossSessions` is flaky ("There's no match running": write/snapshot race). Rerun before chasing; fix if it gets frequent.
+- CI (`.github/workflows/ci.yml`): all of the above as three parallel jobs on every push to `github.com/kbsharp/rivals` (private). `gh run list` / `gh run view`.
+- `./gradlew installMinified`: R8-shrunk release code, debug-signed, to catch R8 issues.
+- `./gradlew bundleRelease`: Play AAB (signed if `keystore.properties` exists).
+- `scripts/play-graphics.sh`: renders `play/*.png` from SVGs with bundled fonts.
 - `firebase deploy --only firestore:rules`
 
-## Things only I can do
+## Testing conventions
 
-Ask me to do these; don't try to work around them.
+- Tally, undo and match-end logic: pure-Kotlin unit tests, no Firebase.
+- Cross-phone sync: emulator test in `app/src/androidTest`. Rules allow/deny: case in `rules-test/`. Screens: Robolectric in `app/src/test`, never the emulator.
 
-- In the Firebase console:
-  - create the Firebase project and add the Android app
-  - enable the Google provider in Auth
-  - download `google-services.json` into `app/`
-- Register SHA-1 fingerprints in Firebase:
-  - the debug keystore's, now
-  - the upload key's and the Play App Signing key's (Play Console > App integrity), before the first Play install
-  - A missing Play signing SHA-1 is the classic bug where sign-in works in debug but fails when installed from Play.
-- Create the upload keystore, set up the app in Play Console, and upload the AAB.
+## Release
 
-## Conventions
-
-- Never commit the keystore, `keystore.properties` or any passwords. Release signing reads from `keystore.properties`, which is gitignored.
-- The `applicationId` and Kotlin package are `com.kevinbevan.rivals` (confirmed). It becomes permanent once uploaded to Play.
-- Increment `versionCode` on every upload.
-- Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
-- Anything that syncs between phones gets an emulator test in `app/src/androidTest`, rather than relying on two real devices. What the rules allow or refuse gets a case in `rules-test/`. A screen test goes in `app/src/test` with the other Robolectric UI tests, never on the emulator.
-- Verify in proportion to the change, once, at the end of it (see "Work efficiently, always"):
-  - text, UI or ViewModel changes: `./gradlew testDebugUnitTest lint assembleDebug`, and look at the renders you changed. That's all; don't boot the emulator
-  - `data/`, repositories, sync or `firestore.rules`: also `rules-test` (rules) and `scripts/emulator-tests.sh` (sync)
-  - CI runs everything on every push anyway, so a local rerun "to be safe" is wasted time
-- When a chunk of work passes the checks above, always finish with all three without asking: commit, push, and install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` when the emulator is attached too). `adb` isn't on the PATH; it's under `platform-tools` in the `sdk.dir` from `local.properties`. This holds until the app is published on Play, when it gets revisited.
-
-## Distribution
-
-The app only has two users, so use Play's **internal testing** track:
-
-- Add both Google accounts as testers.
-- Install from the opt-in link; updates then arrive through the Play Store.
-- There's no production release, so the 12-testers-for-14-days rule doesn't come into it.
+- Never commit the keystore, `keystore.properties` (gitignored; release signing reads it) or passwords.
+- `applicationId` and package `com.kevinbevan.rivals` (confirmed; permanent once on Play). Bump `versionCode` every upload.
+- Distribution: Play **internal testing** (two users). Add both Google accounts as testers, install via opt-in link, updates come through Play. No production release, so the 12-testers/14-days rule doesn't apply.
+- Only Kevin can do (ask; don't work around): Firebase console setup (done), SHA-1 registration, upload keystore, Play Console setup and AAB upload. Before the first Play install, register the upload key's and Play App Signing key's SHA-1s (Play Console > App integrity); missing Play signing SHA-1 is the classic "sign-in works in debug, fails from Play" bug.
 
 ## Milestones
 
-- [x] 1. **Scaffold**: a Compose + M3 app with the version catalog and the SDK levels above, running on the emulator.
-- [x] 2. **Auth**: Firebase wired up, Credential Manager Google sign-in feeding Firebase Auth, upsert `players/{uid}` on sign-in, and sign-out.
-- [x] 3. **Rules**: `firestore.rules` and `firebase.json` in the repo and deployed, with unauthorised accounts handled.
-- [x] 4. **Session flow**: start a session, run matches with race-to, record and undo frames, end a match or session.
-- [x] 5. **History**: the session list and session detail. (Phase 12 made the list a tab on the rivalry screen; the detail is still its own screen.)
-- [ ] 6. **Release**: signing config, `bundleRelease`, and the first internal testing upload (or
-      direct installs plus Firebase App Distribution; see PLAN.md, Open questions).
-- [x] 7. **Stats**: win % overall and by game type, streaks, tagged specials. (Phase 12 made it a tab on the rivalry screen.)
-- [x] 8. **Guests and rivalries**: no forced sign-in, quick games on the phone, invites by email or
-      link, membership security rules.
-- [x] 9. **Design pass**: every screen rebuilt on `design/brief.md` (PLAN.md, Phase 12).
+Done: 1 Scaffold, 2 Auth, 3 Rules, 4 Session flow, 5 History, 7 Stats, 8 Guests and rivalries, 9 Design pass (PLAN.md Phase 12; made History and Stats tabs on the rivalry screen). Tick milestones off here as they land.
+
+- [ ] 6. **Release**: signing config, `bundleRelease`, first internal testing upload (or direct installs + Firebase App Distribution; see PLAN.md, Open questions).
