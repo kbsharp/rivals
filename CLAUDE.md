@@ -39,7 +39,7 @@ from choosing the right check, not from running checks often.
 
 ## Words
 
-It's an American pool app, so the UI speaks American pool: a **rack** (never "frame"), a **session** (never "night" or "tonight"; people play at any hour), **tied** (not "level" or "drawn"), **final** (not "full time"), "percent", "toward". The code and Firestore schema still say `frame`/`night` (`frames`, `frameWins`, `NightsRecord`); renaming those would need a data migration, so leave them and keep the words out of anything a player reads.
+It's an American pool app, so the UI speaks American pool: a **rack** (never "frame"), a **session** (never "night" or "tonight"; people play at any hour), **tied** (not "level" or "drawn"), **final** (not "full time"), "percent", "toward". Dates follow the phone's locale (`formatDay`), so never hard-code a date order. The code and Firestore schema still say `frame`/`night` (`frames`, `frameWins`, `NightsRecord`); renaming those would need a data migration, so leave them and keep the words out of anything a player reads.
 
 ## Stack
 
