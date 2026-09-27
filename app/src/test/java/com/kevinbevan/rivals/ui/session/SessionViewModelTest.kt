@@ -120,6 +120,31 @@ class SessionViewModelTest {
     }
 
     @Test
+    fun startingAThirdMatchIsntTakenForAnUndo() = runTest {
+        val board = board(raceTo = 2)
+        // Two matches won; the third starts on its own, and the first drops out of the latest two.
+        repeat(4) { board.vm.recordFrame(a) }
+        advanceUntilIdle()
+        assertEquals(3, board.state.match!!.number)
+        assertNull(board.state.notice)
+    }
+
+    @Test
+    fun anUndoIntoThePreviousMatchIsNamed() = runTest {
+        val board = board(raceTo = 2)
+        repeat(3) { board.vm.recordFrame(a) }
+        board.vm.recordFrame(b)
+        board.vm.recordFrame(b)
+        advanceUntilIdle()
+        assertEquals(3, board.state.match!!.number)
+
+        // The empty third match goes, and the second loses its winning frame.
+        board.other.undoLastFrame(board.id)
+        advanceUntilIdle()
+        assertEquals("Julian undid rack 3 · 1 – 2 → 1 – 1", board.state.notice?.text)
+    }
+
+    @Test
     fun aGuestGameDoesntSayWhoUndid() = runTest {
         val board = board(guest = true)
         board.vm.recordFrame(b)

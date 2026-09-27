@@ -215,7 +215,7 @@ class SessionViewModel(
     private val board = combine(matches, recentFrames) { m, recent -> Board(m, recent, played(m.value, recent)) }
         .runningFold(null as Board?) { before, now ->
             val gone = before?.played?.frame
-            if (gone == null || now.played.total >= before.played.total) return@runningFold now.copy(undone = before?.undone)
+            if (gone == null || !now.played.fewerThan(before.played)) return@runningFold now.copy(undone = before?.undone)
             val byMe = localUndos.getAndUpdate { (it - 1).coerceAtLeast(0) } > 0
             now.copy(undone = Undone(noticeKeys.incrementAndGet(), byMe, gone, before.played.match!!))
         }
@@ -423,13 +423,20 @@ class SessionViewModel(
         }
     }
 
-    /** What was played, as far as the latest two matches tell: the total, and the last frame. */
+    /** What was played, as far as the latest two matches tell: frames per match id, and the last frame. */
     private data class Played(
-        val total: Int,
+        val counts: Map<String, Int>,
         val match: Match? = null,
         val frame: Frame? = null,
         val double: DoubleFrame? = null,
-    )
+    ) {
+        /**
+         * A match seen both times has lost a frame. Matched by id, since the latest two shift
+         * when a match starts (the oldest drops out) or an undo deletes an empty one.
+         */
+        fun fewerThan(before: Played): Boolean =
+            counts.any { (id, n) -> before.counts[id]?.let { n < it } == true }
+    }
 
     private data class Night(val matches: List<MatchWithFrames>, val allTime: Map<String, Int>?)
 
@@ -513,16 +520,16 @@ class SessionViewModel(
 
         private fun played(matches: List<Match>, recent: List<Pair<String, Synced<List<Frame>>>>): Played {
             val latestFirst = matches.sortedByDescending { it.number }
-            val total = latestFirst.take(2).sumOf { it.framesPlayed }
+            val counts = latestFirst.take(2).associate { it.id to it.framesPlayed }
             // The frames that belong to the matches as they are now, latest match first.
             val frames = latestFirst.take(2).map { m ->
                 m to recent.firstOrNull { it.first == m.id }?.second?.value.orEmpty().sortedBy { it.number }
             }
-            val (match, matchFrames) = frames.firstOrNull { it.second.isNotEmpty() } ?: return Played(total)
+            val (match, matchFrames) = frames.firstOrNull { it.second.isNotEmpty() } ?: return Played(counts)
             val last = matchFrames.last()
             val earlier = matchFrames.getOrNull(matchFrames.size - 2)
                 ?: frames.dropWhile { it.first != match }.drop(1).firstOrNull()?.second?.lastOrNull()
-            return Played(total, match, last, doubleFrame(earlier, last, sameMatch = earlier in matchFrames))
+            return Played(counts, match, last, doubleFrame(earlier, last, sameMatch = earlier in matchFrames))
         }
 
         /** [last] looks like [earlier] again, recorded on the other phone. */
