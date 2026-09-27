@@ -76,6 +76,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -195,6 +196,19 @@ private enum class SessionDialog { END_MATCH, END_SESSION }
 
 /** The height of the lines along the top and foot of the board. Nothing sits on the centre line. */
 private val StatusLineHeight = 52.dp
+
+/**
+ * [WindowInsets.safeDrawing] with the wider of its left and right insets on both sides. In
+ * landscape the camera cutout insets one side only, which pushes back in from the edge while
+ * ≡ sits hard against the curved glass on the other; the lines along the top and foot mirror it.
+ */
+@Composable
+private fun mirroredSafeDrawing(): WindowInsets {
+    val safe = WindowInsets.safeDrawing
+    val density = LocalDensity.current
+    val side = maxOf(safe.getLeft(density, LayoutDirection.Ltr), safe.getRight(density, LayoutDirection.Ltr))
+    return safe.union(WindowInsets(left = side, right = side))
+}
 
 /** How long the match-won panel holds the board before the next match gets on with it. */
 private const val ResultPanelMillis = 9_000L
@@ -376,7 +390,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     onEndSession = { sheetOpen = false; dialog = SessionDialog.END_SESSION },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+                        .windowInsetsPadding(mirroredSafeDrawing().only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
                         .padding(start = Space.s48, end = Space.s48, top = StatusLineHeight + Space.s4),
                 )
             }
@@ -574,7 +588,7 @@ private fun TopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+            .windowInsetsPadding(mirroredSafeDrawing().only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
             .height(StatusLineHeight)
             .padding(horizontal = Space.s4),
         verticalAlignment = Alignment.CenterVertically,
@@ -672,7 +686,7 @@ private fun FootLine(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .windowInsetsPadding(mirroredSafeDrawing().only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .height(StatusLineHeight)
             .padding(horizontal = Space.s48),
         verticalAlignment = Alignment.CenterVertically,
