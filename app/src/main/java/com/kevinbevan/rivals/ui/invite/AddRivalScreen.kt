@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.SnackbarHost
@@ -131,7 +130,7 @@ internal fun AddRivalContent(
                         keyboardType = KeyboardType.Email,
                         imeAction = ImeAction.Search,
                     ),
-                    keyboardActions = KeyboardActions(onSearch = { onSearch(email) }),
+                    onImeAction = { onSearch(email) },
                 )
                 PrimaryButton(
                     "Find",
@@ -175,9 +174,7 @@ internal fun AddRivalContent(
                         capitalization = KeyboardCapitalization.Characters,
                         imeAction = ImeAction.Go,
                     ),
-                    keyboardActions = KeyboardActions(
-                        onGo = { if (code.isNotBlank()) onOpenInvite(code.trim()) },
-                    ),
+                    onImeAction = { if (code.isNotBlank()) onOpenInvite(code.trim()) },
                 )
                 PrimaryButton(
                     "Open invite",

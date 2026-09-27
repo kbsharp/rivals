@@ -29,7 +29,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
 import com.kevinbevan.rivals.domain.Count
 import com.kevinbevan.rivals.domain.GameTypeStats
 import com.kevinbevan.rivals.domain.NightsRecord
@@ -76,7 +75,7 @@ import org.junit.runner.RunWith
 
 /**
  * Not assertions: renders each screen with sample data, light and dark, to PNGs for a human
- * (or Claude) to look at. `scripts/emulator-tests.sh` pulls them into `app/build/screenshots`.
+ * (or Claude) to look at, in `app/build/screenshots`.
  */
 @RunWith(AndroidJUnit4::class)
 class Screenshots {
@@ -133,9 +132,7 @@ class Screenshots {
     }
 
     private fun save(name: String, dark: Boolean, bitmap: Bitmap) {
-        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "screenshots")
-        dir.mkdirs()
-        File(dir, "$name-${if (dark) "dark" else "light"}.png").outputStream().use {
+        File(screenshotDir, "$name-${if (dark) "dark" else "light"}.png").outputStream().use {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
         }
     }

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Runs the instrumented tests (app/src/androidTest) against the local Firebase Auth and
-# Firestore emulators, on an Android emulator. The Firebase emulators load firestore.rules,
+# Runs the instrumented tests (app/src/androidTest: the two-phone sync and offline tests) against
+# the local Firebase Auth and Firestore emulators, on an Android emulator. The UI tests and
+# screenshots run on the JVM instead (./gradlew testDebugUnitTest). The Firebase emulators load firestore.rules,
 # start, run the tests, and shut down again. Nothing touches the real project.
 #
 # If no Android emulator is running, one is booted headless from the AVD in $AVD (default
@@ -41,17 +42,4 @@ trap '[[ -n "$started" ]] && "$adb" -s "$serial" emu kill >/dev/null 2>&1 || tru
 
 export ANDROID_SERIAL="$serial"
 
-# Clear last run's renders on the device, so a screen that no longer exists doesn't linger in
-# app/build/screenshots looking current.
-"$adb" -s "$serial" shell rm -rf /sdcard/Android/data/com.kevinbevan.rivals/files/screenshots >/dev/null 2>&1 || true
-
-status=0
-# Leave the apps installed so the screenshots survive until they are pulled.
-firebase emulators:exec --only auth,firestore \
-    "./gradlew connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true $*" || status=$?
-
-# Screens rendered by the Screenshots test, for looking at.
-rm -rf app/build/screenshots
-"$adb" -s "$serial" pull /sdcard/Android/data/com.kevinbevan.rivals/files/screenshots app/build/screenshots >/dev/null 2>&1 \
-    && echo "Screenshots in app/build/screenshots"
-exit $status
+firebase emulators:exec --only auth,firestore "./gradlew connectedDebugAndroidTest $*"

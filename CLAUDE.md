@@ -130,20 +130,19 @@ built from — `Label`, `PrimaryButton`, `ListRow`, `Panel`, `RivalsTextField`, 
 reaching for a Material component. The fonts are bundled under `res/font` (OFL, see
 `docs/licenses`), so nothing is downloaded at runtime.
 
-The loop for any UI work: change → `scripts/emulator-tests.sh` (which renders every screen and
-state into `app/build/screenshots`) → look at the PNGs → critique against the brief and the refs →
-fix. The scoreboard renders at landscape size, and the between-matches panel and the empty states have
-their own renders; add a render whenever a pass introduces a new state.
+The loop for any UI work: change → `./gradlew testDebugUnitTest --tests '*Screenshots*'` (seconds;
+renders every screen and state into `app/build/screenshots`) → look at the PNGs you changed →
+critique against the brief and the refs → fix. The scoreboard renders at landscape size, and the
+between-matches panel and the empty states have their own renders; add a render whenever a pass
+introduces a new state.
 
 ## Commands
 
 - `./gradlew assembleDebug` and `./gradlew installDebug`
-- `./gradlew test` and `./gradlew lint`
+- `./gradlew testDebugUnitTest` runs every JVM test in about half a minute: the pure-Kotlin logic, and the Compose UI tests (`HomeUiTest`, `RivalryUiTest`, `SessionUiTest`) and screenshots (`Screenshots`, `FlowScreenshots`) under Robolectric + Roborazzi, from plain UI state. Narrow it with `--tests '*SessionUiTest'`. (`./gradlew test` is the same; host tests are off for release and minified.)
+- `./gradlew lint`
 - `cd rules-test && npm test` runs the Firestore rules tests (Node, against the Firestore emulator; `npm ci` there first on a fresh checkout). Seconds, so run it for any change to `firestore.rules`
-- `scripts/emulator-tests.sh` runs the instrumented tests (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect, and Compose UI tests of each screen. Boots the `pool36` emulator headless if none is running; never touches the real project. The full run takes minutes, so:
-  - while iterating, run just the class you're working on: `scripts/emulator-tests.sh -Pandroid.testInstrumentationRunnerArguments.class=com.kevinbevan.rivals.ui.HomeUiTest` (comma-separate several classes; `Class#method` for one test)
-  - leave the Android emulator running between runs (the script reuses one that's up rather than booting its own)
-  - run the whole suite once, before committing
+- `scripts/emulator-tests.sh` runs only `SyncTest` (`app/src/androidTest`) on the Android emulator against local Firebase Auth and Firestore emulators with the real rules: two-phone live sync, offline play and reconnect. Boots the `pool36` emulator headless if none is running (leave it up between runs; the script reuses it); never touches the real project. Nothing about screens lives there any more; keep it that way, since the emulator is the slow part.
 - CI: `.github/workflows/ci.yml` runs all of the above (three jobs in parallel: unit tests/lint/build, rules, Android emulator) on every push to `github.com/kbsharp/rivals` (private). Check with `gh run list` / `gh run view`
 - `SyncTest.statsSeeEveryMatchAndFrameAcrossSessions` is flaky: it fails now and then with "There's no match running", a race between the write and the snapshot it reads back, and passes on a rerun. Rerun before chasing it; fix it properly if it starts failing often
 - `./gradlew installMinified` installs the R8-shrunk release code signed with the debug key, to catch R8 problems before an upload
@@ -171,8 +170,12 @@ Ask me to do these; don't try to work around them.
 - The `applicationId` and Kotlin package are `com.kevinbevan.rivals` (confirmed). It becomes permanent once uploaded to Play.
 - Increment `versionCode` on every upload.
 - Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
-- Anything that syncs between phones gets an emulator test in `app/src/androidTest`, rather than relying on two real devices. What the rules allow or refuse gets a case in `rules-test/`.
-- When a chunk of work builds and passes `test`, `lint` and (if it touches data or rules) `rules-test` and the full `scripts/emulator-tests.sh`, always finish with all three without asking: commit, push, and install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` when the emulator is attached too). `adb` isn't on the PATH; it's under `platform-tools` in the `sdk.dir` from `local.properties`. This holds until the app is published on Play, when it gets revisited.
+- Anything that syncs between phones gets an emulator test in `app/src/androidTest`, rather than relying on two real devices. What the rules allow or refuse gets a case in `rules-test/`. A screen test goes in `app/src/test` with the other Robolectric UI tests, never on the emulator.
+- Verify in proportion to the change, and run each check once:
+  - text, UI or ViewModel changes: `./gradlew testDebugUnitTest lint assembleDebug`, and look at the renders you changed. That's all; don't boot the emulator
+  - `data/`, repositories, sync or `firestore.rules`: also `rules-test` (rules) and `scripts/emulator-tests.sh` (sync)
+  - CI runs everything on every push anyway, so a local rerun "to be safe" is wasted time
+- When a chunk of work passes the checks above, always finish with all three without asking: commit, push, and install the debug build on the connected phone (`./gradlew installDebug`, or `adb -s <serial> install -r app/build/outputs/apk/debug/app-debug.apk` when the emulator is attached too). `adb` isn't on the PATH; it's under `platform-tools` in the `sdk.dir` from `local.properties`. This holds until the app is published on Play, when it gets revisited.
 
 ## Distribution
 

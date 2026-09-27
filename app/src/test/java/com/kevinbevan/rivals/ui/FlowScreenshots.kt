@@ -2,7 +2,6 @@ package com.kevinbevan.rivals.ui
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.os.SystemClock
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -28,7 +27,7 @@ import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.test.platform.app.InstrumentationRegistry
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import com.kevinbevan.rivals.data.MatchDefaults
 import com.kevinbevan.rivals.domain.Count
 import com.kevinbevan.rivals.domain.GameTypeStats
@@ -81,7 +80,7 @@ import java.time.Instant
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
+import org.robolectric.ParameterizedRobolectricTestRunner
 
 /**
  * Not assertions: every state a player can open that [Screenshots] doesn't draw — each menu
@@ -89,13 +88,13 @@ import org.junit.runners.Parameterized
  * (`design/ux-plan.md`). A menu or dialog is shot on the whole display, over the screen it
  * came from, so it's seen where the player sees it.
  */
-@RunWith(Parameterized::class)
+@RunWith(ParameterizedRobolectricTestRunner::class)
 class FlowScreenshots(private val theme: String) {
     @get:Rule val compose = createComposeRule()
 
     companion object {
         @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
+        @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
         fun themes() = listOf("dark", "light")
 
         private const val FRAME = "flow-frame"
@@ -145,9 +144,10 @@ class FlowScreenshots(private val theme: String) {
         steps()
         compose.waitForIdle()
         if (!landscape) {
-            // Let the popup's enter animation reach the display before it's read back.
-            SystemClock.sleep(600)
-            save(name, InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().copy(Bitmap.Config.ARGB_8888, false))
+            // Let the popup's enter animation finish, then shoot every window (dialogs and menus too).
+            compose.mainClock.advanceTimeBy(600)
+            compose.waitForIdle()
+            captureScreenRoboImage(File(screenshotDir, "$name-$theme.png"))
             return
         }
         if (dialog) {
@@ -185,9 +185,7 @@ class FlowScreenshots(private val theme: String) {
     }
 
     private fun save(name: String, bitmap: Bitmap) {
-        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "screenshots")
-        dir.mkdirs()
-        File(dir, "$name-$theme.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        File(screenshotDir, "$name-$theme.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     private fun tap(text: String) = compose.onNodeWithText(text).performClick()

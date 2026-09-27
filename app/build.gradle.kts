@@ -70,6 +70,27 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            // The Compose UI tests and screenshots run on the JVM under Robolectric.
+            isIncludeAndroidResources = true
+            all {
+                // Real rendering (text, fonts, shapes) for the screenshots, written by Roborazzi.
+                it.systemProperty("robolectric.graphicsMode", "NATIVE")
+                it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+                it.systemProperty("roborazzi.test.record", "true")
+                it.maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+                it.jvmArgs("-Xmx2g", "--add-opens=java.base/java.io=ALL-UNNAMED", "--add-exports=java.base/jdk.internal.access=ALL-UNNAMED")
+            }
+        }
+    }
+}
+
+// Host tests only for debug: release and minified would run the same tests twice more.
+androidComponents {
+    beforeVariants(selector().withBuildType("release")) { it.hostTests.values.forEach { t -> t.enable = false } }
+    beforeVariants(selector().withBuildType("minified")) { it.hostTests.values.forEach { t -> t.enable = false } }
 }
 
 dependencies {
@@ -101,6 +122,11 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.androidx.test.ext.junit)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
 
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)

@@ -38,12 +38,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 /** A node whose click is labelled [label] (the steppers carry theirs as a click label). */
 private fun hasClickLabel(label: String) = SemanticsMatcher("click label $label") {
     it.config.getOrNull(SemanticsActions.OnClick)?.label == label
 }
 
+// The scoreboard is landscape-only in the app, so it's tested on a phone turned sideways.
+@Config(qualifiers = "+land")
 @RunWith(AndroidJUnit4::class)
 class SessionUiTest {
     @get:Rule val compose = createComposeRule()
@@ -239,7 +242,7 @@ class SessionUiTest {
         )
         compose.onNodeWithTag("race-to").assertTextEquals("6")
         // A tap on the dimmed board closes the sheet.
-        compose.onNodeWithTag("sheet-backdrop").performClick()
+        compose.onNodeWithTag("sheet-backdrop").performTouchInput { click(centerLeft + Offset(10f, 0f)) }
         compose.onNodeWithTag("match-sheet").assertDoesNotExist()
     }
 

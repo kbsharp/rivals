@@ -26,12 +26,18 @@ jobs:
         run: echo "$GOOGLE_SERVICES_JSON" | base64 -d > app/google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
-      - run: ./gradlew test lint assembleDebug
+      - run: ./gradlew testDebugUnitTest lint assembleDebug
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: build-reports
           path: app/build/reports
+      # Every screen and state, light and dark, rendered by the JVM screenshot tests.
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots
+          path: app/build/screenshots
 
   rules:
     name: Firestore rules tests
@@ -62,7 +68,7 @@ jobs:
         working-directory: rules-test
 
   emulator:
-    name: Sync and UI tests (Android and Firebase emulators)
+    name: Sync tests (Android and Firebase emulators)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

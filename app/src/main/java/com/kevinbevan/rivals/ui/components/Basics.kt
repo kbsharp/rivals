@@ -6,7 +6,13 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.runtime.getValue
 import com.kevinbevan.rivals.ui.theme.Motion
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -388,9 +394,20 @@ fun RivalsTextField(
     labelColor: Color = Rivals.colors.fg3,
     singleLine: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    onImeAction: (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
 ) {
+    // The state-based field, kept in step with [value] both ways so callers stay value-based.
+    // (The value-based BasicTextField also relayouts forever in a dialog under Robolectric.)
+    val state = rememberTextFieldState(value)
+    val latestValue by rememberUpdatedState(value)
+    val latestOnChange by rememberUpdatedState(onValueChange)
+    LaunchedEffect(state) {
+        snapshotFlow { state.text.toString() }.collect { if (it != latestValue) latestOnChange(it) }
+    }
+    LaunchedEffect(value) {
+        if (state.text.toString() != value) state.setTextAndPlaceCursorAtEnd(value)
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
         Label(label, color = if (isError) Rivals.colors.live else labelColor)
         Row(
@@ -403,16 +420,15 @@ fun RivalsTextField(
             horizontalArrangement = Arrangement.spacedBy(Space.s8),
         ) {
             BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
+                state = state,
                 modifier = Modifier.weight(1f),
                 textStyle = Rivals.type.body.copy(color = Rivals.colors.fg),
                 cursorBrush = SolidColor(Rivals.colors.fg),
-                singleLine = singleLine,
+                lineLimits = if (singleLine) TextFieldLineLimits.SingleLine else TextFieldLineLimits.Default,
                 keyboardOptions = keyboardOptions,
-                keyboardActions = keyboardActions,
-                decorationBox = { inner ->
-                    if (value.isEmpty() && placeholder != null) {
+                onKeyboardAction = onImeAction?.let { action -> KeyboardActionHandler { action() } },
+                decorator = { inner ->
+                    if (state.text.isEmpty() && placeholder != null) {
                         Text(placeholder, style = Rivals.type.body, color = Rivals.colors.fg3)
                     }
                     inner()
