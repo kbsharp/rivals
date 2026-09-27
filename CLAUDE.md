@@ -12,6 +12,31 @@ As of 2026-09-22 only milestone 6 (**Release**) is left, and it's on hold: it ne
 decisions and console work, not code. Everything in PLAN.md's Phase 12 is built and on the phone;
 what's open there is Kevin's own look at it. Don't start release work without being asked.
 
+## Work efficiently, always
+
+Kevin watches the clock. Time spent waiting on builds and tests is the main cost of any change,
+so plan the whole change before touching anything, then verify once at the end. Quality comes
+from choosing the right check, not from running checks often.
+
+- **Batch the edits, then verify once.** Make every edit the change needs first, across all files
+  (search for every occurrence up front, and use one scripted pass for a mechanical change such as
+  a rename or rewording), then run the checks one time. Never edit → test → edit → test.
+- **One Gradle invocation.** Put the tasks in a single command (`./gradlew testDebugUnitTest lint
+  assembleDebug`), not one command each; every separate run pays Gradle's startup and
+  configuration again.
+- **Run the narrowest check that proves the change**, and only the checks that change can break
+  (see "Verify in proportion" under Conventions). A string change can't break sync, so it never
+  gets the emulator.
+- **When something fails, rerun only what failed** (`--tests '*SessionUiTest'`), fix everything
+  that failure shows in one go, then do one final run of the full set once it passes.
+- **Never rerun a green check "to be safe"**, and never rerun locally what CI will run on push.
+- **Look before running.** Grep the tests for strings and tags you're changing and update them
+  in the same pass, so the first run passes instead of teaching you what to fix.
+- **Long runs go in the background** while you get on with something useful: the commit
+  message, the docs, the next edit.
+- If a workflow keeps being slow, fix the workflow (as the move of the UI tests to Robolectric
+  did) rather than waiting on it again.
+
 ## Words
 
 It's an American pool app, so the UI speaks American pool: a **rack** (never "frame"), a **session** (never "night" or "tonight"; people play at any hour), **tied** (not "level" or "drawn"), **final** (not "full time"), "percent", "toward". The code and Firestore schema still say `frame`/`night` (`frames`, `frameWins`, `NightsRecord`); renaming those would need a data migration, so leave them and keep the words out of anything a player reads.
@@ -171,7 +196,7 @@ Ask me to do these; don't try to work around them.
 - Increment `versionCode` on every upload.
 - Unit-test the tally, undo and match-end logic as pure Kotlin, with no Firebase.
 - Anything that syncs between phones gets an emulator test in `app/src/androidTest`, rather than relying on two real devices. What the rules allow or refuse gets a case in `rules-test/`. A screen test goes in `app/src/test` with the other Robolectric UI tests, never on the emulator.
-- Verify in proportion to the change, and run each check once:
+- Verify in proportion to the change, once, at the end of it (see "Work efficiently, always"):
   - text, UI or ViewModel changes: `./gradlew testDebugUnitTest lint assembleDebug`, and look at the renders you changed. That's all; don't boot the emulator
   - `data/`, repositories, sync or `firestore.rules`: also `rules-test` (rules) and `scripts/emulator-tests.sh` (sync)
   - CI runs everything on every push anyway, so a local rerun "to be safe" is wasted time
