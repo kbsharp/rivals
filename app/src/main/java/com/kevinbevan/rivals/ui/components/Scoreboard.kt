@@ -1,5 +1,6 @@
 package com.kevinbevan.rivals.ui.components
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
@@ -54,7 +55,9 @@ import kotlin.math.roundToInt
 
 /**
  * The head-to-head: two white numbers with a `hairline` dash between them, the players named
- * underneath in their own colours. [spread] pushes each number out over its player's name.
+ * underneath in their own colours. Compact, the names stay together under the numbers. [spread]
+ * pushes each number out over its player's name, mirrored like the Stats table; [middle] then
+ * takes the dash's place, between the two sides.
  */
 @Composable
 fun HeadToHead(
@@ -66,8 +69,20 @@ fun HeadToHead(
     numberStyle: TextStyle? = null,
     names: Boolean = true,
     spread: Boolean = false,
+    middle: (@Composable () -> Unit)? = null,
 ) {
     val score = numberStyle ?: Rivals.type.display
+    if (spread && middle != null) {
+        Row(modifier.fillMaxWidth()) {
+            HeadToHeadSide(yourScore, yourName, Rivals.colors.you, score, Alignment.Start)
+            Box(
+                Modifier.weight(1f).padding(horizontal = Space.s8),
+                contentAlignment = Alignment.TopCenter,
+            ) { middle() }
+            HeadToHeadSide(rivalScore, rivalName, Rivals.colors.rival, score, Alignment.End)
+        }
+        return
+    }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(Space.s8)) {
         Row(
             // Centred, not on the baseline: with the score's line box trimmed to its digits, a
@@ -87,11 +102,35 @@ fun HeadToHead(
             Text("$rivalScore", style = score, color = Rivals.colors.fg)
         }
         if (names) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            // Spread, each name sits under its number; compact, they stay under the score
+            // together rather than one of them drifting off to the far edge.
+            Row(
+                if (spread) Modifier.fillMaxWidth() else Modifier,
+                horizontalArrangement = if (spread) Arrangement.SpaceBetween else Arrangement.spacedBy(Space.s12),
+            ) {
                 Label(yourName, color = Rivals.colors.you)
                 Label(rivalName, color = Rivals.colors.rival)
             }
         }
+    }
+}
+
+/** One side of a mirrored head-to-head: the number, and the player's name under it. */
+@Composable
+private fun HeadToHeadSide(
+    value: Int,
+    name: String,
+    color: Color,
+    style: TextStyle,
+    alignment: Alignment.Horizontal,
+) {
+    Column(
+        modifier = Modifier.clearAndSetSemantics { contentDescription = "$name $value" },
+        horizontalAlignment = alignment,
+        verticalArrangement = Arrangement.spacedBy(Space.s8),
+    ) {
+        Text("$value", style = style, color = Rivals.colors.fg)
+        Label(name, color = color, maxLines = 1)
     }
 }
 
@@ -357,7 +396,7 @@ fun StatRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(Space.touch)
             .semantics {
                 contentDescription = "$label: you $yourValue, them $rivalValue"
             },
@@ -387,13 +426,19 @@ private fun StatValue(value: String, leading: Boolean, align: TextAlign, width: 
     )
 }
 
-/** The top line of a screen: an optional back arrow, the title, an optional overflow. */
+/**
+ * The top line of a screen: an optional back arrow, the title, an optional overflow. A screen
+ * whose scoreboard scrolls away passes [compact], which fades in over the title while
+ * [showCompact] holds, so the score stays in view.
+ */
 @Composable
 fun TopBar(
     title: String,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     leading: @Composable (() -> Unit)? = null,
+    compact: @Composable (() -> Unit)? = null,
+    showCompact: Boolean = false,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     Row(
@@ -406,14 +451,24 @@ fun TopBar(
         if (leading != null) {
             Box(Modifier.padding(start = Space.s4)) { leading() }
         }
-        Text(
-            title,
-            style = Rivals.type.headline.copy(fontSize = 22.sp),
-            color = Rivals.colors.fg,
+        Crossfade(
+            targetState = compact != null && showCompact,
+            animationSpec = Motion.tween(),
+            label = "top bar title",
             modifier = Modifier
                 .weight(1f)
                 .padding(start = if (onBack == null && leading == null) Space.s4 else Space.s8),
-        )
+        ) { showingCompact ->
+            if (showingCompact && compact != null) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { compact() }
+            } else {
+                Text(
+                    title,
+                    style = Rivals.type.headline.copy(fontSize = 22.sp),
+                    color = Rivals.colors.fg,
+                )
+            }
+        }
         trailing?.invoke()
     }
 }

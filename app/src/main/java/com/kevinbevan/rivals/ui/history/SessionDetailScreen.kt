@@ -1,18 +1,27 @@
 package com.kevinbevan.rivals.ui.history
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import com.kevinbevan.rivals.ui.rivalry.formatLength
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -83,8 +92,9 @@ fun SessionDetailScreen(
 }
 
 /**
- * One night, match by match. The scoreboard heads it, each match is a row rather than a card,
- * and its frames are boxed digits in the winner's colour — a tagged frame is ringed in white.
+ * One night, match by match. The mirrored scoreboard heads it and scrolls away with the rest;
+ * once it has gone, the top bar carries the score instead. Each match is a panel, its frames
+ * boxed digits in the winner's colour, seven to a row — a tagged frame is ringed in white.
  */
 @Composable
 internal fun SessionDetailContent(
@@ -109,47 +119,79 @@ internal fun SessionDetailContent(
 
     val me = uiState.me
     val rival = uiState.rival
+    val scroll = rememberScrollState()
+    // Where the scoreboard ends, in the scrolling content: past it, the top bar shows the score.
+    var scoreboardEnd by remember { mutableIntStateOf(Int.MAX_VALUE) }
+    val scoreboardGone by remember { derivedStateOf { scroll.value > scoreboardEnd } }
+    val topInset = with(LocalDensity.current) { Space.s16.roundToPx() }
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Rivals.colors.base)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = Space.gutter)
-            .padding(bottom = Space.s24),
-        verticalArrangement = Arrangement.spacedBy(Space.section),
+            .statusBarsPadding(),
     ) {
         DetailTopBar(
             title = if (session != null) formatDay(session.startedAt) else "Session",
             canDelete = session != null && session.status == Status.ENDED,
             onBack = onBack,
             onDelete = { confirmingDelete = true },
+            compact = if (me != null && rival != null) {
+                { CompactScore(me, rival) }
+            } else {
+                null
+            },
+            showCompact = scoreboardGone,
+            modifier = Modifier.padding(horizontal = Space.gutter),
         )
-
-        when {
-            uiState.loading -> LoadingState("Opening the session")
-            uiState.error != null -> ErrorState(uiState.error)
-            me == null || rival == null -> EmptyState(
-                title = "Session not found",
-                body = "It may have been deleted on the other phone.",
-            )
-            else -> {
-                Header(session, me, rival)
-                // A quick game is only on this phone until it's saved: that's the thing to do here.
-                if (onSave != null && session?.status == Status.ENDED) PrimaryButton("Save to a rivalry", onSave)
-                val totals = remember(uiState.matches, me.uid) { eventTotals(uiState.matches, me.uid) }
-                if (totals.isNotEmpty()) NightTotals(totals)
-                if (uiState.matches.isEmpty()) {
-                    EmptyState(
-                        title = "No matches",
-                        body = "This session ended before a match was played.",
+        Box(Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scroll)
+                    .padding(horizontal = Space.gutter)
+                    .navigationBarsPadding()
+                    .padding(top = Space.s16, bottom = Space.s48),
+                verticalArrangement = Arrangement.spacedBy(Space.s32),
+            ) {
+                when {
+                    uiState.loading -> LoadingState("Opening the session")
+                    uiState.error != null -> ErrorState(uiState.error)
+                    me == null || rival == null -> EmptyState(
+                        title = "Session not found",
+                        body = "It may have been deleted on the other phone.",
                     )
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(Space.s24)) {
-                        uiState.matches.forEach { MatchRow(it, me, rival) }
+                    else -> {
+                        Header(
+                            session,
+                            me,
+                            rival,
+                            Modifier.onSizeChanged { scoreboardEnd = topInset + it.height },
+                        )
+                        // A quick game is only on this phone until it's saved: that's the thing to do here.
+                        if (onSave != null && session?.status == Status.ENDED) PrimaryButton("Save to a rivalry", onSave)
+                        val totals = remember(uiState.matches, me.uid) { eventTotals(uiState.matches, me.uid) }
+                        if (totals.isNotEmpty()) NightTotals(totals)
+                        if (uiState.matches.isEmpty()) {
+                            EmptyState(
+                                title = "No matches",
+                                body = "This session ended before a match was played.",
+                            )
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(Space.s16)) {
+                                uiState.matches.forEach { MatchPanel(it, me, rival) }
+                            }
+                        }
                     }
                 }
+            }
+            // The page slides under the top bar through a short fade, not a divider line.
+            if (scroll.value > 0) {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(Space.s24)
+                        .background(Brush.verticalGradient(listOf(Rivals.colors.base, Color.Transparent))),
+                )
             }
         }
     }
@@ -161,9 +203,12 @@ private fun DetailTopBar(
     canDelete: Boolean,
     onBack: () -> Unit,
     onDelete: () -> Unit,
+    compact: (@Composable () -> Unit)?,
+    showCompact: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    TopBar(title, onBack = onBack) {
+    TopBar(title, modifier, onBack = onBack, compact = compact, showCompact = showCompact, trailing = {
         if (canDelete) {
             Box {
                 IconAction(R.drawable.ic_more_vert, "More", { menuOpen = true })
@@ -186,32 +231,63 @@ private fun DetailTopBar(
                 }
             }
         }
+    })
+}
+
+/** The night's score for the top bar, once the scoreboard has scrolled away. */
+@Composable
+private fun CompactScore(me: DetailPlayer, rival: DetailPlayer) {
+    Row(
+        modifier = Modifier.clearAndSetSemantics {
+            contentDescription = "${me.name} ${me.matchWins}, ${rival.name} ${rival.matchWins}"
+        },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Space.s12),
+    ) {
+        Label(me.name, color = Rivals.colors.you, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+        Text("${me.matchWins} – ${rival.matchWins}", style = Rivals.type.number, color = Rivals.colors.fg)
+        Label(rival.name, color = Rivals.colors.rival, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
     }
 }
 
-/** The night's score, with where and when under it. */
+/**
+ * The night's score, mirrored like the table under it: each number over its player's name,
+ * with what it counts and when (and where) between them.
+ */
 @Composable
-private fun Header(session: Session?, me: DetailPlayer, rival: DetailPlayer) {
-    Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
-        Label("Matches won")
-        HeadToHead(
-            yourScore = me.matchWins,
-            rivalScore = rival.matchWins,
-            yourName = me.name,
-            rivalName = rival.name,
-        )
-        val detail = listOfNotNull(
-            session?.venue?.takeIf { it.isNotBlank() },
-            session?.let { formatTimes(it.startedAt, it.endedAt).ifEmpty { null } },
-        ).joinToString(" · ")
-        if (detail.isNotEmpty()) {
-            Text(detail, style = Rivals.type.body, color = Rivals.colors.fg2)
+private fun Header(session: Session?, me: DetailPlayer, rival: DetailPlayer, modifier: Modifier = Modifier) {
+    HeadToHead(
+        yourScore = me.matchWins,
+        rivalScore = rival.matchWins,
+        yourName = me.name,
+        rivalName = rival.name,
+        modifier = modifier,
+        spread = true,
+    ) {
+        Column(
+            modifier = Modifier.padding(top = Space.s8),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Space.s4),
+        ) {
+            Label("Matches won", textAlign = TextAlign.Center)
+            val times = session?.let { formatTimes(it.startedAt, it.endedAt) }.orEmpty()
+            if (times.isNotEmpty()) {
+                Text(times, style = Rivals.type.body, color = Rivals.colors.fg2, textAlign = TextAlign.Center)
+            }
+            val detail = listOfNotNull(
+                session?.venue?.takeIf { it.isNotBlank() },
+                session?.let { formatLength(it.startedAt, it.endedAt).ifEmpty { null } },
+            ).joinToString(" · ")
+            if (detail.isNotEmpty()) {
+                Text(detail, style = Rivals.type.caption, color = Rivals.colors.fg3, textAlign = TextAlign.Center)
+            }
         }
     }
 }
 
+/** One match: what was played and how it ended, its frames, then the story of it. */
 @Composable
-private fun MatchRow(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlayer) {
+private fun MatchPanel(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlayer) {
     val match = item.match
     val outcome = when {
         match.status == Status.ACTIVE -> "In progress" to Rivals.colors.fg3
@@ -220,17 +296,24 @@ private fun MatchRow(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlaye
         else -> "No winner" to Rivals.colors.fg3
     }
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(Space.s12),
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Rivals.colors.surface, Shapes.panel)
+            .padding(start = Space.s16, end = Space.s16, top = Space.s16, bottom = Space.s8),
+        verticalArrangement = Arrangement.spacedBy(Space.s24),
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Label(
-                "Match ${match.number} · ${match.settings.describe()}",
-                modifier = Modifier.weight(1f),
-            )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Space.s4)) {
+                Label("Match ${match.number}")
+                Text(
+                    match.settings.describe().replaceFirstChar { it.uppercase() },
+                    style = Rivals.type.body,
+                    color = Rivals.colors.fg2,
+                )
+            }
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(Space.s4),
             ) {
                 Text(
                     "${match.frameWins.winsOf(me.uid)} – ${match.frameWins.winsOf(rival.uid)}",
@@ -242,30 +325,39 @@ private fun MatchRow(item: MatchWithFrames, me: DetailPlayer, rival: DetailPlaye
             }
         }
         if (item.frames.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(Space.s8),
-                verticalArrangement = Arrangement.spacedBy(Space.s8),
-            ) {
-                item.frames.forEach { frame ->
-                    val mine = frame.winnerId == me.uid
-                    FrameBox(
-                        number = frame.number,
-                        winnerName = if (mine) me.name else rival.name,
-                        events = frame.events,
-                        color = if (mine) Rivals.colors.you else Rivals.colors.rival,
-                        tint = if (mine) Rivals.colors.youTint else Rivals.colors.rivalTint,
-                    )
+            // A fixed seven to a row, so a match's frames make even rows on any phone; no
+            // bigger than a touch target, so a wide screen doesn't blow them up.
+            BoxWithConstraints {
+                val side = ((maxWidth - Space.s8 * (FRAMES_PER_ROW - 1)) / FRAMES_PER_ROW).coerceAtMost(Space.touch)
+                Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+                    item.frames.chunked(FRAMES_PER_ROW).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
+                            row.forEach { frame ->
+                                val mine = frame.winnerId == me.uid
+                                FrameBox(
+                                    number = frame.number,
+                                    winnerName = if (mine) me.name else rival.name,
+                                    events = frame.events,
+                                    color = if (mine) Rivals.colors.you else Rivals.colors.rival,
+                                    tint = if (mine) Rivals.colors.youTint else Rivals.colors.rivalTint,
+                                    modifier = Modifier.size(side),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
         val highlights = remember(item) { highlightsOf(item) }
         if (highlights.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(Space.s8)) {
+            Column {
                 highlights.forEach { HighlightLine(it, me, rival) }
             }
         }
     }
 }
+
+private const val FRAMES_PER_ROW = 7
 
 /** What happened and when on the left, who did it on the right in their colour. */
 @Composable
@@ -284,6 +376,7 @@ private fun HighlightLine(highlight: Highlight, me: DetailPlayer, rival: DetailP
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 40.dp)
             .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(Space.s8),
@@ -328,11 +421,11 @@ private fun FrameBox(
     events: Set<FrameEvent>,
     color: Color,
     tint: Color,
+    modifier: Modifier = Modifier,
 ) {
     val tagged = events.isNotEmpty()
     Box(
-        modifier = Modifier
-            .size(36.dp)
+        modifier = modifier
             .then(if (tagged) Modifier.border(2.dp, Rivals.colors.fg, Shapes.chip) else Modifier)
             .padding(if (tagged) 3.dp else 0.dp)
             .background(tint, Shapes.chip)
@@ -345,7 +438,7 @@ private fun FrameBox(
         Text(
             number.toString(),
             color = color,
-            style = Rivals.type.number.copy(fontSize = 15.sp),
+            style = Rivals.type.number.copy(fontSize = 16.sp),
         )
     }
 }

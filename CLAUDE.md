@@ -103,7 +103,7 @@ Show a clear message when Firestore refuses something; don't fail silently.
    - back (arrow or gesture) goes Home and never ends the night; ending it shows a full-time panel on both phones, then Home
    - when a match is won the board dims and a panel names the winner, with Undo in it
    - keep it as clean as possible; don't add on-screen controls without a strong reason
-5. **Session detail**: one night, match by match, with its frames as boxed digits.
+5. **Session detail**: one night, a mirrored scoreboard over match panels with their frames as boxed digits, seven to a row. It all scrolls; once the scoreboard has gone the top bar shows the score.
 
 ## Design
 

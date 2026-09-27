@@ -23,6 +23,8 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -101,7 +103,7 @@ class FlowScreenshots(private val theme: String) {
 
     private val dark get() = theme == "dark"
 
-    private fun setContent(landscape: Boolean, content: @Composable () -> Unit) {
+    private fun setContent(landscape: Boolean, phone: Boolean = false, content: @Composable () -> Unit) {
         compose.setContent {
             val defaults = remember { MatchDefaults() }
             CompositionLocalProvider(LocalMatchDefaults provides defaults) {
@@ -111,6 +113,12 @@ class FlowScreenshots(private val theme: String) {
                         // the emulator's portrait bars.
                         DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(915.dp, 412.dp))) {
                             Box(Modifier.testTag(FRAME).consumeWindowInsets(WindowInsets.safeDrawing)) { content() }
+                        }
+                    } else if (phone) {
+                        // A Pixel-sized portrait window, for a render that depends on the page
+                        // outgrowing the screen; the test emulator's own screen is far taller.
+                        DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(412.dp, 915.dp))) {
+                            Box(Modifier.testTag(FRAME)) { content() }
                         }
                     } else {
                         content()
@@ -132,7 +140,7 @@ class FlowScreenshots(private val theme: String) {
         steps: () -> Unit = {},
         content: @Composable () -> Unit,
     ) {
-        setContent(landscape, content)
+        setContent(landscape, content = content)
         compose.waitForIdle()
         steps()
         compose.waitForIdle()
@@ -170,7 +178,7 @@ class FlowScreenshots(private val theme: String) {
     /** A notice or snackbar is on a timer; hold the clock so it's still up when the shot is taken. */
     private fun shootMessage(name: String, landscape: Boolean = false, content: @Composable () -> Unit) {
         compose.mainClock.autoAdvance = false
-        setContent(landscape, content)
+        setContent(landscape, content = content)
         compose.mainClock.advanceTimeBy(1_000)
         val node = if (landscape) compose.onNodeWithTag(FRAME) else compose.onRoot()
         save(name, node.captureToImage().asAndroidBitmap())
@@ -431,6 +439,7 @@ class FlowScreenshots(private val theme: String) {
         found: Boolean = true,
         matches: Boolean = true,
         rivalName: String = "Julian",
+        long: Boolean = false,
     ): SessionDetailUiState {
         val br = FrameEvent.BREAK_AND_RUN
         fun frames(vararg w: String) = w.mapIndexed { i, x -> Frame("f$i", i + 1, x, recordedBy = "a", events = if (i == 0) setOf(br) else emptySet()) }
@@ -445,7 +454,12 @@ class FlowScreenshots(private val theme: String) {
                 listOf(
                     MatchWithFrames(match(1, 3, 1, "a"), frames("a", "a", "b", "a")),
                     MatchWithFrames(match(2, 2, 3, "b"), frames("a", "a", "b", "b", "b")),
-                )
+                ) + if (long) {
+                    // A long open-ended match, so the page scrolls far enough to fold the score away.
+                    listOf(MatchWithFrames(match(3, 6, 8, "b"), frames(*"aaabbbabbbabba".map { "$it" }.toTypedArray())))
+                } else {
+                    emptyList()
+                }
             } else {
                 emptyList()
             },
@@ -460,6 +474,12 @@ class FlowScreenshots(private val theme: String) {
     @Test fun detailQuickGame() = shoot("detail-quick-game") { Detail(detail(rivalName = "Tom")) }
     @Test fun detailQuickGameSave() = shoot("detail-quick-game-save") {
         SessionDetailContent(detail(rivalName = "Tom"), onBack = {}, onDelete = {}, onSave = {})
+    }
+    @Test fun detailScrolled() {
+        setContent(landscape = false, phone = true) { Detail(detail(long = true)) }
+        compose.onNodeWithTag(FRAME).performTouchInput { swipeUp(durationMillis = 400) }
+        compose.waitForIdle()
+        save("detail-scrolled", compose.onNodeWithTag(FRAME).captureToImage().asAndroidBitmap())
     }
     @Test fun detailMenu() = shoot("detail-menu", steps = { tapIcon("More") }) { Detail(detail()) }
     @Test fun detailDelete() = shoot("detail-delete", steps = { tapIcon("More"); tap("Delete session") }) { Detail(detail()) }

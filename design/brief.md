@@ -177,6 +177,21 @@ Agreed with Kevin in UX phase 3 (`design/ux-plan.md`, Decisions); the mock-ups a
   steps. Nothing on them moves when something else comes and goes: the clock stays centred
   whether Undo shows or not, and the unsynced cloud has its own slot beside the receipt. A double frame (two within 10 s from different phones) is the one amber state on the board.
 
+## What the session detail pass settled (2026-09-27)
+
+Kevin chose "D" from <https://claude.ai/artifact/Mg6t84ekAHKg6EkM7cFwkD>.
+
+- **A score sits over its name.** `HeadToHead` has two layouts and no third: compact (the names
+  grouped under the score, as on Rivalry, Sign in and Invite) and spread (each number at its edge
+  over its player's name, mirrored like the Stats table). Spread can put the label and the time
+  between the two sides, as the session detail does.
+- **The session detail scrolls as one page, and its score folds into the top bar.** Once the
+  scoreboard has scrolled away the date gives way to "KEVIN 1 – 1 LARA" (a crossfade). The page
+  slides under the bar through a 24dp fade in `base`: an edge, not decoration, and not a divider.
+- **Its rhythm:** tight inside a group (4–12dp), 32dp between groups. Each match is a `surface`
+  panel; its frames are seven to a row, as wide as the row allows up to 48dp; its story rows
+  are at least 40dp tall. Stat rows are 48dp everywhere.
+
 ## Open design questions
 
 - The scoreboard has no colour fill, so in a bright room the halves are told apart only by the
