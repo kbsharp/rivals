@@ -16,6 +16,7 @@ object Schema {
     const val ENDED_AT = "endedAt"
     const val VENUE = "venue"
     const val CREATED_BY = "createdBy"
+    const val SCORER_ID = "scorerId"
     const val MATCH_WINS = "matchWins"
     const val RIVALRY_ID = "rivalryId"
     const val NAMES = "names"

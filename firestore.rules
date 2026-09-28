@@ -44,6 +44,19 @@ service cloud.firestore {
       return getAfter(/databases/$(database)/documents/sessions/$(id));
     }
 
+    // One phone records racks: the scorer's. Until someone takes over, it's whoever started it.
+    function scorer(data) {
+      return data.get('scorerId', data.createdBy);
+    }
+
+    // Racks and matches are written by the scorer once the batch is done: so a write that
+    // takes over scoring can carry others, and the other phone's writes are refused. A batch
+    // creating the session (starting one, or saving a guest game) writes its first match too.
+    function scoring(s) {
+      return me() == scorer(sessionAfter(s).data)
+        || !exists(/databases/$(database)/documents/sessions/$(s));
+    }
+
     // Profiles can be fetched one at a time by uid, never listed, so the player base can't be browsed.
     match /players/{uid} {
       allow get: if signedIn();
@@ -133,11 +146,15 @@ service cloud.firestore {
         && isPair(request.resource.data.playerIds)
         && me() in request.resource.data.playerIds
         && request.resource.data.rivalryId == pairId(request.resource.data.playerIds[0], request.resource.data.playerIds[1])
-        && rivalry(request.resource.data.rivalryId).data.status == 'active';
+        && rivalry(request.resource.data.rivalryId).data.status == 'active'
+        && (!('scorerId' in request.resource.data) || request.resource.data.scorerId == me());
+      // Either player can take over scoring (ending the session takes it over too); after
+      // any update, the one who made it is the scorer.
       allow update: if signedIn()
         && me() in resource.data.playerIds
         && request.resource.data.playerIds == resource.data.playerIds
-        && request.resource.data.rivalryId == resource.data.rivalryId;
+        && request.resource.data.rivalryId == resource.data.rivalryId
+        && scorer(request.resource.data) == me();
       allow delete: if signedIn() && me() in resource.data.playerIds;
 
       // Matches and frames carry the session's playerIds, so stats can query them across sessions.
@@ -145,14 +162,16 @@ service cloud.firestore {
         allow read: if signedIn() && inSession(s);
         allow create, update: if signedIn()
           && me() in sessionAfter(s).data.playerIds
-          && request.resource.data.playerIds == sessionAfter(s).data.playerIds;
+          && request.resource.data.playerIds == sessionAfter(s).data.playerIds
+          && scoring(s);
         allow delete: if signedIn() && me() in session(s).data.playerIds;
 
         match /frames/{f} {
           allow read: if signedIn() && inSession(s);
           allow create, update: if signedIn()
             && me() in sessionAfter(s).data.playerIds
-            && request.resource.data.playerIds == sessionAfter(s).data.playerIds;
+            && request.resource.data.playerIds == sessionAfter(s).data.playerIds
+            && scoring(s);
           allow delete: if signedIn() && me() in session(s).data.playerIds;
         }
       }

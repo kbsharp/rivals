@@ -143,6 +143,7 @@ fun SessionScreen(
             onStartMatch = viewModel::startMatch,
             onChangeSettings = viewModel::changeSettings,
             onEndSession = viewModel::endSession,
+            onTakeOver = viewModel::takeOverScoring,
             onDismissResult = viewModel::dismissResult,
             onDismissNotice = viewModel::dismissNotice,
             onResultShown = viewModel::resultShown,
@@ -186,6 +187,7 @@ class SessionActions(
     val onStartMatch: (MatchSettings) -> Unit = {},
     val onChangeSettings: (MatchSettings) -> Unit = {},
     val onEndSession: () -> Unit = {},
+    val onTakeOver: () -> Unit = {},
     val onDismissResult: () -> Unit = {},
     val onDismissNotice: (Notice) -> Unit = {},
     val onResultShown: (String) -> Unit = {},
@@ -303,7 +305,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                         color = Rivals.colors.you,
                         tint = Rivals.colors.youTint,
                         raceTo = match.settings.raceTo,
-                        enabled = result == null,
+                        enabled = result == null && uiState.scoring,
                         onClick = { actions.onRecordFrame(me.uid) },
                         modifier = Modifier.weight(1f).testTag("score-${me.uid}"),
                     )
@@ -312,7 +314,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                         color = Rivals.colors.rival,
                         tint = Rivals.colors.rivalTint,
                         raceTo = match.settings.raceTo,
-                        enabled = result == null,
+                        enabled = result == null && uiState.scoring,
                         onClick = { actions.onRecordFrame(rival.uid) },
                         modifier = Modifier.weight(1f).testTag("score-${rival.uid}"),
                     )
@@ -336,7 +338,8 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     MatchWonPanel(
                         result = shown,
                         youWon = shown.winnerId == me.uid,
-                        canUndo = uiState.canUndo,
+                        canUndo = uiState.canUndo && uiState.scoring,
+                        scoring = uiState.scoring,
                         next = match.settings,
                         winningFrame = receipt?.takeIf { match.framesPlayed == 0 },
                         onTouched = { held = true },
@@ -351,6 +354,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     uiState = uiState,
                     onStart = actions.onStartMatch,
                     onUndo = actions.onUndo,
+                    onTakeOver = actions.onTakeOver,
                 )
             }
             TopBar(
@@ -363,7 +367,7 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
             FootLine(
                 uiState = uiState,
                 tagsOpen = tagsOpen,
-                onReceipt = { tagsOpen = !tagsOpen },
+                onReceipt = { tagsOpen = !tagsOpen && uiState.scoring },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
             if (tagsOpen && receipt != null) {
@@ -385,6 +389,8 @@ internal fun SessionContent(uiState: SessionUiState, actions: SessionActions) {
                     match = match,
                     me = me,
                     rival = rival,
+                    scorerName = uiState.scorerName.takeIf { !uiState.scoring },
+                    onTakeOver = { sheetOpen = false; actions.onTakeOver() },
                     onChange = changeSettings,
                     onEndMatch = { sheetOpen = false; dialog = SessionDialog.END_MATCH },
                     onEndSession = { sheetOpen = false; dialog = SessionDialog.END_SESSION },
@@ -584,7 +590,7 @@ private fun TopBar(
     val rival = uiState.rival ?: return
     val match = uiState.match
     // The match-won and between-matches panels have their own Undo.
-    val undo = uiState.lastFrame?.takeIf { uiState.canUndo && match != null && uiState.justWon == null }
+    val undo = uiState.lastFrame?.takeIf { uiState.canUndo && uiState.scoring && match != null && uiState.justWon == null }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -629,6 +635,11 @@ private fun TopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Space.s16, Alignment.End),
         ) {
+            // On the watching phone, who's scoring, in their colour.
+            val scorer = uiState.scorerName?.takeIf { !uiState.scoring }
+            if (match != null && scorer != null) {
+                Label("$scorer scoring", color = Rivals.colors.rival, maxLines = 1, modifier = Modifier.testTag("scorer"))
+            }
             // Between matches the panel leads with tonight's score, so it isn't repeated here.
             if (match != null) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Label("Session", maxLines = 1)
@@ -700,6 +711,7 @@ private fun FootLine(
                 receipt = receipt,
                 youId = me.uid,
                 open = tagsOpen,
+                enabled = uiState.scoring,
                 onClick = onReceipt,
                 modifier = Modifier.weight(1f, fill = false),
             )
@@ -729,6 +741,7 @@ private fun Receipt(
     receipt: FrameReceipt,
     youId: String,
     open: Boolean,
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -750,7 +763,7 @@ private fun Receipt(
     Box(
         modifier = modifier
             .heightIn(min = Space.touch)
-            .clickable(role = Role.Button, onClickLabel = "Tag rack ${receipt.number}", onClick = onClick)
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = "Tag rack ${receipt.number}", onClick = onClick)
             .testTag("receipt"),
         contentAlignment = Alignment.Center,
     ) {
@@ -819,12 +832,16 @@ private fun TagChips(receipt: FrameReceipt, youId: String, onToggle: (FrameEvent
 /**
  * Behind ≡: this match, and the way out of the night. The game and race change the running
  * match at once, on both phones; End match and, set apart, End session are still confirmed.
+ * On the watching phone ([scorerName] set) the match can't be changed from here; instead the
+ * sheet offers to take over scoring.
  */
 @Composable
 private fun MatchSheet(
     match: Match,
     me: PlayerSide,
     rival: PlayerSide,
+    scorerName: String?,
+    onTakeOver: () -> Unit,
     onChange: (MatchSettings) -> Unit,
     onEndMatch: () -> Unit,
     onEndSession: () -> Unit,
@@ -852,6 +869,22 @@ private fun MatchSheet(
                 "${me.name} ${me.frames} – ${rival.frames} ${rival.name}" + (minutes?.let { " · $it min" } ?: ""),
                 maxLines = 1,
             )
+        }
+        if (scorerName != null) {
+            Text(
+                "$scorerName is scoring on their phone. Take over to record racks, undo, tag and change the match here.",
+                style = Rivals.type.body,
+                color = Rivals.colors.fg2,
+            )
+            Row(
+                Modifier.padding(top = Space.s4),
+                horizontalArrangement = Arrangement.spacedBy(Space.s12),
+            ) {
+                PrimaryButton("Take over scoring", onTakeOver, Modifier.width(240.dp).testTag("take-over"))
+                // As tall as the primary beside it.
+                SecondaryButton("End session", onEndSession, Modifier.width(180.dp).height(52.dp))
+            }
+            return@Column
         }
         // End match sits on the game row and End session on the race row, so each lines up
         // with the chips beside it.
@@ -919,6 +952,8 @@ private fun MatchWonPanel(
     result: MatchResult,
     youWon: Boolean,
     canUndo: Boolean,
+    /** This phone scores: the next match's settings and the winning rack's tags are its to change. */
+    scoring: Boolean,
     next: MatchSettings,
     winningFrame: FrameReceipt?,
     onTouched: () -> Unit,
@@ -966,9 +1001,9 @@ private fun MatchWonPanel(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Space.s12)) {
                     Label("Next")
                     Text(next.describe().replaceFirstChar { it.uppercase() }, style = Rivals.type.rowTitle, color = Rivals.colors.fg)
-                    TextAction("Change", { changing = true; onTouched() }, color = Rivals.colors.fg)
+                    if (scoring) TextAction("Change", { changing = true; onTouched() }, color = Rivals.colors.fg)
                 }
-                if (winningFrame != null) {
+                if (winningFrame != null && scoring) {
                     Label("Tag the winning rack")
                     Row(Modifier.padding(top = Space.s4), horizontalArrangement = Arrangement.spacedBy(Space.s8)) {
                         TagChips(winningFrame, if (youWon) result.winnerId else "") { onTouched(); onToggleTag(it) }
@@ -1063,6 +1098,7 @@ private fun NextMatchPanel(
     uiState: SessionUiState,
     onStart: (MatchSettings) -> Unit,
     onUndo: () -> Unit,
+    onTakeOver: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val defaults = rememberMatchDefaults()
@@ -1097,6 +1133,17 @@ private fun NextMatchPanel(
             modifier = Modifier.width(360.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(Space.s16),
         ) {
+            val scorer = uiState.scorerName
+            if (!uiState.scoring && scorer != null) {
+                Label("Match $number")
+                Text(
+                    "$scorer is scoring, so the next match starts from their phone.",
+                    style = Rivals.type.body,
+                    color = Rivals.colors.fg2,
+                )
+                PrimaryButton("Take over scoring", onTakeOver, Modifier.testTag("take-over"))
+                return@Column
+            }
             MatchSettingsPicker(settings, { settings = it }, gameLabel = "Match $number · game")
             PrimaryButton("Start match $number", {
                 defaults.last = settings

@@ -34,7 +34,7 @@ object GuestClaim {
 
         val sessionWrite = Write.Set(
             SessionDoc(sessionId),
-            session.swap(Schema.CREATED_BY, tallyField = Schema.MATCH_WINS) - Schema.NAMES +
+            session.swap(Schema.CREATED_BY, Schema.SCORER_ID, tallyField = Schema.MATCH_WINS) - Schema.NAMES +
                 (Schema.RIVALRY_ID to rivalryId),
         )
         val matches = docs.filterKeys { it is MatchDoc && it.sessionId == sessionId }

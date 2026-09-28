@@ -11,7 +11,13 @@ import com.kevinbevan.rivals.model.MatchSettings
 import com.kevinbevan.rivals.model.Rivalry
 import com.kevinbevan.rivals.model.Status
 import com.kevinbevan.rivals.model.winsOf
+import com.kevinbevan.rivals.data.isPermissionDenied
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import org.junit.After
@@ -62,17 +68,24 @@ class SyncTest {
         a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid)
         onB.awaitValue("B sees A's frame") { it.value.single().frameWins.winsOf(a.uid) == 1 }
 
-        // Either phone can record.
+        // Only A's phone scores: B's rack is refused, and taken back on B, until B takes over.
+        val refused = async(start = CoroutineStart.UNDISPATCHED) { b.sessions.writeErrors.first() }
+        b.sessions.recordFrame(id, winnerId = b.uid, recordedBy = b.uid)
+        assertTrue(withTimeout(15.seconds) { refused.await() }.isPermissionDenied())
+        onB.awaitValue("B's refused rack is taken back") { it.value.single().frameWins.winsOf(b.uid) == 0 }
+
+        b.sessions.takeOverScoring(id, b.uid)
+        a.sessions.observeSession(id).awaitValue("A sees B take over") { it.value?.scorerId == b.uid }
         b.sessions.recordFrame(id, winnerId = b.uid, recordedBy = b.uid)
         onA.awaitValue("A sees B's frame") { it.value.single().frameWins.winsOf(b.uid) == 1 }
 
-        // A reaches the race: match 1 ends and match 2 starts, in one write.
-        a.sessions.recordFrame(id, winnerId = a.uid, recordedBy = a.uid)
-        val ended = onB.awaitValue("B sees match 1 end and match 2 start") { it.value.size == 2 }.value
+        // A reaches the race, recorded on B: match 1 ends and match 2 starts, in one write.
+        b.sessions.recordFrame(id, winnerId = a.uid, recordedBy = b.uid)
+        val ended = onA.awaitValue("A sees match 1 end and match 2 start") { it.value.size == 2 }.value
         assertEquals(Status.ENDED, ended[0].status)
         assertEquals(a.uid, ended[0].winnerId)
         assertEquals(Status.ACTIVE, ended[1].status)
-        b.sessions.observeSession(id).awaitValue("B sees A's match win") {
+        a.sessions.observeSession(id).awaitValue("A sees their match win") {
             it.value?.matchWins?.winsOf(a.uid) == 1
         }
 
@@ -86,9 +99,9 @@ class SyncTest {
             it.value?.matchWins?.winsOf(a.uid) == 0
         }
 
-        // B ends the session; A's screen would see it and leave.
-        b.sessions.endSession(id)
-        a.sessions.observeSession(id).awaitValue("A sees the session end") { it.value?.status == Status.ENDED }
+        // A, only watching now, can still end the session; B's screen would see it and leave.
+        a.sessions.endSession(id, endedBy = a.uid)
+        b.sessions.observeSession(id).awaitValue("B sees the session end") { it.value?.status == Status.ENDED }
     }
 
     @Test

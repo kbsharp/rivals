@@ -50,6 +50,7 @@ invites/{code}                                // link: rivals-15bd9.web.app/invi
 sessions/{sessionId}
   playerIds, rivalryId, status: "active" | "ended"
   startedAt, endedAt?, venue?, createdBy
+  scorerId?                                   // the one phone that scores; absent = createdBy
   matchWins: { uidA: n, uidB: n }             // denormalised tally
 sessions/{id}/matches/{matchId}               // race to N frames
   number                                      // 1-based within session
@@ -70,7 +71,7 @@ sessions/{id}/matches/{id}/frames/{frameId}
 
 ## Security rules and indexes
 
-`firestore.rules` (with `firebase.json`, deployed via Firebase CLI) is membership-based: any Google user can sign in; a player reads/writes only their own profile and email entry, their rivalries, and sessions (with matches/frames) they play in. Sessions can only be created in an active rivalry between exactly its two players. Profiles and emails are get-by-id, never listable. `rules-test/rules.test.js` covers this; its documents mirror what repositories write, so update them when writes change (`SyncTest` proves real writes pass).
+`firestore.rules` (with `firebase.json`, deployed via Firebase CLI) is membership-based: any Google user can sign in; a player reads/writes only their own profile and email entry, their rivalries, and sessions (with matches/frames) they play in. Sessions can only be created in an active rivalry between exactly its two players. Only the scorer writes matches and frames; any session update must leave the writer as scorer, so either player can take over (ending the session takes over too). Profiles and emails are get-by-id, never listable. `rules-test/rules.test.js` covers this; its documents mirror what repositories write, so update them when writes change (`SyncTest` proves real writes pass).
 
 The emulator doesn't enforce indexes. `firestore.indexes.json` holds what the app needs (Stats' collection-group queries on `matches`/`frames` by `playerIds`); add any new collection-group/compound query there and `firebase deploy --only firestore:indexes`.
 
@@ -85,6 +86,7 @@ Show a clear message when Firestore refuses something; never fail silently.
    - Top line: back arrow + match/game/race left; clock centred with one-tap Undo beside it; session score and ≡ right. Foot: only the last rack's receipt, centred, unsynced cloud in a fixed slot beside it. Nothing on the centre line.
    - Actions (see `design/brief.md`, "Where actions live"): last rack's tags (break & run, golden break, won on three fouls) on its receipt, closing on choice; game, race, End match and End session in the ≡ match sheet; next match's settings and the winning rack's tags in the match-won panel.
    - Any score change is announced on both phones; messages replace the receipt, never cover a button.
+   - One phone scores (`scorerId`); the other watches: live board, no scoring taps, Undo, tags or match settings. "Take over scoring" is in its ≡ sheet (and between matches, on the next-match panel); both phones announce the change. Either can end the session.
    - Back (arrow or gesture) goes Home, never ends the session. Ending shows a final panel on both phones, then Home.
    - Match won: board dims, panel names the winner, with Undo.
    - Keep it clean; no new on-screen controls without a strong reason.

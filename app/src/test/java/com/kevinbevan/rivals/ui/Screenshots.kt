@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -85,7 +86,13 @@ class Screenshots {
         const val FRAME = "screenshot-frame"
     }
 
-    private fun shoot(name: String, dark: Boolean, landscape: Boolean = false, content: @Composable () -> Unit) {
+    private fun shoot(
+        name: String,
+        dark: Boolean,
+        landscape: Boolean = false,
+        then: () -> Unit = {},
+        content: @Composable () -> Unit,
+    ) {
         compose.setContent {
             Themed(dark) {
                 if (landscape) {
@@ -104,6 +111,7 @@ class Screenshots {
                 }
             }
         }
+        then()
         val node = if (landscape) compose.onNodeWithTag(FRAME) else compose.onRoot()
         save(name, dark, node.captureToImage().asAndroidBitmap())
     }
@@ -178,6 +186,12 @@ class Screenshots {
     @Test fun sessionLight() = shoot("session", dark = false, landscape = true) { SessionScreen() }
     @Test fun sessionDark() = shoot("session", dark = true, landscape = true) { SessionScreen() }
     @Test fun sessionBetweenMatchesDark() = shoot("session-next", dark = true, landscape = true) { SessionScreen(running = false) }
+    @Test fun sessionWatchingDark() = shoot("session-watching", dark = true, landscape = true) { SessionScreen(watching = true) }
+    @Test fun sessionWatchingSheetDark() = shoot(
+        "session-watching-sheet", dark = true, landscape = true,
+        then = { compose.onNodeWithContentDescription("Game menu").performClick() },
+    ) { SessionScreen(watching = true) }
+    @Test fun sessionWatchingNextDark() = shoot("session-watching-next", dark = true, landscape = true) { SessionScreen(running = false, watching = true) }
     @Test fun sessionMatchWonDark() = shoot("session-won", dark = true, landscape = true) { MatchWonScreen() }
     @Test fun signInDark() = shoot("sign-in", dark = true) { SignInContent(SignInUiState(), {}, {}, {}) }
     @Test fun inviteDark() = shoot("invite", dark = true) {
@@ -248,7 +262,7 @@ class Screenshots {
         {}, {}, {}, {}, {}, {},
     )
 
-    @Composable private fun SessionScreen(running: Boolean = true) = SessionContent(
+    @Composable private fun SessionScreen(running: Boolean = true, watching: Boolean = false) = SessionContent(
         SessionUiState(
             loading = false,
             me = PlayerSide("a", "Kevin", frames = 4, matches = 2),
@@ -257,9 +271,11 @@ class Screenshots {
                 "m", 4, MatchSettings(GameType.NINE_BALL, 5), Status.ACTIVE, mapOf("a" to 4, "b" to 2),
                 startedAt = Instant.now().minusSeconds(754),
             ).takeIf { running },
-            lastFrame = FrameReceipt(6, "a", "Kevin", theirPhone = false, events = emptySet()),
+            lastFrame = FrameReceipt(6, "a", "Kevin", theirPhone = watching, events = emptySet()),
             canUndo = true,
-            pendingSync = true,
+            pendingSync = !watching,
+            scoring = !watching,
+            scorerName = "Julian".takeIf { watching },
         ),
         SessionActions(),
     )

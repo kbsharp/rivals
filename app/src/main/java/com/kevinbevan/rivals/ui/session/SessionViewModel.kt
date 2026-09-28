@@ -14,6 +14,7 @@ import com.kevinbevan.rivals.domain.highlightsOf
 import com.kevinbevan.rivals.model.MatchWithFrames
 import com.kevinbevan.rivals.model.Session
 import com.kevinbevan.rivals.data.Synced
+import com.kevinbevan.rivals.data.isPermissionDenied
 import com.kevinbevan.rivals.model.Frame
 import com.kevinbevan.rivals.model.FrameEvent
 import com.kevinbevan.rivals.model.Match
@@ -37,11 +38,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.runningFold
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -125,6 +129,13 @@ data class SessionUiState(
     /** The match just won, while the panel is still up; `null` once it's been seen. */
     val justWon: MatchResult? = null,
     val canUndo: Boolean = false,
+    /**
+     * This phone records the racks. The other player's phone watches: the same board, live,
+     * but its halves don't score and it has no Undo, tags or match settings until it takes over.
+     */
+    val scoring: Boolean = true,
+    /** Who's scoring, when it isn't this phone. */
+    val scorerName: String? = null,
     /** Some of what's on screen is saved on this phone but not yet on the server. */
     val pendingSync: Boolean = false,
     /** Shown on the status line in place of the receipt; cleared by [SessionViewModel.dismissNotice]. */
@@ -181,7 +192,9 @@ class SessionViewModel(
 
     private val matches = sessionRepository.observeMatches(sessionId)
 
+    // Shared: the board and the scorer announcements both listen to it.
     private val session = sessionRepository.observeSession(sessionId)
+        .shareIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), replay = 1)
 
     private val names = session
         .map { it.value }
@@ -189,6 +202,7 @@ class SessionViewModel(
         .flatMapLatest { s -> if (s == null) flowOf(emptyMap()) else sessionRepository.observeNames(s) }
 
     private var createdBy: String? = null
+    private var scorerId: String? = null
 
     // Frames of the latest two matches, latest first, by match id: the last frame is the one
     // events are tagged on, which may be the previous match's winner; both are kept in the
@@ -262,6 +276,7 @@ class SessionViewModel(
         val s = session.value
         if (s == null || local.exited) return@combine SessionUiState(loading = false, ended = true)
         createdBy = s.createdBy
+        scorerId = s.scorerId
         val myId = currentUid().takeIf { !guest }?.takeIf { it in s.playerIds } ?: s.playerIds.firstOrNull().orEmpty()
         val rivalId = s.playerIds.firstOrNull { it != myId }.orEmpty()
 
@@ -334,6 +349,8 @@ class SessionViewModel(
                 )
             },
             canUndo = latestFirst.take(2).any { it.framesPlayed > 0 },
+            scoring = guest || s.scorerId == myId,
+            scorerName = s.scorerId.takeIf { !guest && it != myId }?.let { if (it == rivalId) rivalSide.name else "Your rival" },
             pendingSync = session.hasPendingWrites || matches.hasPendingWrites || board.recent.any { it.second.hasPendingWrites },
             // The newest of the two, until it's been shown for long enough.
             notice = listOfNotNull(local.notice, board.undone?.let { undoNotice(it, me, rivalSide) })
@@ -347,12 +364,28 @@ class SessionViewModel(
     init {
         viewModelScope.launch {
             sessionRepository.writeErrors.collect {
-                warn(if (guest) "Couldn't save the game on this phone: ${messageFor(it)}" else "Couldn't save to the server: ${messageFor(it)}")
+                val scorer = uiState.value.scorerName
+                warn(
+                    when {
+                        guest -> "Couldn't save the game on this phone: ${messageFor(it)}"
+                        // Written here while the other phone took over: its racks stand, not these.
+                        scorer != null && it.isPermissionDenied() -> "$scorer took over scoring, so that wasn't saved"
+                        else -> "Couldn't save to the server: ${messageFor(it)}"
+                    },
+                )
             }
+        }
+        // Both phones say when scoring changes hands.
+        if (!guest) viewModelScope.launch {
+            session.mapNotNull { it.value?.takeIf { s -> s.status == Status.ACTIVE }?.scorerId }
+                .distinctUntilChanged()
+                .drop(1)
+                .collect { uid -> say(if (uid == currentUid()) "You're scoring now" else "${nameOf(uid)} is scoring now") }
         }
     }
 
     fun recordFrame(winnerId: String) = act {
+        if (!uiState.value.scoring) return@act say("${uiState.value.scorerName} is scoring")
         val recordedBy = (if (guest) createdBy else currentUid())
             ?: return@act warn("Sign in again to record racks")
         // A won match is announced by the panel on the board, not by a snackbar.
@@ -385,7 +418,15 @@ class SessionViewModel(
 
     /** Ends the night: the full-time panel follows on both phones, or, if nothing was played, Home. */
     fun endSession() = act {
-        if (sessionRepository.endSession(sessionId)) local.update { it.copy(exited = true) }
+        if (sessionRepository.endSession(sessionId, endedBy = currentUid().takeIf { !guest })) {
+            local.update { it.copy(exited = true) }
+        }
+    }
+
+    /** Makes this phone the one that records racks; the other phone goes to watching. */
+    fun takeOverScoring() = act {
+        val me = currentUid().takeIf { !guest } ?: return@act
+        sessionRepository.takeOverScoring(sessionId, me)
     }
 
     /** The match-won panel for [matchId] is on screen: leaving and coming back won't show it again. */

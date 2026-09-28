@@ -77,6 +77,43 @@ class SessionUiTest {
     }
 
     @Test
+    fun theWatchingPhoneShowsTheBoardButDoesntScore() {
+        val recorded = mutableListOf<String>()
+        var tookOver = 0
+        var undone = 0
+        show(
+            state().copy(scoring = false, scorerName = "Julian"),
+            SessionActions(onRecordFrame = { recorded += it }, onTakeOver = { tookOver++ }, onUndo = { undone++ }),
+        )
+        compose.onNodeWithTag("scorer").assertTextEquals("JULIAN SCORING")
+        compose.onNodeWithTag("score-a").performClick()
+        compose.onNodeWithTag("score-b").performClick()
+        assertEquals(emptyList<String>(), recorded)
+        compose.onNodeWithTag("undo").assertDoesNotExist()
+        compose.onNodeWithTag("receipt").performClick()
+        compose.onNodeWithTag("tags").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Game menu").performClick()
+        compose.onNodeWithText("Julian is scoring on their phone", substring = true).assertIsDisplayed()
+        compose.onNode(hasClickLabel("One more rack")).assertDoesNotExist()
+        compose.onNodeWithTag("take-over").performClick()
+        assertEquals(1, tookOver)
+        assertEquals(0, undone)
+    }
+
+    @Test
+    fun betweenMatchesTheWatchingPhoneCanTakeOverButNotStart() {
+        var tookOver = 0
+        show(
+            state(a = 0, b = 0).copy(match = null, scoring = false, scorerName = "Julian", nextMatchNumber = 3),
+            SessionActions(onTakeOver = { tookOver++ }),
+        )
+        compose.onNodeWithText("Start match 3").assertDoesNotExist()
+        compose.onNodeWithTag("take-over").performClick()
+        assertEquals(1, tookOver)
+    }
+
+    @Test
     fun theScoreRaceAndHillAreShown() {
         show(state(a = 4, b = 2))
         // The status line is one label along the foot of the board, and labels are uppercase.

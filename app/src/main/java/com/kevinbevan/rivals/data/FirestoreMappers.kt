@@ -34,6 +34,7 @@ fun sessionFrom(id: String, d: Map<String, Any?>) = Session(
     endedAt = instant(d[Schema.ENDED_AT]),
     venue = d[Schema.VENUE] as? String,
     createdBy = d[Schema.CREATED_BY] as? String ?: "",
+    scorerId = d[Schema.SCORER_ID] as? String ?: d[Schema.CREATED_BY] as? String ?: "",
     matchWins = tally(d[Schema.MATCH_WINS]),
     rivalryId = d[Schema.RIVALRY_ID] as? String,
     names = (d[Schema.NAMES] as? Map<*, *>).orEmpty().entries

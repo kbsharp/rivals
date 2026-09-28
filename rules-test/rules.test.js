@@ -162,6 +162,65 @@ describe('rivalries', () => {
     });
 });
 
+describe('scoring', () => {
+    const match = (me, rival) => ({ playerIds: [me, rival], number: 1, status: 'active', frameWins: { [me]: 0, [rival]: 0 } });
+    const frame = (me, rival, winnerId, recordedBy) => ({ playerIds: [me, rival], number: 1, winnerId, recordedBy });
+
+    /** RivalryRepository.startSession: the session and its first match in one batch. */
+    async function start() {
+        await becomeRivals();
+        const a = as(A);
+        await writeBatch(a)
+            .set(doc(a, 'sessions', 's'), session(A.uid, B.uid))
+            .set(doc(a, 'sessions/s/matches/m'), match(A.uid, B.uid))
+            .commit();
+    }
+
+    test('only the scorer records racks, until the other player takes over', async () => {
+        await start();
+        await assertSucceeds(setDoc(doc(as(A), 'sessions/s/matches/m/frames/f1'), frame(A.uid, B.uid, A.uid, A.uid)));
+        await assertFails(setDoc(doc(as(B), 'sessions/s/matches/m/frames/f2'), frame(A.uid, B.uid, B.uid, B.uid)));
+        await assertFails(updateDoc(doc(as(B), 'sessions/s/matches/m'), { raceTo: 7 }));
+        await assertFails(updateDoc(doc(as(B), 'sessions', 's'), { matchWins: { [A.uid]: 0, [B.uid]: 1 } }));
+
+        await assertSucceeds(updateDoc(doc(as(B), 'sessions', 's'), { scorerId: B.uid }));
+        await assertSucceeds(setDoc(doc(as(B), 'sessions/s/matches/m/frames/f2'), frame(A.uid, B.uid, B.uid, B.uid)));
+        // A's phone, still writing as if it scored, is refused.
+        await assertFails(setDoc(doc(as(A), 'sessions/s/matches/m/frames/f3'), frame(A.uid, B.uid, A.uid, A.uid)));
+        await assertFails(updateDoc(doc(as(A), 'sessions/s/matches/m'), { raceTo: 7 }));
+        // A can take it back, but nobody can hand scoring to someone else, or to a stranger.
+        await assertFails(updateDoc(doc(as(B), 'sessions', 's'), { scorerId: A.uid }));
+        await assertFails(updateDoc(doc(as(STRANGER), 'sessions', 's'), { scorerId: STRANGER.uid }));
+        await assertSucceeds(updateDoc(doc(as(A), 'sessions', 's'), { scorerId: A.uid }));
+    });
+
+    test('either player can end the session, which takes over scoring', async () => {
+        await start();
+        const b = as(B);
+        const end = (scorer) => writeBatch(b)
+            .update(doc(b, 'sessions/s/matches/m'), { status: 'ended' })
+            .update(doc(b, 'sessions', 's'), { status: 'ended', endedAt: serverTimestamp(), ...scorer })
+            .commit();
+        await assertFails(end({}));
+        await assertSucceeds(end({ scorerId: B.uid }));
+    });
+
+    test("a session can't be started with someone else scoring", async () => {
+        await becomeRivals();
+        await assertFails(setDoc(doc(as(A), 'sessions', 's'), { ...session(A.uid, B.uid), scorerId: B.uid }));
+    });
+
+    test("a guest game saved to a rivalry can carry the rival as its creator", async () => {
+        await becomeRivals();
+        const a = as(A);
+        await assertSucceeds(writeBatch(a)
+            .set(doc(a, 'sessions', 's'), { ...session(B.uid, A.uid, pairId(A.uid, B.uid)), status: 'ended' })
+            .set(doc(a, 'sessions/s/matches/m'), match(B.uid, A.uid))
+            .set(doc(a, 'sessions/s/matches/m/frames/f'), frame(B.uid, A.uid, A.uid, B.uid))
+            .commit());
+    });
+});
+
 describe('invite links', () => {
     test('an invite can be read signed out but only used once', async () => {
         await assertSucceeds(createInvite(as(A), A, 'CODE2345'));

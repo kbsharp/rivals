@@ -17,4 +17,6 @@ data class Session(
     val rivalryId: String? = null,
     /** Typed-in names, keyed by player id. Only guest games have them; rivals use their profiles. */
     val names: Map<String, String> = emptyMap(),
+    /** The one phone that records racks: its player's uid. Absent in Firestore until someone takes over. */
+    val scorerId: String = createdBy,
 )

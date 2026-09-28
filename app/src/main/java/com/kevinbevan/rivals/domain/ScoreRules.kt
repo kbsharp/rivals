@@ -229,9 +229,11 @@ class ScoreRules(private val newId: () -> String) {
      * If no frame was played all night, the session is deleted outright rather than leaving a
      * 0–0 night in the history.
      *
+     * Ending a rival's session also makes [endedBy] the scorer, so either phone can end it.
+     *
      * @param matches every match in the session.
      */
-    fun endSession(session: Session, matches: List<Match>): WritePlan {
+    fun endSession(session: Session, matches: List<Match>, endedBy: String? = null): WritePlan {
         check(session.status == Status.ACTIVE) { "Session ${session.id} has already ended" }
         if (matches.all { it.framesPlayed == 0 }) {
             return matches.map { Write.Delete(MatchDoc(session.id, it.id)) } +
@@ -248,12 +250,19 @@ class ScoreRules(private val newId: () -> String) {
         }
         plan += Write.Update(
             SessionDoc(session.id),
-            mapOf(
-                Schema.STATUS to Status.ENDED.wire,
-                Schema.ENDED_AT to FieldOp.ServerTimestamp,
-            ),
+            buildMap {
+                put(Schema.STATUS, Status.ENDED.wire)
+                put(Schema.ENDED_AT, FieldOp.ServerTimestamp)
+                if (endedBy != null && endedBy != session.scorerId) put(Schema.SCORER_ID, endedBy)
+            },
         )
         return plan
+    }
+
+    /** [uid] records the racks from now on; the other phone watches. */
+    fun takeOverScoring(session: Session, uid: String): WritePlan {
+        require(uid in session.playerIds) { "Only a player can score" }
+        return listOf(Write.Update(SessionDoc(session.id), mapOf(Schema.SCORER_ID to uid)))
     }
 
     /**

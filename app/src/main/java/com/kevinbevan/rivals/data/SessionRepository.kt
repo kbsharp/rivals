@@ -144,12 +144,18 @@ class SessionRepository(
      * Ends the session. Returns true if nothing had been played, so it was deleted instead;
      * see [ScoreRules.endSession].
      */
-    suspend fun endSession(sessionId: String): Boolean = mutex.withLock {
+    suspend fun endSession(sessionId: String, endedBy: String? = null): Boolean = mutex.withLock {
         val session = store.loadSession(sessionId)
         if (session.status == Status.ENDED) return false
         val matches = store.loadMatches(sessionId)
-        store.commit(rules.endSession(session, matches))
+        store.commit(rules.endSession(session, matches, endedBy))
         matches.all { it.framesPlayed == 0 }
+    }
+
+    /** Makes [uid]'s phone the one that records racks. */
+    suspend fun takeOverScoring(sessionId: String, uid: String): Unit = mutex.withLock {
+        val session = store.loadSession(sessionId)
+        if (session.scorerId != uid) store.commit(rules.takeOverScoring(session, uid))
     }
 
     /** Deletes a finished session with all its matches and frames. */

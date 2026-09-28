@@ -47,13 +47,13 @@ class SessionViewModelTest {
     }
 
     /** A night between Kevin (this phone, [a]) and Julian (the other phone, [b]). */
-    private fun TestScope.board(guest: Boolean = false, raceTo: Int = 5): Board {
+    private fun TestScope.board(guest: Boolean = false, raceTo: Int = 5, me: String = a): Board {
         val store = LocalSessionStore(null, now = { clock }, scope = this)
         val sessions = SessionRepository(store, rules)
         val seen = SeenResults()
         val id = GuestRepository(store, rules).startGame("Kevin" to "Julian", MatchSettings(GameType.NINE_BALL, raceTo = raceTo))
         fun open(): SessionViewModel {
-            val vm = SessionViewModel(id, guest = guest, currentUid = { a }, sessionRepository = sessions, seenResults = seen)
+            val vm = SessionViewModel(id, guest = guest, currentUid = { me }, sessionRepository = sessions, seenResults = seen)
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect {} }
             advanceUntilIdle()
             return vm
@@ -237,6 +237,49 @@ class SessionViewModelTest {
         advanceUntilIdle()
         assertTrue(board.state.ended)
         assertNull(board.state.fullTime)
+    }
+
+    @Test
+    fun theOtherPhoneWatchesUntilItTakesOver() = runTest {
+        // Kevin ([a]) started the night; this is Julian's phone.
+        val board = board(me = b)
+        assertFalse(board.state.scoring)
+        assertEquals("Kevin", board.state.scorerName)
+
+        board.vm.recordFrame(b)
+        advanceUntilIdle()
+        assertEquals(0, board.state.me!!.frames)
+        assertEquals("Kevin is scoring", board.state.notice?.text)
+
+        board.vm.takeOverScoring()
+        advanceUntilIdle()
+        assertTrue(board.state.scoring)
+        assertNull(board.state.scorerName)
+        assertEquals("You're scoring now", board.state.notice?.text)
+        board.vm.recordFrame(b)
+        advanceUntilIdle()
+        assertEquals(1, board.state.me!!.frames)
+    }
+
+    @Test
+    fun takingOverOnTheOtherPhoneIsAnnouncedHere() = runTest {
+        val board = board()
+        assertTrue(board.state.scoring)
+        board.other.takeOverScoring(board.id, b)
+        advanceUntilIdle()
+        assertFalse(board.state.scoring)
+        assertEquals("Julian", board.state.scorerName)
+        assertEquals("Julian is scoring now", board.state.notice?.text)
+    }
+
+    @Test
+    fun theWatchingPhoneCanStillEndTheNight() = runTest {
+        val board = board(me = b)
+        board.other.recordFrame(board.id, a, recordedBy = a)
+        advanceUntilIdle()
+        board.vm.endSession()
+        advanceUntilIdle()
+        assertNotNull(board.state.fullTime)
     }
 
     @Test

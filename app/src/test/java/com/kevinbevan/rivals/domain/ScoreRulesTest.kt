@@ -369,6 +369,26 @@ class ScoreRulesTest {
         }
     }
 
+    // Scoring
+
+    @Test
+    fun theStarterScoresUntilTheOtherPlayerTakesOver() {
+        val id = start()
+        assertEquals(a, store.session(id).scorerId)
+        store.apply(rules.takeOverScoring(store.session(id), b))
+        assertEquals(b, store.session(id).scorerId)
+        assertThrows(IllegalArgumentException::class.java) { rules.takeOverScoring(store.session(id), "stranger") }
+    }
+
+    @Test
+    fun endingASessionFromTheWatchingPhoneTakesOverScoring() {
+        val id = start()
+        win(id, a)
+        store.apply(rules.endSession(store.session(id), store.matches(id), endedBy = b))
+        assertEquals(Status.ENDED, store.session(id).status)
+        assertEquals(b, store.session(id).scorerId)
+    }
+
     // endSession
 
     @Test
